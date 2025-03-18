@@ -1,0 +1,18 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+dist/
+
+# Environments
+venv/
+
+# Config testing and notes
+config
+config/
+config.yaml
+NOTES

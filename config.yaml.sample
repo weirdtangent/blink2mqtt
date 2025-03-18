@@ -1,0 +1,28 @@
+mqtt:
+  host: 10.10.10.1
+  port: 1883
+  username: mqtt
+  password: password
+  qos: 0
+  prefix: blink2mqtt
+  home_assistant: True
+  discovery_prefix: homeassistant
+  tls_enabled: False
+  tls_ca_cert: filename
+  tls_cert: filename
+  tls_key: string
+
+blink:
+  hosts:
+    - 10.10.10.20
+    - camera2.local
+  names:
+    - camera.doorbell
+    - camera.patio
+  username: admin
+  password: password
+  storage_update_interval: 900
+  snapshot_update_interval: 60
+
+timezone: America/New_York
+hide_ts: False
