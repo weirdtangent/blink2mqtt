@@ -91,36 +91,6 @@ logger.info(f'Starting: blink2mqtt v{version}')
 logger.info(f'Config loaded from {config["config_from"]}')
 
 # Check for required config properties
-if config['blink']['hosts'] is None:
-    logger.error('Missing env var: BLINK_HOSTS or blink.hosts in config')
-    exit(1)
-config['blink']['host_count'] = len(config['blink']['hosts'])
-
-if config['blink']['names'] is None:
-    logger.error('Missing env var: BLINK_NAMES or blink.names in config')
-    exit(1)
-config['blink']['name_count'] = len(config['blink']['names'])
-
-if config['blink']['host_count'] != config['blink']['name_count']:
-    logger.error('The BLINK_HOSTS and BLINK_NAMES must have the same number of space-delimited hosts/names')
-    exit(1)
-logger.info(f'Found {config["blink"]["host_count"]} host(s) defined to monitor')
-
-if 'webrtc' in config['blink']:
-    webrtc = config['blink']['webrtc']
-    if 'host' not in webrtc:
-        logger.error('Missing HOST in webrtc config')
-        exit(1)
-    if 'sources' not in webrtc:
-        logger.error('Missing SOURCES in webrtc config')
-        exit(1)
-    config['blink']['webrtc_sources_count'] = len(config['blink']['webrtc']['sources'])
-    if config['blink']['host_count'] != config['blink']['webrtc_sources_count']:
-        logger.error('The BLINK_HOSTS and BLINK_WEBRTC_SOURCES must have the same number of space-delimited hosts/names')
-        exit(1)
-    if 'port' not in webrtc: webrtc['port'] = 1984
-    if 'link' not in webrtc: webrtc['link'] = 'stream.html'
-
 if config['blink']['password'] is None:
     logger.error('Please set the BLINK_PASSWORD environment variable')
     exit(1)
