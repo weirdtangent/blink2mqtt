@@ -31,9 +31,6 @@ WORKDIR /usr/src/app
 COPY . .
 COPY --from=builder /usr/src/app/.venv .venv
 
-RUN mkdir /config
-RUN touch /config/config.yaml
-
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 
@@ -41,10 +38,8 @@ RUN addgroup --gid $GROUP_ID appuser && \
     adduser --uid $USER_ID --gid $GROUP_ID --disabled-password --gecos "" appuser
 
 RUN chown -R appuser:appuser .
-RUN chown appuser:appuser /config
-RUN chmod 0775 /config
-RUN chown appuser:appuser /config/*
-RUN chmod 0664 /config/*
+RUN chown -R appuser:appuser /config
+RUN chmod -R 0777 /config
 
 USER appuser
 

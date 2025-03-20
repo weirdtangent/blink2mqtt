@@ -76,9 +76,14 @@ class BlinkAPI(object):
                     await self.blinkc.setup_post_verify()
                     try:
                         os.remove(self.config_path + 'key.txt')
-                    except Exception:
+                    except Exception as err:
+                        self.logger.error(f'Failed to delete key.txt file: {err}')
                         pass
-                    await self.blinkc.save(self.config_path + 'blinkc.cred')
+                    try:
+                        await self.blinkc.save(self.config_path + 'blinkc.cred')
+                    except Exception as err:
+                        self.logger.error(f'Failed to write credential file: {err}')
+                        pass
                     return
                 seconds += 1
                 await asyncio.sleep(1)
