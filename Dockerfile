@@ -39,6 +39,8 @@ RUN addgroup --gid $GROUP_ID appuser && \
 
 RUN chown -R appuser:appuser .
 
+RUN mkdir /config && chown appuser:appuser /config && chmod 777 /config
+
 USER appuser
 
 ENV PATH="/usr/src/app/.venv/bin:$PATH"
