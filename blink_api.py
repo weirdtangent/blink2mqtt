@@ -45,11 +45,11 @@ class BlinkAPI(object):
         self.blinkc = Blink(session=self.session)
 
         need2fa = False
-        if os.path.exists(self.config_path + '/blinkc.cred'):
-            auth = Auth(await json_load(self.config_path + '/blinkc.cred'), no_prompt=True)
+        if os.path.exists(self.config_path + 'blinkc.cred'):
+            auth = Auth(await json_load(self.config_path + 'blinkc.cred'), no_prompt=True)
             if auth.login_attributes["token"] is None:
                 self.logger.error('Failed to auth with credential file. Removing bad file and retrying')
-                os.remove(self.config_path + '/blinkc.cred')
+                os.remove(self.config_path + 'blinkc.cred')
                 auth = Auth({
                     'username': self.blink_config['username'],
                     'password': self.blink_config['password'],
@@ -69,29 +69,29 @@ class BlinkAPI(object):
             self.logger.warn('The 2fa key from Blink will be needed. Save the key as filename key.txt in your config directory and I will wait up to 5 minutes for you to do this.')
             seconds = 0
             while seconds < 600:
-                if os.path.exists(self.config_path + '/key.txt'):
+                if os.path.exists(self.config_path + 'key.txt'):
                     self.logger.info('I see the key.txt file, sending the key to Blink and deleting that file')
-                    key = read_file('config/key.txt').strip()
-                    os.remove(self.config_path + '/key.txt')
+                    key = read_file(self.config_path + 'key.txt').strip()
                     await auth.send_auth_key(self.blinkc, key)
                     await self.blinkc.setup_post_verify()
+                    os.remove(self.config_path + 'key.txt')
                     await self.blinkc.save(self.config_path + "/blinkc.cred")
                     return
                 seconds += 1
                 await asyncio.sleep(1)
 
             self.logger.error('I did not see the key.txt file in time. Please try again')
-            if os.path.exists(self.config_path + '/blinkc.cred'):
-                os.remove(self.config_path + '/blinkc.cred')
-            if os.path.exists(self.config_path + '/key.txt'):
-                os.remove(self.config_path + '/key.txt')
+            if os.path.exists(self.config_path + 'blinkc.cred'):
+                os.remove(self.config_path + 'blinkc.cred')
+            if os.path.exists(self.config_path + 'key.txt'):
+                os.remove(self.config_path + 'key.txt')
                 os._exit(1)
 
         # can we just go ahead and save this now?
-        await self.blinkc.save(self.config_path + '/blinkc.cred')
+        await self.blinkc.save(self.config_path + 'blinkc.cred')
 
     async def disconnect(self):
-        await self.blinkc.save(self.config_path + '/blinkc.cred')
+        await self.blinkc.save(self.config_path + 'blinkc.cred')
         await self.session.close()
 
     async def get_cameras(self):
