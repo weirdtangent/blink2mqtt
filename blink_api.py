@@ -71,8 +71,11 @@ class BlinkAPI(object):
                     'sync_module': attributes['sync_module'],
                     'arm_mode': attributes['motion_enabled'],
                     'motion': attributes['motion_detected'],
+                    'temperature': attributes['temperature'],
+                    'battery': attributes['battery'],
+                    'battery_voltage': attributes['battery_voltage'],
                     'wifi_strength': attributes['wifi_strength'],
-                    'sync_signal_strength': attributes['sync_signal_strength'],
+                    'sync_strength': attributes['sync_signal_strength'],
                 }
             }
 
@@ -101,48 +104,25 @@ class BlinkAPI(object):
 
         return self.sync_modules
 
-    # Arm config ----------------------------------------------------------------------------------
-
-    def get_camera_arm_mode(self, device_id):
-        name = self.devices[device_id]['config']['device_name']
-        device = self.blinkc.cameras[name]
-
-        try:
-            arm_mode = device.arm
-            self.devices[device_id]['config']['arm_mode'] = arm_mode
-        except CommError as err:
-            self.logger.error(f'Failed to communicate with device ({device_id}) to get alarm mode')
-        except LoginError as err:
-            self.logger.error(f'Failed to authenticate with device ({device_id}) to get alarm mode')
-
-        return arm_mode
-
-    def get_sync_module_arm_mode(self, device_id):
-        name = self.sync_modules[device_id]['config']['device_name']
-        device = self.blinkc.sync[name]
-
-        try:
-            arm_mode = device.arm
-            self.sync_modules[device_id]['config']['arm_mode'] = arm_mode
-        except CommError as err:
-            self.logger.error(f'Failed to communicate with device ({device_id}) to get alarm mode')
-        except LoginError as err:
-            self.logger.error(f'Failed to authenticate with device ({device_id}) to get alarm mode')
-
-        return arm_mode
-
+    # Arm mode  ----------------------------------------------------------------------------------0
 
     async def set_arm_mode(self, device_id, switch):
-        device = self.devices[device_id]
+        if device_id in self.devices:
+            name = self.devices[device_id]['config']['device_name']
+            device = self.blinkc.cameras[name]
+        else:
+            name = self.sync_modules[device_id]['config']['device_name']
+            device = self.blinkc.sync[name]
 
         try:
-            response = device['camera'].async_arm(switch)
-            self.logger.info(f'SET ARM MODE: {response}')
-        except CommError as err:
-            self.logger.error(f'Failed to communicate with device ({device_id}) to set alarm mode')
-        except LoginError as err:
-            self.logger.error(f'Failed to authenticate with device ({device_id}) to set alarm mode')
-        return response
+            async with asyncio.timeout(5):
+                response = await device.async_arm(switch)
+                self.logger.info(f'SET ARM MODE: {response}')
+                return response
+        except asyncio.TimeoutError:
+            return "Request timed out"
+        except Exception as err:
+            self.logger.error(f'Failed to communicate with device ({device_id}) to set arm mode')
 
     # Motion --------------------------------------------------------------------------------------
 
@@ -153,10 +133,8 @@ class BlinkAPI(object):
         try:
             motion = device.sync.motion[name]
             self.devices[device_id]['config']['motion'] = motion
-        except CommError as err:
+        except Exception as err:
             self.logger.error(f'Failed to communicate with device ({device_id}) to get motion detection')
-        except LoginError as err:
-            self.logger.error(f'Failed to authenticate with device ({device_id}) to get motion detection')
 
         return motion
 
@@ -165,10 +143,8 @@ class BlinkAPI(object):
 
         try:
             response = device["camera"].set_motion_detection(switch)
-        except CommError as err:
+        except Exception as err:
             self.logger.error(f'Failed to communicate with device ({device_id}) to set motion detections')
-        except LoginError as err:
-            self.logger.error(f'Failed to authenticate with device ({device_id}) to set motion detections')
 
         return response
 
@@ -192,9 +168,7 @@ class BlinkAPI(object):
                 camera = self.blinkc.cameras[device['config']['device_name']]
                 await camera.snap_picture()
                 break
-            except CommError as err:
-                tries += 1
-            except LoginError as err:
+            except Exception as err:
                 tries += 1
 
         if tries == 3:
@@ -213,9 +187,7 @@ class BlinkAPI(object):
                     device['snapshot'] = encoded
                     self.logger.info(f'Processed NEW snapshot from ({device_id}) {len(image)} bytes raw, and {len(encoded)} bytes base64')
                 break
-            except CommError as err:
-                tries += 1
-            except LoginError as err:
+            except Exception as err:
                 tries += 1
 
         if tries == 3:
@@ -240,9 +212,7 @@ class BlinkAPI(object):
                     else:
                         self.logger.error(f'Processed recording is too large')
                         return
-            except CommError as err:
-                tries += 1
-            except LoginError as err:
+            except Exception as err:
                 tries += 1
 
         if tries == 3:

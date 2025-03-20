@@ -32,21 +32,20 @@ Or, we support the following environment variables and defaults (though, this is
 -   `MQTT_DISCOVERY_PREFIX` (optional, default = 'homeassistant')
 
 -   `TZ` (required, timezone identifier, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)
--   `STORAGE_UPDATE_INTERVAL` (optional, default = 900) - how often to fetch storage stats (in seconds)
+-   `DEVICE_RESCAN_INTERVAL` (optional, default = 3600) - how often to rescan for devices (in seconds)
+-   `DEVICE_UPDATE_INTERVAL` (optional, default = 900) - how often to fetch device stats (in seconds)
 -   `SNAPSHOT_UPDATE_INTERVAL` (optional, default = 60) - how often to fetch camera snapshot (in seconds)
 
 It exposes through device discovery a `service` and a `device` with components for each camera:
 
 -   `homeassistant/device/blink-service` - service config
 
--   `homeassistant/device/blink-[SERIAL_NUMBER]` per camera, with components:
--    `event`            - most all "other" events, not exposed below
+-   `homeassistant/device/blink-[SERIAL_NUMBER]` per camera, and per sync module, with appropriate components:
 -    `camera`           - a snapshot is saved every SNAPSHOT_UPDATE_INTERVAL (also based on how often camera saves snapshot image), also an "eventshot" is stored at the time an "event" is triggered in the camera. This is collected by filename, when the Blink camera logs a snapshot was saved because of an event (rather than just a routine timed snapshot)
--    `doorbell`         - doorbell status
--    `human`            - human detection
 -    `motion`           - motion events (if supported)
 -    `config`           - device configuration information
--    `privacy_mode`     - get (and set) the privacy mode switch of the camera
+-    `battery`          - status, voltage, and % left
+-    `arm mode`         - whether camera or sync module has motion detection on (is armed)
 -    `motion_detection` - get (and set) the motion detection switch of the camera
 
 ## Snapshots/Eventshots plus Home Assistant Area Cards
@@ -77,6 +76,10 @@ CMD [ "python", "./app.py", "-c", "/config" ]
 ### Non-Docker Environments
 
 Docker is the only supported way of deploying the application. The app should run directly via Python but this is not supported.
+
+## See also
+[amcrest2mqtt](https://github.com/weirdtangent/amcrest2mqtt)
+[govee2mqtt](https://github.com/weirdtangent/govee2mqtt)
 
 ## Buy Me A Coffee
 

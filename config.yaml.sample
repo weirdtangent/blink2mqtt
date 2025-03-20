@@ -13,16 +13,11 @@ mqtt:
   tls_key: string
 
 blink:
-  hosts:
-    - 10.10.10.20
-    - camera2.local
-  names:
-    - camera.doorbell
-    - camera.patio
   username: admin
   password: password
-  storage_update_interval: 900
-  snapshot_update_interval: 60
+  device_rescan_interval: 3600
+  device_update_interval: 30
+  snapshot_update_interval: 120
 
 timezone: America/New_York
 hide_ts: False

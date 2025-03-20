@@ -34,7 +34,8 @@ class BlinkMqtt(object):
         self.timezone = config['timezone']
         self.version = config['version']
 
-        self.storage_update_interval = config['blink'].get('storage_update_interval', 900)
+        self.device_rescan_interval = config['blink'].get('device_rescan_interval', 3600)
+        self.device_update_interval = config['blink'].get('device_update_interval', 900)
         self.snapshot_update_interval = config['blink'].get('snapshot_update_interval', 300)
         self.discovery_complete = False
 
@@ -150,7 +151,10 @@ class BlinkMqtt(object):
             self.logger.info(f'Got MQTT message for: {self.get_device_name(device_id)} - {payload}')
 
             # ok, lets format the device_id (not needed) and send to blink
-            self.send_command(device_id, payload)
+            try:
+                self.send_command(device_id, payload)
+            except Exception as err:
+                self.logger.error(f'Caught exception: {err}', exc_info=True)
 
     def mqtt_on_subscribe(self, client, userdata, mid, reason_code_list, properties):
         rc_list = map(lambda x: x.getName(), reason_code_list)
@@ -272,7 +276,8 @@ class BlinkMqtt(object):
             'state': 'ON',
         }
         service_states['intervals'] = {
-            'storage_refresh': self.storage_update_interval,
+            'device_rescan': self.device_rescan_interval,
+            'device_refresh': self.device_update_interval,
             'snapshot_refresh': self.snapshot_update_interval,
         }
 
@@ -316,17 +321,29 @@ class BlinkMqtt(object):
                         'value_template': '{{ value_json.state }}',
                         'unique_id': 'blink_service_status',
                     },
-                    self.service_slug + '_storage_refresh': {
-                        'name': 'Storage Refresh Interval',
+                    self.service_slug + '_device_rescan': {
+                        'name': 'Device Rescan Interval',
+                        'platform': 'number',
+                        'schema': 'json',
+                        'icon': 'mdi:numeric',
+                        'min': 10,
+                        'max': 86400,
+                        'state_topic': self.get_discovery_topic('service', 'intervals'),
+                        'command_topic': self.get_command_topic('service', 'device_rescan'),
+                        'value_template': '{{ value_json.device_rescan }}',
+                        'unique_id': 'blink_service_device_rescan',
+                    },
+                    self.service_slug + '_device_refresh': {
+                        'name': 'Device Refresh Interval',
                         'platform': 'number',
                         'schema': 'json',
                         'icon': 'mdi:numeric',
                         'min': 10,
                         'max': 3600,
                         'state_topic': self.get_discovery_topic('service', 'intervals'),
-                        'command_topic': self.get_command_topic('service', 'storage_refresh'),
-                        'value_template': '{{ value_json.storage_refresh }}',
-                        'unique_id': 'blink_service_storage_refresh',
+                        'command_topic': self.get_command_topic('service', 'device_refresh'),
+                        'value_template': '{{ value_json.device_refresh }}',
+                        'unique_id': 'blink_service_device_refresh',
                     },
                     self.service_slug + '_snapshot_refresh': {
                         'name': 'Snapshot Refresh Interval',
@@ -353,182 +370,303 @@ class BlinkMqtt(object):
     async def setup_devices(self):
         self.logger.info(f'Setup devices')
 
-        cameras = await self.blinkc.get_cameras()
-        sync_modules = await self.blinkc.get_sync_modules()
+        try:
+            cameras = await self.blinkc.get_cameras()
+            sync_modules = await self.blinkc.get_sync_modules()
 
-        self.publish_service_device()
-        for device_id in sync_modules:
-            config = sync_modules[device_id]['config']
-            device_id = config['serial_number']
+            self.publish_service_device()
+            for device_id in sync_modules:
+                config = sync_modules[device_id]['config']
+                device_id = config['serial_number']
 
-            self.add_device(device_id, config)
+                self.add_device(device_id, config)
+                self.publish_device_state(device_id)
 
-        for device_id in cameras:
-            config = cameras[device_id]['config']
-            device_id = config['serial_number']
+            for device_id in cameras:
+                config = cameras[device_id]['config']
+                device_id = config['serial_number']
 
-            self.add_device(device_id, config)
+                self.add_device(device_id, config)
+                self.publish_device_state(device_id)
 
-        # lets log our first time through and then release the hounds
-        if not self.discovery_complete:
-            self.logger.info('Device setup and discovery is done')
-            self.discovery_complete = True
+            # lets log our first time through and then release the hounds
+            if not self.discovery_complete:
+                self.logger.info('Device setup and discovery is done')
+                self.discovery_complete = True
+        except Exception as err:
+            self.logger.error(f'Caught exception: {err}', exc_info=True)
+            os._exit(1)
 
     def add_device(self, device_id, config):
-        first = False
-        if device_id not in self.configs:
-            first = True
-            self.configs[device_id] = {}
-            self.states[device_id] = config
-            self.configs[device_id]['qos'] = self.mqtt_config['qos']
-            self.configs[device_id]['state_topic'] = self.get_discovery_topic(device_id, 'state')
-            self.configs[device_id]['availability_topic'] = self.get_discovery_topic('service', 'availability')
-            self.configs[device_id]['command_topic'] = self.get_discovery_topic(device_id, 'set')
+        try:
+            first = False
+            if device_id not in self.configs:
+                first = True
+                self.configs[device_id] = {}
+                self.states[device_id] = config
+                self.configs[device_id]['qos'] = self.mqtt_config['qos']
+                self.configs[device_id]['state_topic'] = self.get_discovery_topic(device_id, 'state')
+                self.configs[device_id]['availability_topic'] = self.get_discovery_topic('service', 'availability')
+                self.configs[device_id]['command_topic'] = self.get_discovery_topic(device_id, 'set')
 
-        self.configs[device_id]['device'] = {
-            'name': config['device_name'],
-            'manufacturer': config['vendor'],
-            'model': config['device_type'],
-            'ids': device_id,
-            'sw_version': config['software_version'],
-            'via_device': self.service_slug,
-        }
-        self.configs[device_id]['origin'] = {
-            'name': self.service_name,
-            'sw_version': self.version,
-            'support_url': 'https://github.com/weirdtangent/blink2mqtt',
-        }
+            self.configs[device_id]['device'] = {
+                'name': config['device_name'],
+                'manufacturer': config['vendor'],
+                'model': config['device_type'],
+                'ids': device_id,
+                'sw_version': config['software_version'],
+                'via_device': self.service_slug,
+            }
+            self.configs[device_id]['origin'] = {
+                'name': self.service_name,
+                'sw_version': self.version,
+                'support_url': 'https://github.com/weirdtangent/blink2mqtt',
+            }
 
-        # setup initial satte
-        self.states[device_id]['state'] = {
-            'state': 'ON',
-            'last_update': str(datetime.now(ZoneInfo(self.timezone))),
-            'serial_number': device_id,
-            'sw_version': config['software_version'],
-        }
+            # setup initial satte
+            if first:
+                if config['device_type'] == 'sync_module':
+                    self.states[device_id]['state'] = {
+                        'state': 'ON',
+                        'serial_number': device_id,
+                        'sw_version': config['software_version'],
+                        'arm_mode': 'on' if config['arm_mode'] == True else 'off',
+                        'local_storage': 'detected' if config['local_storage'] == True else 'off',
+                    }
+                else:
+                    self.states[device_id]['state'] = {
+                        'state': 'ON',
+                        'motion': 'off',
+                        'serial_number': device_id,
+                        'sw_version': config['software_version'],
+                        'arm_mode': 'on' if config['arm_mode'] == True else 'off',
+                        'temperature': config['temperature'],
+                        'battery': config['battery'],
+                        'battery_voltage': round(int(config['battery_voltage']) / 100, 2) if 'battery_voltage' in config and config['battery_voltage'] is not None else None,
+                        'battery_state': int(int(config['battery_voltage']) / 300 * 100) if 'battery_voltage' in config and config['battery_voltage'] is not None else None,
+                        'wifi_strength': config['wifi_strength'],
+                        'sync_strength': config['sync_strength'],
+                        'last_update': None,
+                    }
 
-        self.add_components_to_device(device_id)
+                self.add_components_to_device(device_id)
 
-        if first:
-            self.logger.info(f'Adding device: "{config['device_name']}" [Amazon {config["device_type"]}] ({device_id})')
-            self.publish_device_discovery(device_id)
-        else:
-            self.logger.debug(f'Updated device: {self.configs[device_id]['device']['name']}')
+                self.logger.info(f'Adding device: "{config['device_name']}" [Amazon {config["device_type"]}] ({device_id})')
+                self.publish_device_discovery(device_id)
+            else:
+                self.logger.debug(f'Updated device: {self.configs[device_id]['device']['name']}')
+        except Exception as err:
+            self.logger.error(f'Caught exception: {err}', exc_info=True)
+            os._exit(1)
 
     # add blink components to devices
     def add_components_to_device(self, device_id):
-        device_config = self.configs[device_id]
-        device_states = self.states[device_id]
-        components = {}
+        try:
+            device_config = self.configs[device_id]
+            device_states = self.states[device_id]
+            components = {}
 
-        if device_config['device']['model'] == 'sync_module':
-            components[self.get_slug(device_id, 'arm_mode')] = {
-                'name': 'Armed',
-                'platform': 'switch',
-                'payload_on': 'on',
-                'payload_off': 'off',
-                'device_class': 'switch',
-                'icon': 'mdi:alarm-light',
-                'state_topic': self.get_discovery_topic(device_id, 'arm_mode'),
-                'command_topic': self.get_command_topic(device_id, 'arm_mode'),
-                'unique_id': self.get_slug(device_id, 'arm_mode'),
-            }
-            device_states['arm_mode'] = None
-        else:
-            components[self.get_slug(device_id, 'snapshot_camera')] = {
-                'name': 'Latest snapshot',
-                'platform': 'camera',
-                'topic': self.get_discovery_subtopic(device_id, 'camera','snapshot'),
-                'image_encoding': 'b64',
-                'state_topic': device_config['state_topic'],
-                'value_template': '{{ value_json.state }}',
-                'unique_id': self.get_slug(device_id, 'snapshot_camera'),
-            }
+            if device_config['device']['model'] == 'sync_module':
+                components[self.get_slug(device_id, 'arm_mode')] = {
+                    'name': 'Armed',
+                    'platform': 'switch',
+                    'payload_on': 'on',
+                    'payload_off': 'off',
+                    'device_class': 'switch',
+                    'icon': 'mdi:alarm-light',
+                    'state_topic': self.get_discovery_topic(device_id, 'state'),
+                    'state_value_template': '{{ value_json.state }}',
+                    'command_topic': self.get_command_topic(device_id, 'arm_mode'),
+                    'value_template': '{{ value_json.arm_mode }}',
+                    'unique_id': self.get_slug(device_id, 'arm_mode'),
+                }
 
-            components[self.get_slug(device_id, 'event_camera')] = {
-                'name': 'Motion capture',
-                'platform': 'image',
-                'image_encoding': 'b64',
-                'state_topic': device_config['state_topic'],
-                'value_template': '{{ value_json.state }}',
-                'image_topic': self.get_discovery_subtopic(device_id, 'camera','eventshot'),
-                'unique_id': self.get_slug(device_id, 'eventshot_camera'),
-            }
-            device_states['camera'] = {'snapshot': None, 'eventshot': None}
+                components[self.get_slug(device_id, 'local_storage')] = {
+                    'name': 'Local storage',
+                    'platform': 'sensor',
+                    'payload_on': 'detected',
+                    'payload_off': 'missing',
+                    'icon': 'mdi:usb-flash-drive',
+                    'state_topic': self.get_discovery_topic(device_id, 'state'),
+                    'state_value_template': '{{ value_json.state }}',
+                    'value_template': '{{ value_json.local_storage }}',
+                    'unique_id': self.get_slug(device_id, 'arm_mode'),
+                }
+            else:
+                components[self.get_slug(device_id, 'snapshot_camera')] = {
+                    'name': 'Latest snapshot',
+                    'platform': 'camera',
+                    'topic': self.get_discovery_subtopic(device_id, 'camera','snapshot'),
+                    'image_encoding': 'b64',
+                    'state_topic': device_config['state_topic'],
+                    'state_value_template': '{{ value_json.state }}',
+                    'value_template': '{{ value_json.state }}',
+                    'unique_id': self.get_slug(device_id, 'snapshot_camera'),
+                }
 
-            components[self.get_slug(device_id, 'arm_mode')] = {
-                'name': 'Motion detection',
-                'platform': 'switch',
-                'payload_on': 'on',
-                'payload_off': 'off',
-                'device_class': 'switch',
-                'icon': 'mdi:motion-sensor',
-                'state_topic': self.get_discovery_topic(device_id, 'arm_mode'),
-                'command_topic': self.get_command_topic(device_id, 'arm_mode'),
-                'unique_id': self.get_slug(device_id, 'arm_mode'),
-            }
-            device_states['arm_mode'] = 'on' if device_states['arm_mode'] == True else 'off'
+                components[self.get_slug(device_id, 'event_camera')] = {
+                    'name': 'Motion capture',
+                    'platform': 'image',
+                    'image_encoding': 'b64',
+                    'state_topic': device_config['state_topic'],
+                    'state_value_template': '{{ value_json.state }}',
+                    'value_template': '{{ value_json.state }}',
+                    'image_topic': self.get_discovery_subtopic(device_id, 'camera','eventshot'),
+                    'unique_id': self.get_slug(device_id, 'eventshot_camera'),
+                    'enabled_by_default': False,
+                }
+                device_states['camera'] = {'snapshot': None, 'eventshot': None}
 
-            components[self.get_slug(device_id, 'motion')] = {
-                'name': 'Motion',
-                'platform': 'binary_sensor',
-                'payload_on': 'on',
-                'payload_off': 'off',
-                'device_class': 'motion',
-                'state_topic': self.get_discovery_topic(device_id, 'motion'),
-                'json_attributes_topic': self.get_discovery_topic(device_id, 'motion'),
-                'value_template': '{{ value_json.state }}',
-                'unique_id': self.get_slug(device_id, 'motion'),
-            }
-            device_states['motion'] = 'on' if device_states['motion'] == True else 'off'
+                components[self.get_slug(device_id, 'arm_mode')] = {
+                    'name': 'Motion detection',
+                    'platform': 'switch',
+                    'payload_on': 'on',
+                    'payload_off': 'off',
+                    'device_class': 'switch',
+                    'icon': 'mdi:motion-sensor',
+                    'state_topic': self.get_discovery_topic(device_id, 'state'),
+                    'state_value_template': '{{ value_json.state }}',
+                    'command_topic': self.get_command_topic(device_id, 'arm_mode'),
+                    'value_template': '{{ value_json.arm_mode }}',
+                    'unique_id': self.get_slug(device_id, 'arm_mode'),
+                }
 
-            components[self.get_slug(device_id, 'version')] = {
-                'name': 'Version',
-                'platform': 'sensor',
-                'icon': 'mdi:package-up',
-                'state_topic': device_config['state_topic'],
-                'value_template': '{{ value_json.sw_version }}',
-                'entity_category': 'diagnostic',
-                'unique_id': self.get_slug(device_id, 'sw_version'),
-            }
+                components[self.get_slug(device_id, 'motion')] = {
+                    'name': 'Motion',
+                    'platform': 'binary_sensor',
+                    'payload_on': 'on',
+                    'payload_off': 'off',
+                    'device_class': 'motion',
+                    'state_topic': self.get_discovery_topic(device_id, 'state'),
+                    'state_value_template': '{{ value_json.state }}',
+                    'value_template': '{{ value_json.motion }}',
+                    'unique_id': self.get_slug(device_id, 'motion'),
+                }
 
-            components[self.get_slug(device_id, 'serial_number')] = {
-                'name': 'Serial Number',
-                'platform': 'sensor',
-                'icon': 'mdi:identifier',
-                'state_topic': device_config['state_topic'],
-                'value_template': '{{ value_json.serial_number }}',
-                'entity_category': 'diagnostic',
-                'unique_id': self.get_slug(device_id, 'serial_number'),
-            }
+                components[self.get_slug(device_id, 'wifi_strength')] = {
+                    'name': 'WiFi signal strength',
+                    'platform': 'sensor',
+                    'icon': 'mdi:wifi',
+                    'device_class': 'signal_strength',
+                    'unit_of_measurement': 'dB',
+                    'enabled_by_default': True if device_states['state']['wifi_strength'] is not None else False,
+                    'state_topic': device_config['state_topic'],
+                    'state_value_template': '{{ value_json.state }}',
+                    'value_template': '{{ value_json.wifi_strength }}',
+                    'unique_id': self.get_slug(device_id, 'wifi_strength'),
+                }
 
-            components[self.get_slug(device_id, 'last_update')] = {
-                'name': 'Last Update',
-                'platform': 'sensor',
-                'device_class': 'timestamp',
-                'entity_category': 'diagnostic',
-                'state_topic': device_config['state_topic'],
-                'value_template': '{{ value_json.last_update }}',
-                'unique_id': self.get_slug(device_id, 'last_update'),
-            }
+                components[self.get_slug(device_id, 'sync_strength')] = {
+                    'name': 'Sync signal strength',
+                    'platform': 'sensor',
+                    'icon': 'mdi:wifi',
+                    'enabled_by_default': True if device_states['state']['sync_strength'] is not None else False,
+                    'state_topic': device_config['state_topic'],
+                    'state_value_template': '{{ value_json.state }}',
+                    'value_template': '{{ value_json.sync_strength }}',
+                    'unique_id': self.get_slug(device_id, 'sync_strength'),
+                }
 
-        device_config['components'] = components
+                components[self.get_slug(device_id, 'temperature')] = {
+                    'name': 'Temperature',
+                    'platform': 'sensor',
+                    'icon': 'mdi:thermometer',
+                    'unit_of_measurement': '°F',
+                    'enabled_by_default': True if device_states['state']['temperature'] is not None else False,
+                    'state_topic': device_config['state_topic'],
+                    'state_value_template': '{{ value_json.state }}',
+                    'value_template': '{{ value_json.temperature }}',
+                    'unique_id': self.get_slug(device_id, 'temperature'),
+                }
+
+                components[self.get_slug(device_id, 'battery')] = {
+                    'name': 'Battery',
+                    'platform': 'sensor',
+                    'icon': 'mdi:battery',
+                    'state_topic': device_config['state_topic'],
+                    'state_value_template': '{{ value_json.state }}',
+                    'value_template': '{{ value_json.battery }}',
+                    'unique_id': self.get_slug(device_id, 'battery'),
+                }
+
+                components[self.get_slug(device_id, 'battery_voltage')] = {
+                    'name': 'Battery voltage',
+                    'platform': 'sensor',
+                    'icon': 'mdi:battery',
+                    'unit_of_measurement': 'volts',
+                    'enabled_by_default': True if device_states['state']['battery_voltage'] is not None else False,
+                    'state_topic': device_config['state_topic'],
+                    'state_value_template': '{{ value_json.state }}',
+                    'value_template': '{{ value_json.battery_voltage }}',
+                    'unique_id': self.get_slug(device_id, 'battery_voltage'),
+                }
+
+                components[self.get_slug(device_id, 'battery_state')] = {
+                    'name': 'Battery state',
+                    'platform': 'sensor',
+                    'icon': 'mdi:battery',
+                    'device_class': 'battery',
+                    'unit_of_measurement': '%',
+                    'enabled_by_default': True if device_states['state']['battery_state'] is not None else False,
+                    'state_topic': device_config['state_topic'],
+                    'state_value_template': '{{ value_json.state }}',
+                    'value_template': '{{ value_json.battery_state }}',
+                    'unique_id': self.get_slug(device_id, 'battery_state'),
+                }
+
+                components[self.get_slug(device_id, 'version')] = {
+                    'name': 'Version',
+                    'platform': 'sensor',
+                    'icon': 'mdi:package-up',
+                    'state_topic': device_config['state_topic'],
+                    'state_value_template': '{{ value_json.state }}',
+                    'value_template': '{{ value_json.sw_version }}',
+                    'entity_category': 'diagnostic',
+                    'unique_id': self.get_slug(device_id, 'sw_version'),
+                }
+
+                components[self.get_slug(device_id, 'serial_number')] = {
+                    'name': 'Serial Number',
+                    'platform': 'sensor',
+                    'icon': 'mdi:identifier',
+                    'state_topic': device_config['state_topic'],
+                    'value_template': '{{ value_json.serial_number }}',
+                    'state_value_template': '{{ value_json.state }}',
+                    'entity_category': 'diagnostic',
+                    'unique_id': self.get_slug(device_id, 'serial_number'),
+                }
+
+                components[self.get_slug(device_id, 'last_update')] = {
+                    'name': 'Last Update',
+                    'platform': 'sensor',
+                    'device_class': 'timestamp',
+                    'entity_category': 'diagnostic',
+                    'state_topic': device_config['state_topic'],
+                    'state_value_template': '{{ value_json.state }}',
+                    'value_template': '{{ value_json.last_update }}',
+                    'unique_id': self.get_slug(device_id, 'last_update'),
+                }
+
+            device_config['components'] = components
+        except Exception as err:
+            self.logger.error(f'Caught exception: {err}', exc_info=True)
+            os._exit(1)
 
     def publish_device_state(self, device_id):
         device_states = self.states[device_id]
-        device_states['state']['last_update'] = str(datetime.now(ZoneInfo(self.timezone)))
 
-        for topic in ['state','motion','arm_mode','recording']:
+        for topic in ['state','recording']:
             if topic in device_states:
                 publish_topic = self.get_discovery_topic(device_id, topic)
                 payload = json.dumps(device_states[topic]) if isinstance(device_states[topic], dict) else device_states[topic]
                 self.mqttc.publish(publish_topic, payload, qos=self.mqtt_config['qos'], retain=True)
 
-        for image_type in ['snapshot','eventshot']:
-            if image_type in device_states['camera'] and device_states['camera'][image_type] is not None:
-                publish_topic = self.get_discovery_subtopic(device_id, 'camera',image_type)
-                payload = device_states['camera'][image_type]
-                result = self.mqttc.publish(publish_topic, payload, qos=self.mqtt_config['qos'], retain=True)
+        if 'camera' in device_states:
+            for image_type in ['snapshot','eventshot']:
+                if image_type in device_states['camera'] and device_states['camera'][image_type] is not None:
+                    publish_topic = self.get_discovery_subtopic(device_id, 'camera',image_type)
+                    payload = device_states['camera'][image_type]
+                    result = self.mqttc.publish(publish_topic, payload, qos=self.mqtt_config['qos'], retain=True)
 
     def publish_device_discovery(self, device_id):
         device_config = self.configs[device_id]
@@ -538,29 +676,34 @@ class BlinkMqtt(object):
 
      # refresh * all devices -----------------------------------------------------------------------
 
-    async def refresh_arm_mode_all_devices(self):
-        self.logger.info(f'Refreshing arm mode for all devices (every {self.storage_update_interval} sec)')
+    async def refresh_all_devices(self):
+        self.logger.info(f'Refreshing all devices (every {self.device_update_interval} sec)')
+
+        cameras = self.blinkc.get_cameras()
+        sync_modules = self.blinkc.get_sync_modules()
 
         for device_id in self.configs:
             if not self.running: break
             device_states = self.states[device_id]
 
             if self.configs[device_id]['device']['model'] == 'sync_module':
-                armed = self.blinkc.get_sync_module_arm_mode(device_id)
+                config = sync_modules[device_id]['config']
+
+                device_states['state']['arm_mode'] = 'on' if config['arm_mode'] == True else 'off'
+                device_states['state']['local_storage'] = 'detected' if config['local_storage'] == True else 'missing'
             else:
-                armed = self.blinkc.get_camera_arm_mode(device_id)
-            device_states['arm_mode'] = 'on' if armed == True else 'off'
+                config = cameras[device_id]['config']
 
-    async def refresh_motion_all_cameras(self):
-        self.logger.info(f'Refreshing motion for all devices (every {self.storage_update_interval} sec)')
+                device_states['state']['motion'] = 'on' if config['motion'] == True else 'off'
+                device_states['state']['arm_mode'] = 'on' if config['arm_mode'] == True else 'off'
+                device_states['state']['temperature'] = config['temperature'] if 'temperature' in config else None
+                device_states['state']['battery'] = config['battery'] if 'battery' in config else None
+                device_states['state']['battery_voltage'] = round(int(config['battery_voltage']) / 100, 2) if 'battery_voltage' in config and config['battery_voltage'] is not None else None
+                device_states['state']['battery_state'] = int(int(config['battery_voltage']) / 300 * 100) if 'battery_voltage' in config and config['battery_voltage'] is not None else None
+                device_states['state']['wifi_strength'] = config['wifi_strength'] if 'wifi_strength' in config else None
+                device_states['state']['sync_strength'] = config['sync_strength'] if 'sync_strength' in config else None
 
-        for device_id in self.configs:
-            if not self.running: break
-            if self.configs[device_id]['device']['model'] == 'sync_module': continue
-            device_states = self.states[device_id]
-
-            motion = self.blinkc.get_camera_motion(device_id)
-            device_states['motion'] = 'on' if motion == True else 'off'
+            self.publish_device_state(device_id)
 
     def refresh_snapshot_all_devices(self):
         self.logger.info(f'Checking for snapshots on all devices (every {self.snapshot_update_interval} sec)')
@@ -582,22 +725,8 @@ class BlinkMqtt(object):
 
         # only store and send to MQTT if the image has changed
         if device_states['camera'][type] is None or device_states['camera'][type] != image:
-            device_states['camera'][type] = image
-            self.publish_service_state()
-            self.publish_device_state(device_id)
-
-    def get_recorded_file(self, device_id, file, type):
-        device_states = self.states[device_id]
-
-        self.logger.info(f'Getting recorded file "{file}"')
-        image = self.blinkc.get_recorded_file(device_id, file)
-
-        if image is None:
-            self.logger.info(f'Failed to get recorded file from {self.get_device_name(device_id)}')
-            return
-
-        # only store and send to MQTT if the image has changed
-        if device_states['camera'][type] is None or device_states['camera'][type] != image:
+            if device_states['camera'][type] is not None:
+                device_states['state']['last_update'] = str(datetime.now(ZoneInfo(self.timezone)))
             device_states['camera'][type] = image
             self.publish_service_state()
             self.publish_device_state(device_id)
@@ -615,23 +744,26 @@ class BlinkMqtt(object):
             set_armed_to = False if data['arm_mode'] == 'off' else True
             self.logger.info(f'Setting ARM_MODE to {set_armed_to} for {self.get_device_name(device_id)}')
 
-            response = self.blinkc.set_arm_mode(device_id, set_alarm_to)
+            response = asyncio.run(self.blinkc.set_arm_mode(device_id, set_armed_to))
             self.logger.info(f'SET ARM MODE: got back {response}')
 
             # if Blink device was good with that command, lets update state and then MQTT
             if response == 'OK':
-                device_states['alarm_mode'] = data['alarm_mode']
+                device_states['state']['arm_mode'] = data['arm_mode']
                 self.publish_device_state(device_id)
             else:
-                self.logger.error(f'Setting alarm_MODE failed: {repr(response)}')
+                self.logger.error(f'Setting ARM_MODE failed: {repr(response)}')
         else:
             self.logger.error(f'We got a command ({data}), but do not know what to do')
 
     def handle_service_message(self, attribute, message):
         match attribute:
-            case 'storage_refresh':
-                self.storage_update_interval = message
-                self.logger.info(f'Updated STORAGE_REFRESH_INTERVAL to be {message}')
+            case 'device_rescan':
+                self.device_rescan_interval = message
+                self.logger.info(f'Updated DEVICE_RESCAN_INTERVAL to be {message}')
+            case 'device_refresh':
+                self.device_update_interval = message
+                self.logger.info(f'Updated DEVICE_REFRESH_INTERVAL to be {message}')
             case 'snapshot_refresh':
                 self.snapshot_update_interval = message
                 self.logger.info(f'Updated SNAPSHOT_REFRESH_INTERVAL to be {message}')
@@ -650,15 +782,16 @@ class BlinkMqtt(object):
         for task in asyncio.all_tasks():
             if not task.done(): task.cancel(f'{signame} received')
 
+    async def rescan_device_list(self):
+            await self.setup_devices()
+            self.publish_service_state()
+            await asyncio.sleep(self.device_rescan_interval)
+
     async def refresh_device_info(self):
         while self.running == True:
-            await self.refresh_arm_mode_all_devices()
-            await self.refresh_motion_all_cameras()
-
+            await self.refresh_all_devices()
             self.publish_service_state()
-            self.publish_device_state(device_id)
-
-            await asyncio.sleep(self.storage_update_interval)
+            await asyncio.sleep(self.device_update_interval)
 
     async def collect_snapshots(self):
         try:
@@ -679,6 +812,7 @@ class BlinkMqtt(object):
 
         loop = asyncio.get_running_loop()
         tasks = [
+            asyncio.create_task(self.rescan_device_list()),
             asyncio.create_task(self.refresh_device_info()),
             asyncio.create_task(self.collect_snapshots()),
         ]
