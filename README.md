@@ -82,8 +82,8 @@ I'm not sure. At the moment, I have my docker volume mounted on my workstation w
 Docker is the only supported way of deploying the application. The app should run directly via Python but this is not supported.
 
 ## See also
-[amcrest2mqtt](https://github.com/weirdtangent/amcrest2mqtt)
-[govee2mqtt](https://github.com/weirdtangent/govee2mqtt)
+* [amcrest2mqtt](https://github.com/weirdtangent/amcrest2mqtt)
+* [govee2mqtt](https://github.com/weirdtangent/govee2mqtt)
 
 ## Buy Me A Coffee
 
