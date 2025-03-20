@@ -75,7 +75,7 @@ CMD [ "python", "./app.py", "-c", "/config" ]
 
 ## What to do about 2FA
 
-I'm not sure. At the moment, I have my docker volume mounted on my workstation where I can also start blink2mqtt locally. Here, I can input the 2FA code if it asks for it. Then, the service will write a credentials file to the config directory. At that point, I am hoping I can start it in a container and have it use the same credentials file (assuming they don't include ip address or other signature in the credential token).
+I'm not sure. At the moment, if it is determined we need a 2FA key that will be send via email or SMS message, we will wait up to 120 seconds for you to place a file in the config directory named "key.txt" with the code you get. If you are surprized by this and not ready, just get ready and then try again. As soon as we detect the file, we will grab the contents and send it on to Blink. If authentication works, a credential file will be written in the config directory which will handle re-auth for awhile.
 
 ## Out of Scope
 

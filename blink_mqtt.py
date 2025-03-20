@@ -679,20 +679,20 @@ class BlinkMqtt(object):
     async def refresh_all_devices(self):
         self.logger.info(f'Refreshing all devices (every {self.device_update_interval} sec)')
 
-        cameras = self.blinkc.get_cameras()
-        sync_modules = self.blinkc.get_sync_modules()
+        # cameras = await self.blinkc.get_cameras()
+        # sync_modules = await self.blinkc.get_sync_modules()
 
         for device_id in self.configs:
             if not self.running: break
             device_states = self.states[device_id]
 
             if self.configs[device_id]['device']['model'] == 'sync_module':
-                config = sync_modules[device_id]['config']
+                config = self.blinkc.sync_modules[device_id]['config']
 
                 device_states['state']['arm_mode'] = 'on' if config['arm_mode'] == True else 'off'
                 device_states['state']['local_storage'] = 'detected' if config['local_storage'] == True else 'missing'
             else:
-                config = cameras[device_id]['config']
+                config = self.blinkc.cameras[device_id]['config']
 
                 device_states['state']['motion'] = 'on' if config['motion'] == True else 'off'
                 device_states['state']['arm_mode'] = 'on' if config['arm_mode'] == True else 'off'
@@ -830,7 +830,8 @@ class BlinkMqtt(object):
                     self.running = False
                     self.logger.error(f'Caught exception: {err}', exc_info=True)
         except asyncio.CancelledError:
-            exit(1)
+            await self.blinkc.disconnect()
+            exit()
         except Exception as err:
             self.running = False
             self.logger.error(f'Caught exception: {err}', exc_info=True)

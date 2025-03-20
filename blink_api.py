@@ -14,7 +14,6 @@ from blinkpy.blinkpy import Blink
 from blinkpy.helpers.util import json_load
 import base64
 from datetime import datetime
-# import httpx
 import logging
 import os
 import time
@@ -44,21 +43,55 @@ class BlinkAPI(object):
         self.session = ClientSession()
         self.blinkc = Blink(session=self.session)
 
+        need2fa = False
         if os.path.exists("config/blinkc.cred"):
-            auth = Auth(await json_load("config/blinkc.cred"))
+            auth = Auth(await json_load("config/blinkc.cred"), no_prompt=True)
+            if auth.login_attributes["token"] is None:
+                self.logger.error('Failed to auth with config/blinkc.cred file. Removing bad file and retrying')
+                os.remove('config/blinkc.cred')
+                auth = Auth({
+                    'username': self.blink_config['username'],
+                    'password': self.blink_config['password'],
+                }, no_prompt=True)
+                need2fa = True
         else:
-            auth = Auth({"username": self.blink_config['username'], "password": self.blink_config['password']})
+            auth = Auth({
+                'username': self.blink_config['username'],
+                'password': self.blink_config['password'],
+            }, no_prompt=True)
+            need2fa = True
         self.blinkc.auth = auth
 
         await self.blinkc.start()
+
+        if need2fa:
+            self.logger.warn('The 2fa key from Blink will be needed. Save the key into /config/key.txt and I will wait up to 120 seconds for you to do this.')
+            seconds = 0
+            while seconds < 120:
+                if os.path.exists("config/key.txt"):
+                    self.logger.info('I see the config/key.txt file, sending the key to Blink and deleting that file')
+                    key = read_file('config/key.txt')
+                    os.remove('config/key.txt')
+                    await auth.send_auth_key(self.blinkc, key)
+                    await self.blinkc.setup_post_verify()
+                    await self.blinkc.save("config/blinkc.cred")
+                    return
+                seconds += 1
+                time.sleep(1)
+
+            self.logger.error('I did not see the /config/key.txt file in time. Please try again')
+            os.remove('config/blinkc.cred')
+            os.remove('config/key.txt')
+            os._exit(1)
+
+        # can we just go ahead and save this now?
+        await self.blinkc.save("config/blinkc.cred")
 
     async def disconnect(self):
         await self.blinkc.save("config/blinkc.cred")
         await self.session.close()
 
     async def get_cameras(self):
-        self.logger.info(f'Getting cameras from Blink')
-
         for name, camera in self.blinkc.cameras.items():
             attributes = camera.attributes
             self.devices[attributes['serial']] = {
@@ -82,8 +115,6 @@ class BlinkAPI(object):
         return self.devices
 
     async def get_sync_modules(self):
-        self.logger.info(f'Getting sync modules from Blink')
-
         for name, sync_module in self.blinkc.sync.items():
             await sync_module.get_network_info()
             network = sync_module.network_info
