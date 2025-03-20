@@ -34,7 +34,7 @@ jobs:
         sbom: true
         provenance: true
         platforms: linux/arm64,linux/amd64
-        tags: ${{ github.repository }}:latest
+        tags: graystorm/blink2mqtt:latest
         push: true
         cache-from: type=gha
         cache-to: type=gha,mode=max
