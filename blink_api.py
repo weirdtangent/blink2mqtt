@@ -74,7 +74,10 @@ class BlinkAPI(object):
                     key = read_file(self.config_path + 'key.txt').strip()
                     await auth.send_auth_key(self.blinkc, key)
                     await self.blinkc.setup_post_verify()
-                    os.remove(self.config_path + 'key.txt')
+                    try:
+                        os.remove(self.config_path + 'key.txt')
+                    except Exception:
+                        pass
                     await self.blinkc.save(self.config_path + "/blinkc.cred")
                     return
                 seconds += 1

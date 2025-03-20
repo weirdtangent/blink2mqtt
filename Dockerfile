@@ -41,8 +41,10 @@ RUN addgroup --gid $GROUP_ID appuser && \
     adduser --uid $USER_ID --gid $GROUP_ID --disabled-password --gecos "" appuser
 
 RUN chown -R appuser:appuser .
+RUN chown appuser:appuser /config
+RUN chmod 0775 /config
 RUN chown appuser:appuser /config/*
-RUN chmod 0664 /config/*    
+RUN chmod 0664 /config/*
 
 USER appuser
 
