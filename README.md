@@ -71,6 +71,10 @@ or make sure you attach a volume with the config file and point to that director
 CMD [ "python", "./app.py", "-c", "/config" ]
 ```
 
+## What to do about 2FA
+
+I'm not sure. At the moment, I have my docker volume mounted on my workstation where I can also start blink2mqtt locally. Here, I can input the 2FA code if it asks for it. Then, the service will write a credentials file to the config directory. At that point, I am hoping I can start it in a container and have it use the same credentials file (assuming they don't include ip address or other signature in the credential token).
+
 ## Out of Scope
 
 ### Non-Docker Environments
