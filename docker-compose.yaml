@@ -1,12 +1,8 @@
 services:
   blink2mqtt:
-    image: weirdtangent/blink2mqtt:latest
-    context: .
-    target: production
+    image: graystorm/blink2mqtt:latest
     container_name: blink2mqtt
     restart: unless-stopped
-    volumes:
-      - ~/.docker-conf/blink2mqtt/config/:/config/
     environment:
       MQTT_HOST: 10.10.10.1
       MQTT_USERNAME: admin

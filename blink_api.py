@@ -78,7 +78,7 @@ class BlinkAPI(object):
                         os.remove(self.config_path + 'key.txt')
                     except Exception:
                         pass
-                    await self.blinkc.save(self.config_path + "/blinkc.cred")
+                    await self.blinkc.save(self.config_path + 'blinkc.cred')
                     return
                 seconds += 1
                 await asyncio.sleep(1)
