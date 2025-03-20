@@ -7,10 +7,12 @@ Uses the [`blinkpy`](https://github.com/fronzbot/blinkpy) library.
 Based on my forked versions of [amcrest2mqtt](https://github.com/weirdtangent/amcrest2mqtt)
 and [govee2mqtt](https://github.com/weirdtangent/govee2mqtt).
 
-You can define config in config.yaml and pass `-c path/to/config.yaml`. See the
-`config.yaml.sample` file for an example.
+## Docker
+For `docker-compose`, use the [configuration included](https://github.com/weirdtangent/blink2mqtt/blob/master/docker-compose.yaml) in this repository.
 
-Or, we support the following environment variables and defaults (though, this is becoming unwieldy):
+An docker image is available at `graystorm/blink2mqtt:latest`. You can mount your configuration volume at `/config` (and see the included `config.yaml.sample` file) or use the ENV variables:
+
+It supports the following environment variables:
 
 -   `BLINK_HOSTS` (required, 1+ space-separated list of hostnames/ips)
 -   `BLINK_NAMES` (required, 1+ space-separated list of device names - must match count of BLINK_HOSTS)
