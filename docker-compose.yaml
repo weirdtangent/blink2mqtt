@@ -1,23 +1,9 @@
 services:
   blink2mqtt:
     image: graystorm/blink2mqtt:latest
+    network_mode: host
     container_name: blink2mqtt
     restart: unless-stopped
-    environment:
-      MQTT_HOST: 10.10.10.1
-      MQTT_USERNAME: admin
-      MQTT_PASSWORD: password
-      MQTT_PREFIX: "blink2mqtt"
-      MQTT_HOMEASSISTANT: "homeassistant"
-      BLINK_HOSTS: "10.10.10.20 camera2.local"
-      BLINK_NAMES: "frontyard patio"
-      BLINK_USERNAME: viewer
-      BLINK_PASSWORD: password
-      HOME_ASSISTANT: true
-      DEVICE_UPDATE_INTERVAL: 600
-      DEBUG_MODE: false
-    healthcheck:
-      test: ["CMD", "pgrep", "-f", "[p]ython -u app.py"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    volumes:
+      - /volume1/docker/blink2mqtt/config:/config
+
