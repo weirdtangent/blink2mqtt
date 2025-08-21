@@ -1,7 +1,7 @@
 # weirdtangent/blink2mqtt
 
 Expose multiple Blink cameras and events to an MQTT broker, primarily
-designed to work with Home Assistant. A WIP, since I'm new to Python.
+designed to work with Home Assistant.
 Uses the [`blinkpy`](https://github.com/fronzbot/blinkpy) library.
 
 Based on my forked versions of [amcrest2mqtt](https://github.com/weirdtangent/amcrest2mqtt)
