@@ -5,6 +5,8 @@ on:
     branches:
       - "main"
   workflow_dispatch:
+  schedule:
+    - cron: "0 3 1 * *"   # Runs at 03:00 UTC on the 1st of each month
 
 permissions:
   contents: write
@@ -61,8 +63,9 @@ jobs:
 
   docker:
     name: Build and Push Docker Image
-    needs: release
-    if: ${{ needs.release.result == 'success' }}
+    needs: [release]
+    if: |
+      github.event_name == 'schedule' || needs.release.result == 'success'
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
