@@ -1,23 +1,27 @@
+# Example configuration for blink2mqtt
+# Copy this file to config.yaml and adjust values as needed.
+
 mqtt:
-  host: 10.10.10.1
-  port: 1883
-  username: mqtt
-  password: password
-  qos: 0
-  prefix: blink2mqtt
-  home_assistant: True
-  discovery_prefix: homeassistant
-  tls_enabled: False
-  tls_ca_cert: filename
-  tls_cert: filename
-  tls_key: string
+  host: 10.10.10.1               # MQTT broker hostname or IP
+  port: 1883                     # MQTT port (usually 1883 or 8883 for TLS)
+  username: mqtt                 # MQTT username
+  password: password             # MQTT password
+  qos: 0                         # MQTT QoS level (0, 1, or 2)
+  prefix: blink2mqtt             # MQTT topic prefix
+  reconnect_delay: 30            # Seconds before reconnecting after disconnect
+  home_assistant: true           # Enable Home Assistant discovery
+  discovery_prefix: homeassistant  # HA discovery topic prefix
+  tls_enabled: false             # Enable TLS for MQTT (true/false)
+  tls_ca_cert: /config/ca.crt    # Path to CA certificate (if TLS enabled)
+  tls_cert: /config/client.crt   # Path to client certificate (if TLS enabled)
+  tls_key: /config/client.key    # Path to client private key (if TLS enabled)
 
 blink:
-  username: admin
-  password: password
-  device_rescan_interval: 3600
-  device_update_interval: 30
-  snapshot_update_interval: 120
+  username: admin                # Blink account username
+  password: password             # Blink account password
+  device_rescan_interval: 3600   # Seconds between device rescans
+  device_update_interval: 900    # Seconds between device updates
+  snapshot_update_interval: 120  # Seconds between camera snapshot refreshes
 
-timezone: America/New_York
-hide_ts: False
+timezone: America/New_York       # Timezone (see TZ database list)
+hide_ts: false                   # Hide timestamps in MQTT payloads (optional)

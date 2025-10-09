@@ -1,42 +1,60 @@
 # weirdtangent/blink2mqtt
 
-Expose multiple Blink cameras and events to an MQTT broker, primarily
-designed to work with Home Assistant.
-Uses the [`blinkpy`](https://github.com/fronzbot/blinkpy) library.
+Expose multiple [Blink](https://blinkforhome.com) cameras and events via MQTT —
+with native [Home Assistant](https://www.home-assistant.io) discovery support.
+
+[![Deploy Status](https://github.com/weirdtangent/blink2mqtt/actions/workflows/deploy.yaml/badge.svg)](https://github.com/weirdtangent/blink2mqtt/actions/workflows/deploy.yaml)
+
+Built on [`blinkpy`](https://github.com/fronzbot/blinkpy).
 
 Based on my forked versions of [amcrest2mqtt](https://github.com/weirdtangent/amcrest2mqtt)
 and [govee2mqtt](https://github.com/weirdtangent/govee2mqtt).
 
+A few notes:
+* "Rediscover" button added to service - when pressed, device discovery is re-run so HA will rediscover deleted devices
+
 ## Docker
+
+docker run -d \
+  --name blink2mqtt \
+  -v /path/to/config:/config \
+  -e MQTT_HOST=mqtt.graystorm.com \
+  -e MQTT_USERNAME=hauser \
+  -e MQTT_PASSWORD=secret \
+  -e BLINK_USERNAME=email@example.com \
+  -e BLINK_PASSWORD=blinkpass \
+  graystorm/blink2mqtt:latest
+
 For `docker-compose`, use the [configuration included](https://github.com/weirdtangent/blink2mqtt/blob/master/docker-compose.yaml) in this repository.
 
-An docker image is available at `graystorm/blink2mqtt:latest`. You can mount your configuration volume at `/config` (and see the included `config.yaml.sample` file) or use the ENV variables:
+A docker image is available at `graystorm/blink2mqtt:latest`. You can mount your configuration volume at `/config` (and see the included `config.yaml.sample` file) or use the ENV variables:
 
-It supports the following environment variables:
+### Environment Variables
 
--   `BLINK_HOSTS` (required, 1+ space-separated list of hostnames/ips)
--   `BLINK_NAMES` (required, 1+ space-separated list of device names - must match count of BLINK_HOSTS)
--   `BLINK_PORT` (optional, default = 80)
--   `BLINK_USERNAME` (optional, default = admin)
--   `BLINK_PASSWORD` (required)
-
--   `MQTT_USERNAME` (required)
--   `MQTT_PASSWORD` (optional, default = empty password)
--   `MQTT_HOST` (optional, default = 'localhost')
--   `MQTT_QOS` (optional, default = 0)
--   `MQTT_PORT` (optional, default = 1883)
--   `MQTT_TLS_ENABLED` (required if using TLS) - set to `true` to enable
--   `MQTT_TLS_CA_CERT` (required if using TLS) - path to the ca certs
--   `MQTT_TLS_CERT` (required if using TLS) - path to the private cert
--   `MQTT_TLS_KEY` (required if using TLS) - path to the private key
--   `MQTT_PREFIX` (optional, default = amgrest2mqtt)
--   `MQTT_HOMEASSISTANT` (optional, default = true)
--   `MQTT_DISCOVERY_PREFIX` (optional, default = 'homeassistant')
-
--   `TZ` (required, timezone identifier, see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)
--   `DEVICE_RESCAN_INTERVAL` (optional, default = 3600) - how often to rescan for devices (in seconds)
--   `DEVICE_UPDATE_INTERVAL` (optional, default = 900) - how often to fetch device stats (in seconds)
--   `SNAPSHOT_UPDATE_INTERVAL` (optional, default = 60) - how often to fetch camera snapshot (in seconds)
+| Variable | Required | Default | Description |
+|-----------|-----------|----------|-------------|
+| `BLINK_HOSTS` | ✅ Yes | — | 1+ space-separated list of hostnames/IPs |
+| `BLINK_NAMES` | ✅ Yes | — | 1+ space-separated list of device names (must match count of `BLINK_HOSTS`) |
+| `BLINK_PORT` | No | `80` | Port for Blink devices |
+| `BLINK_USERNAME` | No | `admin` | Username for Blink connection |
+| `BLINK_PASSWORD` | ✅ Yes | — | Password for Blink account |
+| `MQTT_USERNAME` | ✅ Yes | — | MQTT username |
+| `MQTT_PASSWORD` | No | *(empty)* | MQTT password |
+| `MQTT_HOST` | No | `localhost` | MQTT broker hostname or IP |
+| `MQTT_PORT` | No | `1883` | MQTT broker port |
+| `MQTT_QOS` | No | `0` | Quality of Service (0–2) |
+| `MQTT_RECONNECT_DELAY` | No | `30` | Seconds to wait before reconnecting after failure |
+| `MQTT_TLS_ENABLED` | Conditional | `false` | Enable TLS for MQTT (set to `true`) |
+| `MQTT_TLS_CA_CERT` | If TLS | — | Path to CA certificate |
+| `MQTT_TLS_CERT` | If TLS | — | Path to client certificate |
+| `MQTT_TLS_KEY` | If TLS | — | Path to client private key |
+| `MQTT_PREFIX` | No | `blink2mqtt` | MQTT topic prefix |
+| `MQTT_HOMEASSISTANT` | No | `true` | Enable Home Assistant discovery |
+| `MQTT_DISCOVERY_PREFIX` | No | `homeassistant` | MQTT discovery topic prefix |
+| `TZ` | ✅ Yes | — | Timezone (see [TZ database list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)) |
+| `DEVICE_RESCAN_INTERVAL` | No | `3600` | Seconds between device rescans |
+| `DEVICE_UPDATE_INTERVAL` | No | `900` | Seconds between device updates |
+| `SNAPSHOT_UPDATE_INTERVAL` | No | `60` | Seconds between snapshot fetches |
 
 It exposes through device discovery a `service` and a `device` with components for each camera:
 
@@ -75,7 +93,9 @@ CMD [ "python", "./app.py", "-c", "/config" ]
 
 ## What to do about 2FA
 
-I'm not sure. At the moment, if it is determined we need a 2FA key that will be send via email or SMS message, we will wait up to 120 seconds for you to place a file in the config directory named "key.txt" with the code you get. If you are surprized by this and not ready, just get ready and then try again. As soon as we detect the file, we will grab the contents and send it on to Blink. If authentication works, a credential file will be written in the config directory which will handle re-auth for awhile.
+If 2FA is required, the container will wait up to 5 minutes for a key.txt file
+containing the verification code from Blink. Place this file in your /config directory
+when prompted. Once validated, your credentials will be stored for reuse.
 
 ## Out of Scope
 

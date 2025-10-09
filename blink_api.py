@@ -5,7 +5,6 @@
 #
 # The software is provided 'as is', without any warranty.
 
-import aioconsole
 from aiohttp import ClientSession
 import asyncio
 from asyncio import timeout
@@ -13,12 +12,9 @@ from blinkpy.auth import Auth
 from blinkpy.blinkpy import Blink
 from blinkpy.helpers.util import json_load
 import base64
-from datetime import datetime
 import logging
 import os
-import time
 from util import *
-from zoneinfo import ZoneInfo
 
 class BlinkAPI(object):
     def __init__(self, config):
@@ -29,7 +25,7 @@ class BlinkAPI(object):
         logging.getLogger("blinkpy.sync_module").setLevel(logging.WARNING)
 
         self.blink_config = config['blink']
-        self.config_path = config['config_path']
+        self.config_path = os.path.join(config['config_path'], '')
         self.timezone = config['timezone']
 
         self.session = None
@@ -40,16 +36,28 @@ class BlinkAPI(object):
         self.sync_modules = {}
         self.events = []
 
+        self.sem = asyncio.Semaphore(4)
+
+    async def __aenter__(self):
+        await self.connect()
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.disconnect()
+
     async def connect(self):
+        if self.session and not self.session.closed:
+            await self.session.close()
         self.session = ClientSession()
         self.blinkc = Blink(session=self.session)
 
         need2fa = False
-        if os.path.exists(self.config_path + 'blinkc.cred'):
-            auth = Auth(await json_load(self.config_path + 'blinkc.cred'), no_prompt=True)
+        cred_path = os.path.join(self.config_path, 'blinkc.cred')
+        if os.path.exists(cred_path):
+            auth = Auth(await json_load(cred_path), no_prompt=True)
             if auth.login_attributes["token"] is None:
                 self.logger.error('Failed to auth with credential file. Removing bad file and retrying')
-                os.remove(self.config_path + 'blinkc.cred')
+                os.remove(cred_path)
                 auth = Auth({
                     'username': self.blink_config['username'],
                     'password': self.blink_config['password'],
@@ -66,40 +74,45 @@ class BlinkAPI(object):
         await self.blinkc.start()
 
         if need2fa:
-            self.logger.warn('The 2fa key from Blink will be needed. Save the key as filename key.txt in your config directory and I will wait up to 5 minutes for you to do this.')
-            seconds = 0
-            while seconds < 600:
-                if os.path.exists(self.config_path + 'key.txt'):
+            self.logger.warning('The 2fa key from Blink will be needed. Save the key as filename key.txt in your config directory and I will wait up to 5 minutes for you to do this.')
+            for _ in range(600):
+                key_path = os.path.join(self.config_path, 'key.txt')
+                if os.path.exists(key_path):
                     self.logger.info('I see the key.txt file, sending the key to Blink and deleting that file')
-                    key = read_file(self.config_path + 'key.txt').strip()
+                    key = read_file(key_path).strip()
                     await auth.send_auth_key(self.blinkc, key)
                     await self.blinkc.setup_post_verify()
                     try:
-                        os.remove(self.config_path + 'key.txt')
+                        os.remove(key_path)
                     except Exception as err:
                         self.logger.error(f'Failed to delete key.txt file: {err}')
                         pass
                     try:
-                        await self.blinkc.save(self.config_path + 'blinkc.cred')
+                        await self.blinkc.save(cred_path)
                     except Exception as err:
                         self.logger.error(f'Failed to write credential file: {err}')
                         pass
                     return
-                seconds += 1
                 await asyncio.sleep(1)
 
             self.logger.error('I did not see the key.txt file in time. Please try again')
-            if os.path.exists(self.config_path + 'blinkc.cred'):
-                os.remove(self.config_path + 'blinkc.cred')
-            if os.path.exists(self.config_path + 'key.txt'):
-                os.remove(self.config_path + 'key.txt')
-                os._exit(1)
+            cred_path = os.path.join(self.config_path, 'blinkc.cred')
+            if os.path.exists(cred_path):
+                os.remove(cred_path)
+            key_path = os.path.join(self.config_path, 'key.txt')
+            if os.path.exists(key_path):
+                os.remove(key_path)
+                raise SystemExit(1)
 
         # can we just go ahead and save this now?
-        await self.blinkc.save(self.config_path + 'blinkc.cred')
+        cred_path = os.path.join(self.config_path, 'blinkc.cred')
+        await self.blinkc.save(cred_path)
 
     async def disconnect(self):
-        await self.blinkc.save(self.config_path + 'blinkc.cred')
+        cred_path = os.path.join(self.config_path, 'blinkc.cred')
+        await self.blinkc.save(cred_path)
+        if hasattr(self.blinkc, "close"):
+            await self.blinkc.close()
         await self.session.close()
 
     async def get_cameras(self):
@@ -126,9 +139,8 @@ class BlinkAPI(object):
         return self.devices
 
     async def get_sync_modules(self):
-        for name, sync_module in self.blinkc.sync.items():
+        for _, sync_module in self.blinkc.sync.items():
             await sync_module.get_network_info()
-            network = sync_module.network_info
             attributes = sync_module.attributes
 
             self.sync_modules[attributes['serial']] = {
@@ -146,7 +158,7 @@ class BlinkAPI(object):
 
         return self.sync_modules
 
-    # Arm mode  ----------------------------------------------------------------------------------0
+    # Arm mode  -----------------------------------------------------------------------------------
 
     async def set_arm_mode(self, device_id, switch):
         if device_id in self.devices:
@@ -157,14 +169,14 @@ class BlinkAPI(object):
             device = self.blinkc.sync[name]
 
         try:
-            async with asyncio.timeout(5):
+            async with timeout(5):
                 response = await device.async_arm(switch)
-                self.logger.info(f'SET ARM MODE: {response}')
+                self.logger.info(f'Set arm mode for {device_id}: {response}')
                 return response
         except asyncio.TimeoutError:
             return "Request timed out"
-        except Exception as err:
-            self.logger.error(f'Failed to communicate with device ({device_id}) to set arm mode')
+        except Exception:
+            self.logger.error(f"[set_arm_mode] Failed for {device_id}", exc_info=True)
 
     # Motion --------------------------------------------------------------------------------------
 
@@ -175,8 +187,8 @@ class BlinkAPI(object):
         try:
             motion = device.sync.motion[name]
             self.devices[device_id]['config']['motion'] = motion
-        except Exception as err:
-            self.logger.error(f'Failed to communicate with device ({device_id}) to get motion detection')
+        except Exception:
+            self.logger.error(f"[get_motion] Failed for {device_id}", exc_info=True)
 
         return motion
 
@@ -185,8 +197,8 @@ class BlinkAPI(object):
 
         try:
             response = device["camera"].set_motion_detection(switch)
-        except Exception as err:
-            self.logger.error(f'Failed to communicate with device ({device_id}) to set motion detections')
+        except Exception:
+            self.logger.error(f"[set_motion] Failed for {device_id}", exc_info=True)
 
         return response
 
@@ -194,68 +206,97 @@ class BlinkAPI(object):
 
     async def collect_all_device_snapshots(self):
         tasks = [self.take_snapshot_from_device(device_id) for device_id in self.devices]
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks, return_exceptions=True)
 
-        await self.blinkc.refresh()
+        try:
+            async with timeout(10):
+                await self.blinkc.refresh()
+        except asyncio.TimeoutError:
+            self.logger.warning("[refresh] Blink cloud refresh timed out after 10 s — continuing with cached data")
 
         tasks = [self.get_snapshot_from_device(device_id) for device_id in self.devices]
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks, return_exceptions=True)
 
     async def take_snapshot_from_device(self, device_id):
-        device = self.devices[device_id]
+        device = self.devices.get(device_id)
+        if not device:
+            self.logger.warning(f"[take_snapshot] Device {device_id} not found in self.devices, skipping snapshot.")
+            return
+        camera = self.blinkc.cameras.get(device['config']['device_name'])
+        if not camera:
+            self.logger.warning(f"[take_snapshot] Camera {device_id} not found in Blink object, skipping.")
+            return
 
-        tries = 0
-        while tries < 3:
-            try:
-                camera = self.blinkc.cameras[device['config']['device_name']]
-                await camera.snap_picture()
-                break
-            except Exception as err:
-                tries += 1
+        async with self.sem:
+            tries = 0
+            while tries < 3:
+                try:
+                    await camera.snap_picture()
+                    await asyncio.sleep(3) # Blink says to give them 2-5 seconds
+                    break
+                except Exception as err:
+                    tries += 1
+                    self.logger.warning(f"[take_snapshot] Retry {tries}/3 taking snapshot from {device_id}: {err}")
 
-        if tries == 3:
-            self.logger.error(f'Failed to communicate with device ({device_id}) to get snapshot')
+            if tries == 3:
+                self.logger.error(f"[take_snapshot] Failed after 3 attempts for {device_id}", exc_info=True)
 
     async def get_snapshot_from_device(self, device_id):
-        device = self.devices[device_id]
+        device = self.devices.get(device_id)
+        if not device:
+            self.logger.warning(f"[get_snapshot] Device {device_id} not found in self.devices, skipping snapshot.")
+            return
+        camera = self.blinkc.cameras.get(device['config']['device_name'])
+        if not camera:
+            self.logger.warning(f"[get_snapshot] Camera {device_id} not found in Blink object, skipping.")
+            return
 
-        tries = 0
-        while tries < 3:
-            try:
-                camera = self.blinkc.cameras[device['config']['device_name']]
-                image = camera.image_from_cache
-                encoded = base64.b64encode(image)
-                if 'snapshot' not in device or device['snapshot'] != encoded:
-                    device['snapshot'] = encoded
-                    self.logger.info(f'Processed NEW snapshot from ({device_id}) {len(image)} bytes raw, and {len(encoded)} bytes base64')
-                break
-            except Exception as err:
-                tries += 1
+        async with self.sem:
+            tries = 0
+            while tries < 3:
+                try:
+                    image = camera.image_from_cache
+                    if not image:
+                        self.logger.debug(f"[get_snapshot] Empty cache for {device_id}, skipping.")
+                        return
+                    encoded = base64.b64encode(image).decode('utf-8')
+                    if 'snapshot' not in device or device['snapshot'] != encoded:
+                        device['snapshot'] = encoded
+                        self.logger.info(f'[get_snapshot] Processed NEW snapshot from ({device_id}) {len(image)} bytes raw, and {len(encoded)} bytes base64')
+                    break
+                except Exception as err:
+                    tries += 1
+                    self.logger.warning(f"[get_snapshot] Retry {tries}/3 getting snapshot from {device_id}: {err}")
 
-        if tries == 3:
-            self.logger.error(f'Failed to communicate with device ({device_id}) to get snapshot')
+            if tries == 3:
+                self.logger.error(f"[get_snapshot] Failed after 3 attempts for {device_id}", exc_info=True)
 
-    def get_snapshot(self, device_id):
-        return self.devices[device_id]['snapshot'] if 'snapshot' in self.devices[device_id] else None
+    async def get_snapshot(self, device_id):
+        if 'snapshot' in self.devices[device_id]:
+            return self.devices[device_id]['snapshot']
+        return None
 
     # Recorded file -------------------------------------------------------------------------------
     def get_recorded_file(self, device_id, file):
-        device = self.devices[device_id]
+        device = self.devices.get(device_id)
+        if not device:
+            self.logger.warning(f"[recording] Device {device_id} not found in self.devices, skipping recorded file.")
+            return
 
         tries = 0
         while tries < 3:
             try:
                 data_raw = device["camera"].download_file(file)
                 if data_raw:
-                    data_base64 = base64.b64encode(data_raw)
-                    self.logger.info(f'Processed recording from ({device_id}) {len(data_raw)} bytes raw, and {len(data_base64)} bytes base64')
-                    if len(data_base64) < 100 * 1024 * 1024 * 1024:
-                        return data_base64
-                    else:
-                        self.logger.error(f'Processed recording is too large')
+                    data_base64 = base64.b64encode(data_raw).decode('utf-8')
+                    self.logger.info(f'[recording] Processed recording from ({device_id}) {len(data_raw)} bytes raw, and {len(data_base64)} bytes base64')
+                    if len(data_base64) >= 100 * 1024 * 1024:
+                        self.logger.error("[recording] Skipping oversized recording (>100 MB)")
                         return
+                    return data_base64
             except Exception as err:
                 tries += 1
+                self.logger.warning(f"[recording] Retry {tries}/3 downloading recording from {device_id}: {err}")
 
         if tries == 3:
-            self.logger.error(f'Failed to communicate with device ({device_id}) to get recorded file')
+            self.logger.error(f"[recording] Failed after 3 attempts for {device_id}", exc_info=True)

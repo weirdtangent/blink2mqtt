@@ -18,6 +18,8 @@ import string
 import time
 from util import *
 from zoneinfo import ZoneInfo
+from paho.mqtt.properties import Properties
+from paho.mqtt.packettypes import PacketTypes
 
 class BlinkMqtt(object):
     def __init__(self, config):
@@ -64,37 +66,42 @@ class BlinkMqtt(object):
 
     # MQTT Functions ------------------------------------------------------------------------------
 
-    def mqtt_on_connect(self, client, userdata, flags, rc, properties):
-        if rc != 0:
-            self.logger.error(f'MQTT connection issue ({rc})')
-            exit()
+    def mqtt_on_connect(self, client, userdata: object, flags: dict, reason_code, properties):
+        if reason_code.value != 0:
+            self.logger.error(f'MQTT connection issue ({reason_code.getName()})')
+            self.running = False
+            return
 
         self.logger.info(f'MQTT connected as {self.client_id}')
+        client.subscribe("homeassistant/status")
         client.subscribe(self.get_device_sub_topic())
         client.subscribe(self.get_attribute_sub_topic())
 
-    def mqtt_on_disconnect(self, client, userdata, flags, rc, properties):
-        self.logger.info('MQTT connection closed')
+    def mqtt_on_disconnect(self, client, userdata, disconnect_flags, reason_code, properties):
+        self.logger.warning(f'MQTT disconnected: {reason_code.getName()} (flags={disconnect_flags})')
         self.mqttc.loop_stop()
 
         if self.running and time.time() > self.mqtt_connect_time + 10:
             self.paused = True
-            self.logger.info('Sleeping for 30 seconds to give MQTT time to relax')
-            time.sleep(30)
-
-            # lets use a new client_id for a reconnect
-            self.client_id = self.get_new_client_id()
-            self.mqttc_create()
+            reconnect_delay = self.mqtt_config.get('reconnect_delay', 30)
+            self.logger.info(f"Will reconnect to MQTT in {reconnect_delay} seconds...")
+            asyncio.get_event_loop().call_later(reconnect_delay, self._reconnect)
             self.paused = False
         else:
             self.running = False
-            exit()
+
+    def _reconnect(self):
+        if not self.running or (self.mqttc and self.mqttc.is_connected()):
+            return
+        self.logger.info("Reconnecting to MQTT broker...")
+        self.client_id = self.get_new_client_id()
+        self.mqttc_create()
 
     def mqtt_on_log(self, client, userdata, paho_log_level, msg):
         if paho_log_level == mqtt.LogLevel.MQTT_LOG_ERR:
             self.logger.error(f'MQTT LOG: {msg}')
         elif paho_log_level == mqtt.LogLevel.MQTT_LOG_WARNING:
-            self.logger.warn(f'MQTT LOG: {msg}')
+            self.logger.warning(f'MQTT LOG: {msg}')
 
     def mqtt_on_message(self, client, userdata, msg):
         try:
@@ -107,18 +114,27 @@ class BlinkMqtt(object):
             return
 
         # we might get:
+        #   homeassistant/status
+        # or one of ours:
         #   */service/set
         #   */service/set/attribute
         #   */device/component/set
         #   */device/component/set/attribute
         components = topic.split('/')
 
+        if topic == "homeassistant/status":
+            if payload == "online":
+                self.rediscover_all()
+                self.logger.info('HomeAssistant just came online, so resent all discovery messages')
+            return
+
         # handle this message if it's for us, otherwise pass along to blink API
         if components[-2] == self.get_component_slug('service'):
             self.handle_service_message(None, payload)
-        elif components[-3] == self.get_component_slug('service'):
+        elif len(components) >= 3 and components[-3] == self.get_component_slug('service'):
             self.handle_service_message(components[-1], payload)
         else:
+            attribute = None
             if components[-1] == 'set':
                 vendor, device_id = components[-2].split('-')
             elif components[-2] == 'set':
@@ -157,17 +173,17 @@ class BlinkMqtt(object):
                 self.logger.error(f'Caught exception: {err}', exc_info=True)
 
     def mqtt_on_subscribe(self, client, userdata, mid, reason_code_list, properties):
-        rc_list = map(lambda x: x.getName(), reason_code_list)
-        self.logger.debug(f'MQTT SUBSCRIBED: reason_codes - {'; '.join(rc_list)}')
+        rc_list = [rc.getName() for rc in reason_code_list]
+        self.logger.debug(f"MQTT SUBSCRIBED: reason_codes - {'; '.join(rc_list)}")
 
     # MQTT Helpers --------------------------------------------------------------------------------
 
     def mqttc_create(self):
         self.mqttc = mqtt.Client(
-            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=self.client_id,
-            clean_session=False,
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             reconnect_on_failure=False,
+            protocol=mqtt.MQTTv5,
         )
 
         if self.mqtt_config.get('tls_enabled'):
@@ -176,9 +192,10 @@ class BlinkMqtt(object):
                 certfile=self.mqtt_config.get('tls_cert'),
                 keyfile=self.mqtt_config.get('tls_key'),
                 cert_reqs=ssl.CERT_REQUIRED,
-                tls_version=ssl.PROTOCOL_TLS,
+                tls_version=ssl.PROTOCOL_TLS_CLIENT,
             )
-        else:
+            self.mqttc.tls_insecure_set(self.mqtt_config.get("tls_insecure", False))
+        if self.mqtt_config.get('username'):
             self.mqttc.username_pw_set(
                 username=self.mqtt_config.get('username'),
                 password=self.mqtt_config.get('password'),
@@ -194,16 +211,37 @@ class BlinkMqtt(object):
         self.mqttc.will_set(self.get_discovery_topic('service', 'availability'), payload="offline", qos=self.mqtt_config['qos'], retain=True)
 
         try:
+            self.logger.info(
+                f"Connecting to MQTT broker at {self.mqtt_config.get('host')}:{self.mqtt_config.get('port')} "
+                f"as {self.client_id}"
+            )
+
+            props = Properties(PacketTypes.CONNECT)
+            props.SessionExpiryInterval = 0
+
             self.mqttc.connect(
-                self.mqtt_config.get('host'),
+                host=self.mqtt_config.get('host'),
                 port=self.mqtt_config.get('port'),
                 keepalive=60,
+                properties=props,
             )
             self.mqtt_connect_time = time.time()
             self.mqttc.loop_start()
-        except ConnectionError as error:
-            self.logger.error(f'COULD NOT CONNECT TO MQTT {self.mqtt_config.get("host")}: {error}')
-            exit(1)
+
+        except ConnectionRefusedError as err:
+            self.logger.error(
+                f"MQTT connection refused at {self.mqtt_config.get('host')}:{self.mqtt_config.get('port')} — "
+                f"broker may be down or misconfigured ({err})"
+            )
+            self.running = False
+
+        except Exception as error:
+            self.logger.error(
+                f"Failed to connect to MQTT broker {self.mqtt_config.get('host')}:{self.mqtt_config.get('port')} "
+                f"({type(error).__name__}: {error})",
+                exc_info=True,
+            )
+            self.running = False
 
     # MQTT Topics ---------------------------------------------------------------------------------
 
@@ -249,11 +287,6 @@ class BlinkMqtt(object):
             return f"{self.mqtt_config['prefix']}/{self.get_component_slug(device_id)}/{topic}"
         return f"{self.mqtt_config['discovery_prefix']}/device/{self.get_component_slug(device_id)}/{topic}"
 
-    def get_discovery_topic(self, device_id, topic):
-        if 'homeassistant' not in self.mqtt_config or self.mqtt_config['homeassistant'] == False:
-            return f"{self.mqtt_config['prefix']}/{self.get_component_slug(device_id)}/{topic}"
-        return f"{self.mqtt_config['discovery_prefix']}/device/{self.get_component_slug(device_id)}/{topic}"
-
     def get_discovery_subtopic(self, device_id, topic, subtopic):
         if 'homeassistant' not in self.mqtt_config or self.mqtt_config['homeassistant'] == False:
             return f"{self.mqtt_config['prefix']}/{self.get_component_slug(device_id)}/{topic}/{subtopic}"
@@ -288,7 +321,6 @@ class BlinkMqtt(object):
 
     def publish_service_device(self):
         state_topic = self.get_discovery_topic('service', 'state')
-        command_topic = self.get_discovery_topic('service', 'set')
         availability_topic = self.get_discovery_topic('service', 'availability')
 
         self.mqttc.publish(
@@ -356,6 +388,14 @@ class BlinkMqtt(object):
                         'command_topic': self.get_command_topic('service', 'snapshot_refresh'),
                         'value_template': '{{ value_json.snapshot_refresh }}',
                         'unique_id': 'blink_service_snapshot_refresh',
+                    },
+                    self.service_slug + '_rediscover': {
+                        'name': 'Rediscover Devices',
+                        'platform': 'button',
+                        'icon': 'mdi:refresh',
+                        'command_topic': self.get_command_topic('service', 'rediscover'),
+                        'payload_press': 'PRESS',
+                        'unique_id': f'{self.service_slug}_rediscover_button',
                     },
                 },
             }),
@@ -451,7 +491,7 @@ class BlinkMqtt(object):
 
                 self.add_components_to_device(device_id)
 
-                self.logger.info(f'Adding device: "{config['device_name']}" [Amazon {config["device_type"]}] ({device_id})')
+                self.logger.info(f'Adding device: "{config["device_name"]}" [Amazon {config["device_type"]}] ({device_id})')
                 self.publish_device_discovery(device_id)
             else:
                 self.logger.debug(f'Updated device: {self.configs[device_id]['device']['name']}')
@@ -490,7 +530,7 @@ class BlinkMqtt(object):
                     'state_topic': self.get_discovery_topic(device_id, 'state'),
                     'state_value_template': '{{ value_json.state }}',
                     'value_template': '{{ value_json.local_storage }}',
-                    'unique_id': self.get_slug(device_id, 'arm_mode'),
+                    'unique_id': self.get_slug(device_id, 'local_storage'),
                 }
             else:
                 components[self.get_slug(device_id, 'snapshot_camera')] = {
@@ -666,7 +706,7 @@ class BlinkMqtt(object):
                 if image_type in device_states['camera'] and device_states['camera'][image_type] is not None:
                     publish_topic = self.get_discovery_subtopic(device_id, 'camera',image_type)
                     payload = device_states['camera'][image_type]
-                    result = self.mqttc.publish(publish_topic, payload, qos=self.mqtt_config['qos'], retain=True)
+                    self.mqttc.publish(publish_topic, payload, qos=self.mqtt_config['qos'], retain=True)
 
     def publish_device_discovery(self, device_id):
         device_config = self.configs[device_id]
@@ -705,20 +745,20 @@ class BlinkMqtt(object):
 
             self.publish_device_state(device_id)
 
-    def refresh_snapshot_all_devices(self):
+    async def refresh_snapshot_all_devices(self):
         self.logger.info(f'Checking for snapshots on all devices (every {self.snapshot_update_interval} sec)')
 
         for device_id in self.configs:
             if not self.running: break
             if self.configs[device_id]['device']['model'] == 'sync_module': continue
 
-            self.refresh_snapshot(device_id,'snapshot')
+            await self.refresh_snapshot(device_id,'snapshot')
 
     # type is 'snapshot' for normal, or 'eventshot' for capturing an image immediately after a "movement" event
-    def refresh_snapshot(self, device_id, type):
+    async def refresh_snapshot(self, device_id, type):
         device_states = self.states[device_id]
 
-        image = self.blinkc.get_snapshot(device_id)
+        image = await self.blinkc.get_snapshot(device_id)
 
         if image is None:
             return
@@ -734,7 +774,6 @@ class BlinkMqtt(object):
     # send command to Blink  --------------------------------------------------------------------
 
     def send_command(self, device_id, data):
-        device_config = self.configs[device_id]
         device_states = self.states[device_id]
 
         if data == 'PRESS':
@@ -767,17 +806,26 @@ class BlinkMqtt(object):
             case 'snapshot_refresh':
                 self.snapshot_update_interval = message
                 self.logger.info(f'Updated SNAPSHOT_REFRESH_INTERVAL to be {message}')
+            case 'rediscover':
+                self.rediscover_all()
+                self.logger.info('REDISCOVER button pressed - resent all discovery messages')
             case _:
                 self.logger.info(f'IGNORED UNRECOGNIZED blink-service MESSAGE for {attribute}: {message}')
                 return
-
         self.publish_service_state()
+
+    def rediscover_all(self):
+        self.publish_service_state()
+        for device_id in self.configs:
+            if device_id == 'service': continue
+            self.publish_device_state(device_id)
+            self.publish_device_discovery(device_id)
 
     # async loops and main loop -------------------------------------------------------------------
 
     async def _handle_signals(self, signame, loop):
         self.running = False
-        self.logger.warn(f'{signame} received, waiting for tasks to cancel...')
+        self.logger.warning(f'{signame} received, waiting for tasks to cancel...')
 
         for task in asyncio.all_tasks():
             if not task.done(): task.cancel(f'{signame} received')
@@ -797,7 +845,7 @@ class BlinkMqtt(object):
         try:
             while self.running == True:
                 await self.blinkc.collect_all_device_snapshots()
-                self.refresh_snapshot_all_devices()
+                await self.refresh_snapshot_all_devices()
                 await asyncio.sleep(self.snapshot_update_interval)
         except Exception as err:
             self.running = False
@@ -828,10 +876,10 @@ class BlinkMqtt(object):
             for result in results:
                 if isinstance(result, Exception):
                     self.running = False
-                    self.logger.error(f'Caught exception: {err}', exc_info=True)
+                    self.logger.error(f'Caught exception: {result}', exc_info=True)
         except asyncio.CancelledError:
             await self.blinkc.disconnect()
-            exit()
+            self.running = False
         except Exception as err:
             self.running = False
             self.logger.error(f'Caught exception: {err}', exc_info=True)
