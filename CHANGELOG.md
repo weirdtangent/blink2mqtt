@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/weirdtangent/blink2mqtt/compare/v1.0.0...v1.0.1) (2025-10-09)
+
+
+### Bug Fixes
+
+* tls_set call for ssl mqtt connections ([1b7ee8e](https://github.com/weirdtangent/blink2mqtt/commit/1b7ee8e5a72c8e506cd1940f57fddb7f1baeab5c))
+
 # 1.0.0 (2025-10-09)
 
 
