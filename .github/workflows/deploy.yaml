@@ -6,7 +6,7 @@ on:
       - "main"
   workflow_dispatch:
   schedule:
-    - cron: "0 3 1 * *"   # Runs at 03:00 UTC on the 1st of each month
+    - cron: "0 3 1 * *"  # Monthly rebuild at 03:00 UTC on the 1st
 
 permissions:
   contents: write
@@ -18,9 +18,9 @@ jobs:
   release:
     name: Semantic Release
     runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
     outputs:
       release_tag: ${{ steps.get_release.outputs.release_tag }}
-      release_notes: ${{ steps.semantic.outputs.release_notes }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,12 +39,7 @@ jobs:
         id: semantic
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npx semantic-release
-          RELEASE_NOTES=$(npx semantic-release --dry-run | grep -A100 "Next release version" || true)
-          echo "release_notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+        run: npx semantic-release
 
       - name: Get latest release tag
         id: get_release
@@ -52,24 +47,15 @@ jobs:
           TAG=$(git describe --tags --abbrev=0)
           echo "$TAG" > VERSION
           echo "release_tag=$TAG" >> $GITHUB_OUTPUT
-
-      - name: Commit VERSION file
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION
-          git commit -m "chore: update VERSION to ${{ steps.get_release.outputs.release_tag }}" || echo "No changes to commit"
-          git push
+          echo "Found release tag: $TAG"
 
   docker:
     name: Build and Push Docker Image
     needs: [release]
-    if: |
-      github.event_name == 'schedule' || needs.release.result == 'success'
+    if: github.event_name == 'schedule' || needs.release.result == 'success'
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
-      RELEASE_NOTES: ${{ needs.release.outputs.release_notes }}
 
     steps:
       - name: Checkout code
@@ -103,5 +89,4 @@ jobs:
           labels: |
             org.opencontainers.image.version=${{ env.RELEASE_TAG }}
             org.opencontainers.image.title=blink2mqtt
-            org.opencontainers.image.description=${{ env.RELEASE_NOTES }}
             org.opencontainers.image.source=${{ github.repository }}
