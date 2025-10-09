@@ -1,18 +1,29 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-*$py.class
 
 # Distribution / packaging
 .Python
 build/
 dist/
+lib/
+include/
+node_modules/
 
 # Environments
+.env
+.venv
 venv/
 
-# Config testing and notes
+# Local testing and notes
 config
 config/
 config.yaml
+govee2mqtt.dat
+npm-debug.log
 NOTES
+coverage/
+dist/
+
+# Apple
+.DS_Store

@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: Release and Docker Deploy
 
 on:
   push:
@@ -6,36 +6,99 @@ on:
       - "main"
   workflow_dispatch:
 
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  packages: write
+
 jobs:
-  docker:
+  release:
+    name: Semantic Release
     runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.get_release.outputs.release_tag }}
+      release_notes: ${{ steps.semantic.outputs.release_notes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run semantic-release
+        id: semantic
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx semantic-release
+          RELEASE_NOTES=$(npx semantic-release --dry-run | grep -A100 "Next release version" || true)
+          echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Get latest release tag
+        id: get_release
+        run: |
+          TAG=$(git describe --tags --abbrev=0)
+          echo "$TAG" > VERSION
+          echo "release_tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Commit VERSION file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit -m "chore: update VERSION to ${{ steps.get_release.outputs.release_tag }}" || echo "No changes to commit"
+          git push
+
+  docker:
+    name: Build and Push Docker Image
+    needs: release
+    if: ${{ needs.release.result == 'success' }}
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
+      RELEASE_NOTES: ${{ needs.release.outputs.release_notes }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v5
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # Authenticate to the container registry
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ vars.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_PAT }}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PAT }}
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    # Build and push Docker image with Buildx
-    - name: Build and push
-      id: build-and-push
-      uses: docker/build-push-action@v6
-      with:
-        sbom: true
-        provenance: true
-        platforms: linux/arm64,linux/amd64
-        tags: graystorm/blink2mqtt:latest
-        push: true
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+      - name: Build and push
+        id: build-and-push
+        uses: docker/build-push-action@v6
+        with:
+          sbom: true
+          provenance: true
+          platforms: linux/arm64,linux/amd64
+          tags: |
+            graystorm/blink2mqtt:latest
+            graystorm/blink2mqtt:${{ env.RELEASE_TAG }}
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.version=${{ env.RELEASE_TAG }}
+            org.opencontainers.image.title=blink2mqtt
+            org.opencontainers.image.description=${{ env.RELEASE_NOTES }}
+            org.opencontainers.image.source=${{ github.repository }}
