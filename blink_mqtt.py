@@ -292,6 +292,18 @@ class BlinkMqtt(object):
             return f"{self.mqtt_config['prefix']}/{self.get_component_slug(device_id)}/{topic}/{subtopic}"
         return f"{self.mqtt_config['discovery_prefix']}/device/{self.get_component_slug(device_id)}/{topic}/{subtopic}"
 
+    def ha_cfg_topic(self, domain: str, object_id: str) -> str:
+        dp = self.mqtt_config.get('discovery_prefix', 'homeassistant')
+        return f"{dp}/{domain}/{object_id}/config"
+
+    def service_oid(self, suffix: str) -> str:
+        return f"{self.service_slug}_{suffix}"
+
+    def svc_topic(self, sub: str) -> str:
+        # Runtime topics (your own prefix), e.g. govee2mqtt/govee-service/state
+        pfx = self.mqtt_config.get('prefix', 'govee2mqtt')
+        return f"{pfx}/blink-service/{sub}"
+
     # Service Device ------------------------------------------------------------------------------
 
     def publish_service_state(self):

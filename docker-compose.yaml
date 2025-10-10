@@ -1,9 +1,22 @@
+version: "3.8"
+
 services:
   blink2mqtt:
     image: graystorm/blink2mqtt:latest
-    network_mode: host
     container_name: blink2mqtt
     restart: unless-stopped
+    network_mode: host
     volumes:
-      - /volume1/docker/blink2mqtt/config:/config
-
+      - ./config:/config
+    environment:
+      - TZ=${TZ:-UTC}
+      - CONFIG_PATH=/config/config.yaml     # or whatever your config file name is
+    labels:
+      org.opencontainers.image.title: "blink2mqtt"
+      org.opencontainers.image.description: "Publishes Blink camera motion, battery, and sensor data via MQTT"
+      org.opencontainers.image.source: "https://github.com/weirdtangent/blink2mqtt"
+      org.opencontainers.image.documentation: "https://github.com/weirdtangent/blink2mqtt#readme"
+      org.opencontainers.image.version: "${BLINK2MQTT_TAG:-latest}"
+      org.opencontainers.image.authors: "weirdTangent <jeff@weirdtangent.com>"
+      org.opencontainers.image.url: "https://www.graystorm.com"
+      org.opencontainers.image.licenses: "MIT"

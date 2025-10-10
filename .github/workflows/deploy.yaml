@@ -90,3 +90,8 @@ jobs:
             org.opencontainers.image.version=${{ env.RELEASE_TAG }}
             org.opencontainers.image.title=blink2mqtt
             org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.authors=weirdTangent <jeff@weirdtangent.com>
+            org.opencontainers.image.url=https://www.graystorm.com
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
+            org.opencontainers.image.description=Publishes Blink camera events, battery levels, and motion data via MQTT for integration with Home Assistant
+            org.opencontainers.image.licenses=MIT
