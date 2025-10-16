@@ -1,0 +1,23 @@
+Metadata-Version: 2.4
+Name: blink2mqtt
+Version: 1.0.2.dev3+g4d53c3332.d20251024
+License-Expression: MIT
+Requires-Python: >=3.13
+License-File: LICENSE
+Requires-Dist: blinkpy>=0.24.0
+Requires-Dist: deepmerge==2.0
+Requires-Dist: paho-mqtt>=2.1.0
+Requires-Dist: pyyaml>=6.0.3
+Requires-Dist: requests>=2.32.5
+Requires-Dist: json-logging-graystorm
+Requires-Dist: pathlib>=1.0.1
+Provides-Extra: dev
+Requires-Dist: black>=24.10.0; extra == "dev"
+Requires-Dist: ruff>=0.6.9; extra == "dev"
+Requires-Dist: pytest>=8.4.2; extra == "dev"
+Requires-Dist: pytest-asyncio>=1.2.0; extra == "dev"
+Requires-Dist: pytest-cov>=7.0.0; extra == "dev"
+Requires-Dist: jsonschema>=4.25.1; extra == "dev"
+Requires-Dist: packaging>=25.0; extra == "dev"
+Requires-Dist: attrs>=25.4.0; extra == "dev"
+Dynamic: license-file

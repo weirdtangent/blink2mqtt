@@ -1,0 +1,150 @@
+[build-system]
+requires = ["setuptools>=68", "setuptools-scm>=8", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blink2mqtt"
+dynamic = ["version"]
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.13"
+dependencies = [
+    "blinkpy>=0.24.0",
+    "deepmerge==2.0",
+    "paho-mqtt>=2.1.0",
+    "pyyaml>=6.0.3",
+    "requests>=2.32.5",
+    "json-logging-graystorm",
+    "pathlib>=1.0.1",
+]
+
+[project.scripts]
+blink2mqtt = "blink2mqtt.app:main"
+
+[project.optional-dependencies]
+dev = [
+    # linting/formating
+    "black>=24.10.0",
+    "ruff>=0.6.9",
+
+    # testing/coverage
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+    "pytest-cov>=7.0.0",
+
+    # misc
+    "jsonschema>=4.25.1",
+    "packaging>=25.0",
+    "attrs>=25.4.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.package-data]
+qtt = ["VERSION"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["blink2mqtt*"]
+
+[tool.setuptools_scm]
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+# Same as Black.
+line-length = 88
+indent-width = 4
+
+# Assume Python 3.13
+target-version = "py313"
+
+[tool.pyright]
+include = [ "." ]
+extraPaths = [ "./mixins" ]
+venvPath = "./.venv"
+venv = ".venv"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "--quiet"
+testpaths = "tests"
+pythonpath = "src"
+
+[tool.coverage.run]
+# .coveragerc
+branch = true
+source = [
+    "blink_api",
+    "qtt",
+    "util",
+]
+omit = [
+    "tests/*",
+    "*/__init__.py",
+    "*/venv/*",
+    "*/.venv/*",
+    "*/site-packages/*"
+]
+
+[tool.coverage.report]
+fail_under = 75
+show_missing = true
+skip_covered = false
+precision = 1
+exclude_lines = [
+    "pragma: no cover"
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py313"]
+extend-exclude = '''
+/(
+  \.venv
+ |\.ruff_cache
+ |\.pytest_cache
+ |node_modules
+ |dist
+ |build
+)/
+'''
+
+[tool.uv.sources]
+json-logging-graystorm = { url = "https://github.com/weirdtangent/json_logging/archive/refs/tags/0.1.3.tar.gz" }
+
+[dependency-groups]
+dev = [
+    "black>=25.9.0",
+    "pytest>=8.4.2",
+    "ruff>=0.14.1",
+]

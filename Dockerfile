@@ -1,49 +1,29 @@
-# builder stage -----------------------------------------------------------------------------------
-FROM python:3-slim AS builder
+# syntax=docker/dockerfile:1.7
+FROM python:3-slim
 
-RUN apt-get update && \
-    apt-get install -y apt-transport-https && \
-    apt-get -y upgrade && \
-    apt-get install --no-install-recommends -y build-essential && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Work inside /app
+WORKDIR /app
 
-RUN python3 -m ensurepip
-RUN pip3 install --upgrade pip setuptools
+# Copy lock and project metadata first for dependency caching
+COPY pyproject.toml uv.lock ./
 
-WORKDIR /usr/src/app
+# Install uv and dependencies (excluding dev)
+RUN pip install uv
+RUN uv sync --frozen --no-dev
 
-COPY requirements.txt .
-RUN python3 -m venv .venv
-RUN .venv/bin/pip3 install --no-cache-dir --upgrade -r requirements.txt
+# Copy source excluding .git
+COPY --exclude=.git . .
 
-# production stage --------------------------------------------------------------------------------
-FROM python:3-slim AS production
+# ---- Version injection support ----
+# Allows CI (e.g., semantic-release) to pass a version:
+# docker build --build-arg VERSION=1.2.3 ...
+ARG VERSION
+ENV BLINK2MQTT_VERSION=${VERSION}
 
-RUN apt-get update && \
-    apt-get install -y apt-transport-https && \
-    apt-get -y upgrade && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Install our package properly so setuptools-scm resolves the version
+RUN uv pip install .
 
-WORKDIR /usr/src/app
-
-COPY . .
-COPY --from=builder /usr/src/app/.venv .venv
-
-ARG USER_ID=1000
-ARG GROUP_ID=1000
-
-RUN addgroup --gid $GROUP_ID appuser && \
-    adduser --uid $USER_ID --gid $GROUP_ID --disabled-password --gecos "" appuser
-
-RUN chown -R appuser:appuser .
-
-RUN mkdir /config && chown appuser:appuser /config && chmod 777 /config
-
-USER appuser
-
-ENV PATH="/usr/src/app/.venv/bin:$PATH"
-
-ENTRYPOINT [ "python3", "./app.py" ]
-CMD [ "-c", "/config" ]
+# ---- Runtime ----
+ENV SERVICE=blink2mqtt
+ENTRYPOINT ["blink2mqtt"]
+CMD ["-c", "/config"]

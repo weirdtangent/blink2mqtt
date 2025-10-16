@@ -19,7 +19,7 @@ venv/
 config
 config/
 config.yaml
-govee2mqtt.dat
+blink2mqtt.dat
 npm-debug.log
 NOTES
 coverage/
