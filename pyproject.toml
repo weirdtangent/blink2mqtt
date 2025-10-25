@@ -82,7 +82,7 @@ exclude = [
 ]
 
 # Same as Black.
-line-length = 88
+line-length = 160
 indent-width = 4
 
 # Assume Python 3.13
@@ -127,7 +127,7 @@ exclude_lines = [
 ]
 
 [tool.black]
-line-length = 88
+line-length = 160
 target-version = ["py313"]
 extend-exclude = '''
 /(

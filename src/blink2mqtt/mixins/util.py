@@ -61,9 +61,7 @@ class UtilMixin:
             except Exception as e:
                 logging.warning(f"Failed to load config from {config_file}: {e}")
         else:
-            logging.warning(
-                f"Config file not found at {config_file}, falling back to environment vars"
-            )
+            logging.warning(f"Config file not found at {config_file}, falling back to environment vars")
 
         # Merge with environment vars (env vars override nothing if file exists)
         mqtt = config.get("mqtt", {})
@@ -105,8 +103,6 @@ class UtilMixin:
 
         # Validate required fields
         if not config["blink"].get("username"):
-            raise ValueError(
-                "`blink.username` required in config file or BLINK_USERNAME env var"
-            )
+            raise ValueError("`blink.username` required in config file or BLINK_USERNAME env var")
 
         return config

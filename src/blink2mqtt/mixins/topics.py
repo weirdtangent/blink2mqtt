@@ -15,20 +15,12 @@ class TopicsMixin:
         self: "BlinkServiceProtocol"
 
     def get_new_client_id(self: Blink2Mqtt):
-        return (
-            self.mqtt_config["prefix"]
-            + "-"
-            + "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
-        )
+        return self.mqtt_config["prefix"] + "-" + "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
 
     # Slug strings --------------------------------------------------------------------------------
 
-    def get_device_slug(
-        self: "Blink2Mqtt", device_id: str, type: Optional[str] = None
-    ) -> str:
-        return "_".join(
-            filter(None, [self.service_slug, device_id.replace(":", ""), type])
-        )
+    def get_device_slug(self: "Blink2Mqtt", device_id: str, type: Optional[str] = None) -> str:
+        return "_".join(filter(None, [self.service_slug, device_id.replace(":", ""), type]))
 
     def get_vendor_device_slug(self: "Blink2Mqtt", device_id):
         return f"{self.service_slug}-{device_id.replace(':', '')}"
@@ -46,48 +38,28 @@ class TopicsMixin:
             return "/".join([self.service_slug, *map(str, parts)])
 
         device_slug = self.get_device_slug(device_id)
-        return "/".join(
-            [self.service_slug, component_type, device_slug, *map(str, parts)]
-        )
+        return "/".join([self.service_slug, component_type, device_slug, *map(str, parts)])
 
     def get_discovery_topic(self: "Blink2Mqtt", component, item) -> str:
         return f"{self.mqtt_config['discovery_prefix']}/{component}/{item}/config"
 
     def get_state_topic(self: "Blink2Mqtt", device_id, category, item=None) -> str:
-        topic = (
-            f"{self.service_slug}/{category}"
-            if device_id == "service"
-            else f"{self.service_slug}/devices/{self.get_device_slug(device_id)}/{category}"
-        )
+        topic = f"{self.service_slug}/{category}" if device_id == "service" else f"{self.service_slug}/devices/{self.get_device_slug(device_id)}/{category}"
         return f"{topic}/{item}" if item else topic
 
-    def get_availability_topic(
-        self: "Blink2Mqtt", device_id, category="availability", item=None
-    ) -> str:
-        topic = (
-            f"{self.service_slug}/{category}"
-            if device_id == "service"
-            else f"{self.service_slug}/devices/{self.get_device_slug(device_id)}/{category}"
-        )
+    def get_availability_topic(self: "Blink2Mqtt", device_id, category="availability", item=None) -> str:
+        topic = f"{self.service_slug}/{category}" if device_id == "service" else f"{self.service_slug}/devices/{self.get_device_slug(device_id)}/{category}"
         return f"{topic}/{item}" if item else topic
 
-    def get_attribute_topic(
-        self: "Blink2Mqtt", device_id, category, item, attribute
-    ) -> str:
+    def get_attribute_topic(self: "Blink2Mqtt", device_id, category, item, attribute) -> str:
         if device_id == "service":
             return f"{self.service_slug}/{category}/{item}/{attribute}"
 
         device_entry = self.devices.get(device_id, {})
-        component = (
-            device_entry.get("component")
-            or device_entry.get("component_type")
-            or category
-        )
+        component = device_entry.get("component") or device_entry.get("component_type") or category
         return f"{self.mqtt_config['discovery_prefix']}/{component}/{self.get_device_slug(device_id)}/{item}/{attribute}"
 
-    def get_command_topic(
-        self: "Blink2Mqtt", device_id, category, item=None, command="set"
-    ) -> str:
+    def get_command_topic(self: "Blink2Mqtt", device_id, category, item=None, command="set") -> str:
         if device_id == "service":
             return f"{self.service_slug}/service/{category}/{command}"
 
@@ -122,11 +94,7 @@ class TopicsMixin:
         return self.states[device_id]["internal"].get("discovered", False)
 
     def get_device_state_topic(self: "Blink2Mqtt", device_id, mode_name=None):
-        component = (
-            self.get_mode(device_id, mode_name)
-            if mode_name
-            else self.get_component(device_id)
-        )
+        component = self.get_mode(device_id, mode_name) if mode_name else self.get_component(device_id)
 
         if component["component_type"] == "camera":
             return component.get("json_attributes_topic", None)
@@ -143,9 +111,7 @@ class TopicsMixin:
 
     # Misc helpers --------------------------------------------------------------------------------
 
-    def get_device_block(
-        self: "Blink2Mqtt", id, name, via=None, sw_version=None, mfr="Amazon"
-    ):
+    def get_device_block(self: "Blink2Mqtt", id, name, via=None, sw_version=None, mfr="Amazon"):
         device = {"name": name, "identifiers": [id], "manufacturer": mfr}
 
         if via:

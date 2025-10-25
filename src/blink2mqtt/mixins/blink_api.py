@@ -56,9 +56,7 @@ class BlinkAPIMixin(object):
             self.logger.info("Prior credential file found, trying those credentials")
             auth = Auth(await json_load(cred_path), no_prompt=True)
         else:
-            self.logger.info(
-                "Prior credential file not found, trying simple name/password"
-            )
+            self.logger.info("Prior credential file not found, trying simple name/password")
             auth = Auth(
                 {
                     "username": self.blink_config["username"],
@@ -77,9 +75,7 @@ class BlinkAPIMixin(object):
             )
             for _ in range(1200):
                 if os.path.exists(key_path):
-                    self.logger.info(
-                        "I see the key.txt file, sending the key to Blink and deleting that file"
-                    )
+                    self.logger.info("I see the key.txt file, sending the key to Blink and deleting that file")
                     key = self.read_file(key_path).strip()
                     try:
                         os.remove(key_path)
@@ -92,9 +88,7 @@ class BlinkAPIMixin(object):
                     return
                 await asyncio.sleep(1)
 
-            self.logger.error(
-                "I did not see the key.txt file in time. Please try again"
-            )
+            self.logger.error("I did not see the key.txt file in time. Please try again")
             if os.path.exists(cred_path):
                 os.remove(cred_path)
             key_path = os.path.join(self.config["config_path"], "key.txt")
@@ -178,9 +172,7 @@ class BlinkAPIMixin(object):
 
     # Arm mode  -----------------------------------------------------------------------------------
 
-    async def set_arm_mode(
-        self: Blink2Mqtt, device_id: str, switch: bool
-    ) -> Any | None:
+    async def set_arm_mode(self: Blink2Mqtt, device_id: str, switch: bool) -> Any | None:
         if device_id in self.blink_cameras:
             name = self.blink_cameras[device_id]["config"]["device_name"]
             device = self.blink.cameras[name]
@@ -211,9 +203,7 @@ class BlinkAPIMixin(object):
 
         return motion
 
-    async def set_motion_detection(
-        self: Blink2Mqtt, device_id: str, switch: bool
-    ) -> bool | None:
+    async def set_motion_detection(self: Blink2Mqtt, device_id: str, switch: bool) -> bool | None:
         max_retries = 5
         base_delay = 2
 
@@ -223,15 +213,11 @@ class BlinkAPIMixin(object):
                     dev = self.blink_cameras[device_id]
                     cam = self.blink.cameras[dev["config"]["name"]]
                     response: dict[str, Any] | None = await cam.async_arm(switch)
-                    self.logger.debug(
-                        f"[set_motion] Camera response ({attempt}/{max_retries}): {json.dumps(response)}"
-                    )
+                    self.logger.debug(f"[set_motion] Camera response ({attempt}/{max_retries}): {json.dumps(response)}")
 
                     if response and response.get("code") == 307:
                         wait = base_delay * attempt
-                        self.logger.warning(
-                            f"Blink busy for camera {dev['config']['name']}, retrying in {wait}s..."
-                        )
+                        self.logger.warning(f"Blink busy for camera {dev['config']['name']}, retrying in {wait}s...")
                         await asyncio.sleep(wait)
                         continue
 
@@ -242,15 +228,11 @@ class BlinkAPIMixin(object):
                     sync = self.sync_modules[device_id]
                     sync_obj = self.blink.sync[sync["device_name"]]
                     response: dict[str, Any] | None = await sync_obj.async_arm(switch)
-                    self.logger.debug(
-                        f"[set_motion] Sync response ({attempt}/{max_retries}): {json.dumps(response)}"
-                    )
+                    self.logger.debug(f"[set_motion] Sync response ({attempt}/{max_retries}): {json.dumps(response)}")
 
                     if response and response.get("code") == 307:
                         wait = base_delay * attempt
-                        self.logger.warning(
-                            f"Blink busy for sync {sync['device_name']}, retrying in {wait}s..."
-                        )
+                        self.logger.warning(f"Blink busy for sync {sync['device_name']}, retrying in {wait}s...")
                         await asyncio.sleep(wait)
                         continue
 
@@ -268,9 +250,7 @@ class BlinkAPIMixin(object):
                 )
                 await asyncio.sleep(base_delay * attempt)
 
-        self.logger.error(
-            f"[set_motion] Failed for {device_id} after {max_retries} retries"
-        )
+        self.logger.error(f"[set_motion] Failed for {device_id} after {max_retries} retries")
         return None
 
     # Snapshots -----------------------------------------------------------------------------------
@@ -283,9 +263,7 @@ class BlinkAPIMixin(object):
             await camera.snap_picture()
             await asyncio.sleep(3)  # Blink says to give them 2-5 seconds
         except Exception as e:
-            self.logger.error(
-                f"[take_snapshot] Failed to take snapshot for {device_id}: {e}"
-            )
+            self.logger.error(f"[take_snapshot] Failed to take snapshot for {device_id}: {e}")
 
     async def get_snapshot_from_device(self: Blink2Mqtt, device_id: str) -> str | None:
 
@@ -294,15 +272,11 @@ class BlinkAPIMixin(object):
             camera = self.blink.cameras.get(device["config"]["name"])
             image = camera.image_from_cache
             if not image:
-                self.logger.info(
-                    f"[get_snapshot] Empty cache for {device_id}, skipping."
-                )
+                self.logger.info(f"[get_snapshot] Empty cache for {device_id}, skipping.")
                 return
             encoded = base64.b64encode(image).decode("utf-8")
         except Exception as e:
-            self.logger.error(
-                f"[get_snapshot_from_device] Failed to take snapshot for {device_id}: {e}"
-            )
+            self.logger.error(f"[get_snapshot_from_device] Failed to take snapshot for {device_id}: {e}")
             return
 
         return encoded
@@ -318,22 +292,14 @@ class BlinkAPIMixin(object):
                 data_raw = camera.download_file(file)
                 if data_raw:
                     data_base64 = base64.b64encode(data_raw).decode("utf-8")
-                    self.logger.info(
-                        f"[recording] Processed recording from ({device_id}) {len(data_raw)} bytes raw, and {len(data_base64)} bytes base64"
-                    )
+                    self.logger.info(f"[recording] Processed recording from ({device_id}) {len(data_raw)} bytes raw, and {len(data_base64)} bytes base64")
                     if len(data_base64) >= 100 * 1024 * 1024:
-                        self.logger.error(
-                            "[recording] Skipping oversized recording (>100 MB)"
-                        )
+                        self.logger.error("[recording] Skipping oversized recording (>100 MB)")
                         return
                     return data_base64
             except Exception as err:
                 tries += 1
-                self.logger.warning(
-                    f"[recording] Retry {tries}/3 downloading recording from {device_id}: {err}"
-                )
+                self.logger.warning(f"[recording] Retry {tries}/3 downloading recording from {device_id}: {err}")
 
         if tries == 3:
-            self.logger.error(
-                f"[recording] Failed after 3 attempts for {device_id}", exc_info=True
-            )
+            self.logger.error(f"[recording] Failed after 3 attempts for {device_id}", exc_info=True)

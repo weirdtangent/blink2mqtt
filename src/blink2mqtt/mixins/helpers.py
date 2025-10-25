@@ -12,9 +12,7 @@ class HelpersMixin:
     if TYPE_CHECKING:
         self: "BlinkServiceProtocol"
 
-    def build_camera_states(
-        self: Blink2Mqtt, device_id: str, camera: list[str, str]
-    ) -> None:
+    def build_camera_states(self: Blink2Mqtt, device_id: str, camera: list[str, str]) -> None:
         self.upsert_state(
             device_id,
             switch={
@@ -30,9 +28,7 @@ class HelpersMixin:
             },
         )
 
-    def build_sync_module_states(
-        self: Blink2Mqtt, device_id: str, sync_module: list[str, str]
-    ) -> None:
+    def build_sync_module_states(self: Blink2Mqtt, device_id: str, sync_module: list[str, str]) -> None:
         self.upsert_state(
             device_id,
             switch={"armed": "ON" if sync_module["arm_mode"] else "OFF"},
@@ -41,13 +37,9 @@ class HelpersMixin:
 
     # send command to Blink -----------------------------------------------------------------------
 
-    async def send_command(
-        self: Blink2Mqtt, device_id: str, payload: str, attribute: str
-    ) -> None:
+    async def send_command(self: Blink2Mqtt, device_id: str, payload: str, attribute: str) -> None:
         if device_id == "service":
-            self.logger.error(
-                f'Why are you trying to send {payload} to the "service"? Ignoring you.'
-            )
+            self.logger.error(f'Why are you trying to send {payload} to the "service"? Ignoring you.')
             return
 
         self.logger.info(f"{device_id} ; {payload} ; {attribute}")
@@ -56,23 +48,15 @@ class HelpersMixin:
                 # lets update HA, assuming it will work, but remember prior state in case we have to go back
                 was = self.states[device_id]["sensor"][attribute]
                 self.upsert_state(device_id, switch={"motion_detection": payload})
-                self.logger.info(
-                    f"sending {device_id} motion_detection to {payload} command to Blink"
-                )
+                self.logger.info(f"sending {device_id} motion_detection to {payload} command to Blink")
                 self.publish_device_state(device_id)
-                success = await self.set_motion_detection(
-                    device_id, "ON" if payload else "OFF"
-                )
+                success = await self.set_motion_detection(device_id, "ON" if payload else "OFF")
                 if not success:
-                    self.logger.error(
-                        f"setting {device_id} motion_detection to {payload} failed"
-                    )
+                    self.logger.error(f"setting {device_id} motion_detection to {payload} failed")
                     self.upsert_state(device_id, switch={"motion_detection": was})
                     self.publish_device_state(device_id)
             case _:
-                self.logger.error(
-                    f"Received command for unknown: {attribute} with payload {payload}"
-                )
+                self.logger.error(f"Received command for unknown: {attribute} with payload {payload}")
 
     def handle_service_message(self: Blink2Mqtt, handler: str, message: str) -> None:
         match handler:
@@ -127,22 +111,16 @@ class HelpersMixin:
             for idx, value in enumerate(data):
                 self._assert_no_tuples(value, f"{path}[{idx}]")
 
-    def upsert_device(
-        self: Blink2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool
-    ) -> None:
+    def upsert_device(self: Blink2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool) -> None:
         for section, data in kwargs.items():
             # Pre-merge check
             self._assert_no_tuples(data, f"device[{device_id}].{section}")
             merged = self.MERGER.merge(self.devices.get(device_id, {}), {section: data})
             # Post-merge check
-            self._assert_no_tuples(
-                merged, f"device[{device_id}].{section} (post-merge)"
-            )
+            self._assert_no_tuples(merged, f"device[{device_id}].{section} (post-merge)")
             self.devices[device_id] = merged
 
-    def upsert_state(
-        self: Blink2Mqtt, device_id, **kwargs: dict[str, Any] | str | int | bool
-    ) -> None:
+    def upsert_state(self: Blink2Mqtt, device_id, **kwargs: dict[str, Any] | str | int | bool) -> None:
         for section, data in kwargs.items():
             self._assert_no_tuples(data, f"state[{device_id}].{section}")
             merged = self.MERGER.merge(self.states.get(device_id, {}), {section: data})

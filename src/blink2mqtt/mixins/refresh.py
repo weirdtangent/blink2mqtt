@@ -13,9 +13,7 @@ class RefreshMixin:
         self: "BlinkServiceProtocol"
 
     async def refresh_all_devices(self: "Blink2Mqtt") -> None:
-        self.logger.info(
-            f"Refreshing all devices from Blink (every {self.device_interval} sec)"
-        )
+        self.logger.info(f"Refreshing all devices from Blink (every {self.device_interval} sec)")
         await self.blink_refresh()
 
         blink_devices = await self.get_cameras()
@@ -32,23 +30,15 @@ class RefreshMixin:
             self.publish_device_state(device_id)
 
     async def refresh_snapshot_all_devices(self: "Blink2Mqtt") -> None:
-        self.logger.info(
-            f"Requesting snapshots on devices (every {self.snapshot_update_interval} sec)"
-        )
+        self.logger.info(f"Requesting snapshots on devices (every {self.snapshot_update_interval} sec)")
         await self.blink_refresh()
 
         tasks1 = []
         tasks2 = []
         for device_id in self.devices:
-            if self.get_component_type(device_id) == "camera" and self.is_discovered(
-                device_id
-            ):
-                tasks1.append(
-                    asyncio.create_task(self.take_snapshot_from_device(device_id))
-                )
-                tasks2.append(
-                    asyncio.create_task(self.refresh_snapshot(device_id, "snapshot"))
-                )
+            if self.get_component_type(device_id) == "camera" and self.is_discovered(device_id):
+                tasks1.append(asyncio.create_task(self.take_snapshot_from_device(device_id)))
+                tasks2.append(asyncio.create_task(self.refresh_snapshot(device_id, "snapshot")))
 
         await asyncio.gather(*tasks1)
         await asyncio.gather(*tasks2)

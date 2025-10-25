@@ -15,9 +15,7 @@ class BlinkMixin:
 
     async def refresh_device_list(self: Blink2Mqtt) -> None:
         if self.discovery_complete:
-            self.logger.info(
-                f"Refreshing device list from Blink (every {self.device_list_interval} sec)"
-            )
+            self.logger.info(f"Refreshing device list from Blink (every {self.device_list_interval} sec)")
         else:
             self.logger.info("Grabbing device list from Blink")
 
@@ -78,9 +76,7 @@ class BlinkMixin:
         device_name = device.get("device_name", "Unknown Device")
         device_id = device.get("serial_number", "Unknown ID")
 
-        self.logger.debug(
-            f'Unrecognized Blink device type: "{device_name}" [{type}] ({device_id})'
-        )
+        self.logger.debug(f'Unrecognized Blink device type: "{device_name}" [{type}] ({device_id})')
 
         return None
 
@@ -141,9 +137,7 @@ class BlinkMixin:
         self.build_sync_module_states(device_id, sync_module)
 
         if not self.is_discovered(device_id):
-            self.logger.info(
-                f'Added new switch: "{sync_module["device_name"]}" [Blink {sync_module["device_type"]}] ({device_id})'
-            )
+            self.logger.info(f'Added new switch: "{sync_module["device_name"]}" [Blink {sync_module["device_type"]}] ({device_id})')
 
         self.publish_device_discovery(device_id)
         self.publish_device_availability(device_id, online=True)
@@ -176,9 +170,7 @@ class BlinkMixin:
                 camera["vendor"],
             ),
         }
-        self.upsert_state(
-            device_id, internal={"raw_id": raw_id}, camera="online", snapshot=None
-        )
+        self.upsert_state(device_id, internal={"raw_id": raw_id}, camera="online", snapshot=None)
         modes = {}
 
         modes["event"] = {
@@ -316,9 +308,7 @@ class BlinkMixin:
         self.build_camera_states(device_id, camera)
 
         if not self.is_discovered(device_id):
-            self.logger.info(
-                f'Added new camera: "{camera["device_name"]}" [Blink {camera["device_type"]}] ({device_id})'
-            )
+            self.logger.info(f'Added new camera: "{camera["device_name"]}" [Blink {camera["device_type"]}] ({device_id})')
 
         self.publish_device_discovery(device_id)
         self.publish_device_availability(device_id, online=True)
@@ -341,9 +331,7 @@ class BlinkMixin:
             self.mqtt_safe_publish(topic, json.dumps(payload), retain=True)
 
             # Mark discovered in state (per published entity)
-            self.states.setdefault(eff_device_id, {}).setdefault("internal", {})[
-                "discovered"
-            ] = 1
+            self.states.setdefault(eff_device_id, {}).setdefault("internal", {})["discovered"] = 1
 
         component = self.get_component(device_id)
         _publish_one(device_id, component, suffix=None)
@@ -385,9 +373,7 @@ class BlinkMixin:
                 self.mqtt_safe_publish(topic, flat, retain=True)
 
         if not self.is_discovered(device_id):
-            self.logger.debug(
-                f"[device state] Discovery not complete for {device_id} yet, holding off on sending state"
-            )
+            self.logger.debug(f"[device state] Discovery not complete for {device_id} yet, holding off on sending state")
             return
 
         states = self.states.get(device_id, None)
@@ -397,25 +383,17 @@ class BlinkMixin:
         modes = self.get_modes(device_id)
         for name, mode in modes.items():
             component_type = mode["component_type"]
-            type_states = (
-                states[component_type][name]
-                if isinstance(states[component_type], dict)
-                else states[component_type]
-            )
+            type_states = states[component_type][name] if isinstance(states[component_type], dict) else states[component_type]
             _publish_one(device_id, name, type_states)
 
     def publish_device_image(self: Blink2Mqtt, device_id: str, type: str) -> None:
         payload = self.states[device_id][type]
         if payload and isinstance(payload, str):
-            self.logger.info(
-                f"Updating {self.get_device_name(device_id)} with latest snapshot"
-            )
+            self.logger.info(f"Updating {self.get_device_name(device_id)} with latest snapshot")
             topic = self.get_device_image_topic(device_id)
             self.mqtt_safe_publish(topic, payload, retain=True)
 
-    def publish_device_availability(
-        self: Blink2Mqtt, device_id: str, online: bool = True
-    ) -> None:
+    def publish_device_availability(self: Blink2Mqtt, device_id: str, online: bool = True) -> None:
         payload = "online" if online else "offline"
 
         # if state and availability are the SAME, we don't want to

@@ -48,16 +48,12 @@ class MqttMixin:
         self.mqttc.on_log = self.mqtt_on_log
 
         # Define a "last will" message (LWT):
-        self.mqttc.will_set(
-            self.get_service_topic("status"), "offline", qos=1, retain=True
-        )
+        self.mqttc.will_set(self.get_service_topic("status"), "offline", qos=1, retain=True)
 
         try:
             host = self.mqtt_config.get("host")
             port = self.mqtt_config.get("port")
-            self.logger.info(
-                f"Connecting to MQTT broker at {host}:{port} as {self.client_id}"
-            )
+            self.logger.info(f"Connecting to MQTT broker at {host}:{port} as {self.client_id}")
 
             props = Properties(PacketTypes.CONNECT)
             props.SessionExpiryInterval = 0
@@ -71,9 +67,7 @@ class MqttMixin:
             self.logger.error(f"Failed to connect to MQTT host {host}: {error}")
             self.running = False
         except Exception as error:
-            self.logger.error(
-                f"Network problem trying to connect to MQTT host {host}: {error}"
-            )
+            self.logger.error(f"Network problem trying to connect to MQTT host {host}: {error}")
             self.running = False
 
     def mqtt_on_connect(
@@ -112,9 +106,7 @@ class MqttMixin:
         else:
             self.logger.info("Closed MQTT connection")
 
-        if self.running and (
-            self.mqtt_connect_time is None or time.time() > self.mqtt_connect_time + 10
-        ):
+        if self.running and (self.mqtt_connect_time is None or time.time() > self.mqtt_connect_time + 10):
             # lets use a new client_id for a reconnect attempt
             self.client_id = self.get_new_client_id()
             self.mqttc_create()
@@ -134,9 +126,7 @@ class MqttMixin:
         if paho_log_level == mqtt.LogLevel.MQTT_LOG_WARNING:
             self.logger.warning(f"MQTT logged: {msg}")
 
-    def mqtt_on_message(
-        self: "Blink2Mqtt", client: Client, userdata: Any, msg: str
-    ) -> None:
+    def mqtt_on_message(self: "Blink2Mqtt", client: Client, userdata: Any, msg: str) -> None:
         topic = msg.topic
         payload = self._decode_payload(msg.payload)
         components = topic.split("/")
@@ -181,12 +171,8 @@ class MqttMixin:
             self.logger.warning(f"Got MQTT message for unknown device: {device_id}")
             return
 
-        self.logger.info(
-            f"Got message for {self.get_device_name(device_id)}: set {components[-2]} to {payload}"
-        )
-        asyncio.run_coroutine_threadsafe(
-            self.send_command(device_id, payload, attribute), self.loop
-        )
+        self.logger.info(f"Got message for {self.get_device_name(device_id)}: set {components[-2]} to {payload}")
+        asyncio.run_coroutine_threadsafe(self.send_command(device_id, payload, attribute), self.loop)
 
     def _parse_device_topic(self: "Blink2Mqtt", components):
         """Extract (vendor, device_id, attribute) from an MQTT topic components list (underscore-delimited)."""
@@ -208,9 +194,7 @@ class MqttMixin:
                 attribute = None
 
             else:
-                raise ValueError(
-                    f"Malformed topic (expected underscore): {'/'.join(components)}"
-                )
+                raise ValueError(f"Malformed topic (expected underscore): {'/'.join(components)}")
             return (vendor, device_id, attribute)
 
         except Exception as e:
@@ -240,20 +224,12 @@ class MqttMixin:
         joined = "; ".join(reason_names) if reason_names else "none"
         self.logger.debug(f"MQTT subscribed (mid={mid}): {joined}")
 
-    def mqtt_safe_publish(
-        self: "Blink2Mqtt", topic: str, payload: dict | str | bool | int, **kwargs: Any
-    ) -> None:
-        if isinstance(payload, dict) and (
-            "component" in payload or "//////" in payload
-        ):
-            self.logger.warning(
-                "Questionable payload includes 'component' or string of slashes - wont't send to HA"
-            )
+    def mqtt_safe_publish(self: "Blink2Mqtt", topic: str, payload: dict | str | bool | int, **kwargs: Any) -> None:
+        if isinstance(payload, dict) and ("component" in payload or "//////" in payload):
+            self.logger.warning("Questionable payload includes 'component' or string of slashes - wont't send to HA")
             self.logger.warning(f"topic: {topic}")
             self.logger.warning(f"payload: {payload}")
-            raise ValueError(
-                "Possible invalid payload. topic: {topic} payload: {payload}"
-            )
+            raise ValueError("Possible invalid payload. topic: {topic} payload: {payload}")
         try:
             self.mqttc.publish(topic, payload, **kwargs)
         except Exception as e:

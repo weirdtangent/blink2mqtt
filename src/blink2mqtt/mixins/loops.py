@@ -86,9 +86,7 @@ class LoopsMixin:
         tasks = [
             asyncio.create_task(self.device_list_loop(), name="device_list_loop"),
             asyncio.create_task(self.device_loop(), name="device_loop"),
-            asyncio.create_task(
-                self.collect_snapshots_loop(), name="collect_snapshots_loop"
-            ),
+            asyncio.create_task(self.collect_snapshots_loop(), name="collect_snapshots_loop"),
             asyncio.create_task(self.heartbeat(), name="heartbeat"),
         ]
 
