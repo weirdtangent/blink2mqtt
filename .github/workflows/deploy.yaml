@@ -133,7 +133,7 @@ jobs:
           context: .
           push: true
           build-args: |
-            VERSION=${{ env.RELEASE_TAG }}
+            VERSION=${{ env.RELEASE_VERSION }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/arm64,linux/amd64
