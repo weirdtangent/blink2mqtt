@@ -131,11 +131,14 @@ jobs:
         id: build-and-push
         uses: docker/build-push-action@v6
         with:
-          sbom: true
-          provenance: true
-          platforms: linux/arm64,linux/amd64
+          context: .
+          push: true
+          build-args: |
+            VERSION=${{ env.RELEASE_TAG }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          push: true
+          platforms: linux/arm64,linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          sbom: true
+          provenance: true
