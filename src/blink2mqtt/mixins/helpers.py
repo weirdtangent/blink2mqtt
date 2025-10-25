@@ -12,7 +12,9 @@ class HelpersMixin:
     if TYPE_CHECKING:
         self: "BlinkServiceProtocol"
 
-    def build_camera_states(self: Blink2Mqtt, device_id: str, camera: list[str,str]) -> None:
+    def build_camera_states(
+        self: Blink2Mqtt, device_id: str, camera: list[str, str]
+    ) -> None:
         self.upsert_state(
             device_id,
             switch={
@@ -28,12 +30,14 @@ class HelpersMixin:
             },
         )
 
-    def build_sync_module_states(self: Blink2Mqtt, device_id: str, sync_module: list[str,str]) -> None:
-            self.upsert_state(
-                device_id,
-                switch={"armed": "ON" if sync_module["arm_mode"] else "OFF"},
-                sensor={"local_storage": sync_module["local_storage"]},
-            )
+    def build_sync_module_states(
+        self: Blink2Mqtt, device_id: str, sync_module: list[str, str]
+    ) -> None:
+        self.upsert_state(
+            device_id,
+            switch={"armed": "ON" if sync_module["arm_mode"] else "OFF"},
+            sensor={"local_storage": sync_module["local_storage"]},
+        )
 
     # send command to Blink -----------------------------------------------------------------------
 
@@ -52,11 +56,17 @@ class HelpersMixin:
                 # lets update HA, assuming it will work, but remember prior state in case we have to go back
                 was = self.states[device_id]["sensor"][attribute]
                 self.upsert_state(device_id, switch={"motion_detection": payload})
-                self.logger.info(f"sending {device_id} motion_detection to {payload} command to Blink")
+                self.logger.info(
+                    f"sending {device_id} motion_detection to {payload} command to Blink"
+                )
                 self.publish_device_state(device_id)
-                success = await self.set_motion_detection(device_id, "ON" if payload else "OFF")
+                success = await self.set_motion_detection(
+                    device_id, "ON" if payload else "OFF"
+                )
                 if not success:
-                    self.logger.error(f"setting {device_id} motion_detection to {payload} failed")
+                    self.logger.error(
+                        f"setting {device_id} motion_detection to {payload} failed"
+                    )
                     self.upsert_state(device_id, switch={"motion_detection": was})
                     self.publish_device_state(device_id)
             case _:

@@ -79,12 +79,16 @@ class LoopsMixin:
 
         self.running = True
         self.mark_ready()
-        self.logger.info(f"starting refresh loops: devices at {self.device_interval}, list at {self.device_list_interval}, snapshots at {self.snapshot_update_interval}")
+        self.logger.info(
+            f"starting refresh loops: devices at {self.device_interval}, list at {self.device_list_interval}, snapshots at {self.snapshot_update_interval}"
+        )
 
         tasks = [
             asyncio.create_task(self.device_list_loop(), name="device_list_loop"),
             asyncio.create_task(self.device_loop(), name="device_loop"),
-            asyncio.create_task(self.collect_snapshots_loop(), name="collect_snapshots_loop"),
+            asyncio.create_task(
+                self.collect_snapshots_loop(), name="collect_snapshots_loop"
+            ),
             asyncio.create_task(self.heartbeat(), name="heartbeat"),
         ]
 

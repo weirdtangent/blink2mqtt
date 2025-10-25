@@ -89,13 +89,16 @@ class UtilMixin:
             "username": blink.get("username") or os.getenv("BLINK_USERNAME") or "admin",
             "password": blink.get("password") or os.getenv("BLINK_PASSWORD") or "",
             "device_interval": int(
-                blink.get("device_update_interval") or os.getenv("BLINK_DEVICE_UPDATE_INTERVAL", 30)
+                blink.get("device_update_interval")
+                or os.getenv("BLINK_DEVICE_UPDATE_INTERVAL", 30)
             ),
             "device_list_interval": int(
-                blink.get("device_rescan_interval") or os.getenv("BLINK_RESCAN_INTERVAL", 3600)
+                blink.get("device_rescan_interval")
+                or os.getenv("BLINK_RESCAN_INTERVAL", 3600)
             ),
             "snapshot_update_interval": int(
-                blink.get("snapshot_update_interval") or os.getenv("SNAPSHOT_UPDATE_INTERVAL", 900)
+                blink.get("snapshot_update_interval")
+                or os.getenv("SNAPSHOT_UPDATE_INTERVAL", 900)
             ),
         }
 

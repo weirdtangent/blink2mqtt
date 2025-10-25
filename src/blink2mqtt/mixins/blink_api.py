@@ -211,7 +211,9 @@ class BlinkAPIMixin(object):
 
         return motion
 
-    async def set_motion_detection(self: Blink2Mqtt, device_id: str, switch: bool) -> bool | None:
+    async def set_motion_detection(
+        self: Blink2Mqtt, device_id: str, switch: bool
+    ) -> bool | None:
         max_retries = 5
         base_delay = 2
 
@@ -221,7 +223,9 @@ class BlinkAPIMixin(object):
                     dev = self.blink_cameras[device_id]
                     cam = self.blink.cameras[dev["config"]["name"]]
                     response: dict[str, Any] | None = await cam.async_arm(switch)
-                    self.logger.debug(f"[set_motion] Camera response ({attempt}/{max_retries}): {json.dumps(response)}")
+                    self.logger.debug(
+                        f"[set_motion] Camera response ({attempt}/{max_retries}): {json.dumps(response)}"
+                    )
 
                     if response and response.get("code") == 307:
                         wait = base_delay * attempt
@@ -238,7 +242,9 @@ class BlinkAPIMixin(object):
                     sync = self.sync_modules[device_id]
                     sync_obj = self.blink.sync[sync["device_name"]]
                     response: dict[str, Any] | None = await sync_obj.async_arm(switch)
-                    self.logger.debug(f"[set_motion] Sync response ({attempt}/{max_retries}): {json.dumps(response)}")
+                    self.logger.debug(
+                        f"[set_motion] Sync response ({attempt}/{max_retries}): {json.dumps(response)}"
+                    )
 
                     if response and response.get("code") == 307:
                         wait = base_delay * attempt
@@ -262,7 +268,9 @@ class BlinkAPIMixin(object):
                 )
                 await asyncio.sleep(base_delay * attempt)
 
-        self.logger.error(f"[set_motion] Failed for {device_id} after {max_retries} retries")
+        self.logger.error(
+            f"[set_motion] Failed for {device_id} after {max_retries} retries"
+        )
         return None
 
     # Snapshots -----------------------------------------------------------------------------------

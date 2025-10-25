@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "main"
+  pull_request:
   workflow_dispatch:
   schedule:
     - cron: "0 3 1 * *"  # Monthly rebuild at 03:00 UTC on the 1st
@@ -15,9 +16,45 @@ permissions:
   packages: write
 
 jobs:
+  lint:
+    name: Lint (ruff/black)
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      # If your dev tools (ruff/black/rst-lint/rich/etc.) are in optional-dependencies
+      # like [project.optional-dependencies.dev], this installs them.
+      - name: Install project (dev)
+        run: uv sync --all-extras --dev
+
+      - name: Ruff
+        run: uv run ruff check src
+
+      - name: Black
+        run: |
+          uv run black --version
+          uv run black --check --color --diff .
+
   release:
     name: Semantic Release
     runs-on: ubuntu-latest
+    needs: [lint]
     if: github.event_name != 'schedule'
     outputs:
       release_tag: ${{ steps.get_release.outputs.release_tag }}
@@ -41,12 +78,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
 
-      - name: Get latest release tag
+      - name: Determine release tag
         id: get_release
         run: |
+          git fetch --tags --force
           TAG=$(git describe --tags --abbrev=0)
           echo "$TAG" > VERSION
-          echo "release_tag=$TAG" >> $GITHUB_OUTPUT
+          echo "release_tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Found release tag: $TAG"
 
   docker:
@@ -73,6 +111,22 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: graystorm/blink2mqtt
+          tags: |
+            type=raw,value=${{ env.RELEASE_TAG }}
+            type=raw,value=latest
+          labels: |
+            org.opencontainers.image.title=blink2mqtt
+            org.opencontainers.image.description=Publishes Blink device data to MQTT for Home Assistant
+            org.opencontainers.image.url=https://www.graystorm.com
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
       - name: Build and push
         id: build-and-push
         uses: docker/build-push-action@v6
@@ -80,18 +134,8 @@ jobs:
           sbom: true
           provenance: true
           platforms: linux/arm64,linux/amd64
-          tags: |
-            graystorm/blink2mqtt:latest
-            graystorm/blink2mqtt:${{ env.RELEASE_TAG }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          labels: |
-            org.opencontainers.image.version=${{ env.RELEASE_TAG }}
-            org.opencontainers.image.title=blink2mqtt
-            org.opencontainers.image.source=${{ github.repository }}
-            org.opencontainers.image.authors=weirdTangent <jeff@weirdtangent.com>
-            org.opencontainers.image.url=https://www.graystorm.com
-            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
-            org.opencontainers.image.description=Publishes Blink camera events, battery levels, and motion data via MQTT for integration with Home Assistant
-            org.opencontainers.image.licenses=MIT

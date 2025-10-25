@@ -173,7 +173,9 @@ class BlinkMixin:
                 camera["vendor"],
             ),
         }
-        self.upsert_state(device_id, internal={"raw_id": raw_id}, camera="online", snapshot=None)
+        self.upsert_state(
+            device_id, internal={"raw_id": raw_id}, camera="online", snapshot=None
+        )
         modes = {}
 
         modes["event"] = {
@@ -421,4 +423,3 @@ class BlinkMixin:
             return
 
         self.mqtt_safe_publish(avty_t, payload, retain=True)
-
