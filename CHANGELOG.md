@@ -1,3 +1,13 @@
+# [2.0.0](https://github.com/weirdtangent/blink2mqtt/compare/v1.0.1...v2.0.0) (2025-10-25)
+
+
+* feat!: prepare v2 release ([4e051c1](https://github.com/weirdtangent/blink2mqtt/commit/4e051c1929456b79faf2cf222bdb37ca9b6f7352))
+
+
+### BREAKING CHANGES
+
+* async control & payload shape changed; HA rediscovery may be required.
+
 ## [1.0.1](https://github.com/weirdtangent/blink2mqtt/compare/v1.0.0...v1.0.1) (2025-10-09)
 
 
