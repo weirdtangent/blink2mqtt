@@ -8,6 +8,7 @@ from blinkpy.auth import Auth, BlinkTwoFARequiredError
 from blinkpy.blinkpy import Blink
 from blinkpy.helpers.util import json_load
 from datetime import datetime
+import json
 import os
 
 from typing import TYPE_CHECKING, Any
@@ -85,7 +86,7 @@ class BlinkAPIMixin(object):
                         await self.blink.send_2fa_code(key)
                         await self.blink.setup_post_verify()
                         await self.blink.save(cred_path)
-                        await self.blink.refresh(force=True)
+                        await self.blink.refresh()
                     except Exception as err:
                         raise SystemError(f"Failed auth using key.txt file: {err}")
                     return
@@ -101,7 +102,7 @@ class BlinkAPIMixin(object):
                 os.remove(key_path)
                 raise SystemExit(1)
 
-        await self.blink.refresh(force=True)
+        await self.blink.refresh()
         await self.blink.save(cred_path)
 
     async def disconnect(self: Blink2Mqtt) -> None:
@@ -112,7 +113,11 @@ class BlinkAPIMixin(object):
         await self.session.close()
 
     async def blink_refresh(self: Blink2Mqtt) -> None:
-        await self.blink.refresh(force=True)
+        try:
+            await self.blink.refresh()
+        except AttributeError as e:
+            self.logger.error(f"Blink failed a 'refresh' command: {e}")
+            pass
 
     async def get_cameras(self: Blink2Mqtt) -> list:
         for name, camera in self.blink.cameras.items():
@@ -196,7 +201,6 @@ class BlinkAPIMixin(object):
     # Motion --------------------------------------------------------------------------------------
 
     def get_camera_motion(self: Blink2Mqtt, device_id: str) -> Any | None:
-
         try:
             device = self.blink_cameras.get(device_id)
             name = device["config"]["device_name"]
@@ -207,19 +211,59 @@ class BlinkAPIMixin(object):
 
         return motion
 
-    async def set_motion_detection(
-        self: Blink2Mqtt, device_id: str, switch: bool
-    ) -> Any | None:
+    async def set_motion_detection(self: Blink2Mqtt, device_id: str, switch: bool) -> bool | None:
+        max_retries = 5
+        base_delay = 2
 
-        try:
-            device = self.blink_cameras.get(device_id)
-            camera = self.blink.cameras.get(device["config"]["name"])
-            response = await camera.set_motion_detection(switch)
-        except Exception as e:
-            self.logger.error(f"[set_motion] Failed for {device_id}: {e}")
-            return
+        for attempt in range(1, max_retries + 1):
+            try:
+                if device_id in self.blink_cameras:
+                    dev = self.blink_cameras[device_id]
+                    cam = self.blink.cameras[dev["config"]["name"]]
+                    response: dict[str, Any] | None = await cam.async_arm(switch)
+                    self.logger.debug(f"[set_motion] Camera response ({attempt}/{max_retries}): {json.dumps(response)}")
 
-        return response
+                    if response and response.get("code") == 307:
+                        wait = base_delay * attempt
+                        self.logger.warning(
+                            f"Blink busy for camera {dev['config']['name']}, retrying in {wait}s..."
+                        )
+                        await asyncio.sleep(wait)
+                        continue
+
+                    await self.blink.refresh()
+                    return cam.arm is switch
+
+                elif device_id in self.sync_modules:
+                    sync = self.sync_modules[device_id]
+                    sync_obj = self.blink.sync[sync["device_name"]]
+                    response: dict[str, Any] | None = await sync_obj.async_arm(switch)
+                    self.logger.debug(f"[set_motion] Sync response ({attempt}/{max_retries}): {json.dumps(response)}")
+
+                    if response and response.get("code") == 307:
+                        wait = base_delay * attempt
+                        self.logger.warning(
+                            f"Blink busy for sync {sync['device_name']}, retrying in {wait}s..."
+                        )
+                        await asyncio.sleep(wait)
+                        continue
+
+                    await self.blink.refresh()
+                    return sync_obj.arm is switch
+
+                else:
+                    self.logger.error(f"[set_motion] Unknown device id: {device_id}")
+                    return None
+
+            except Exception as e:
+                self.logger.error(
+                    f"[set_motion] Exception on attempt {attempt} for {device_id}: {e}",
+                    exc_info=True,
+                )
+                await asyncio.sleep(base_delay * attempt)
+
+        self.logger.error(f"[set_motion] Failed for {device_id} after {max_retries} retries")
+        return None
 
     # Snapshots -----------------------------------------------------------------------------------
 

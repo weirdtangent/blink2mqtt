@@ -44,7 +44,6 @@ class Base:
 
         self.devices = {}
         self.states = {}
-        self.boosted = []
 
         self.mqttc = None
         self.mqtt_connect_time = None

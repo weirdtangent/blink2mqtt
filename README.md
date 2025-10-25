@@ -52,9 +52,9 @@ A docker image is available at `graystorm/blink2mqtt:latest`. You can mount your
 | `MQTT_HOMEASSISTANT` | No | `true` | Enable Home Assistant discovery |
 | `MQTT_DISCOVERY_PREFIX` | No | `homeassistant` | MQTT discovery topic prefix |
 | `TZ` | ✅ Yes | — | Timezone (see [TZ database list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)) |
+| `DEVICE_UPDATE_INTERVAL` | No | `30` | Seconds between device updates |
 | `DEVICE_RESCAN_INTERVAL` | No | `3600` | Seconds between device rescans |
-| `DEVICE_UPDATE_INTERVAL` | No | `900` | Seconds between device updates |
-| `SNAPSHOT_UPDATE_INTERVAL` | No | `60` | Seconds between snapshot fetches |
+| `SNAPSHOT_UPDATE_INTERVAL` | No | `900` | Seconds between snapshot fetches |
 
 It exposes through device discovery a `service` and a `device` with components for each camera:
 

@@ -141,7 +141,7 @@ class MqttMixin:
         payload = self._decode_payload(msg.payload)
         components = topic.split("/")
 
-        self.logger.info(f"Got message on topic: {topic} with {payload}")
+        self.logger.debug(f"Got message on topic: {topic} with {payload}")
 
         # Dispatch based on type of message
         if components[0] == self.mqtt_config["discovery_prefix"]:
@@ -182,7 +182,7 @@ class MqttMixin:
             return
 
         self.logger.info(
-            f"Got message for {self.get_device_name(device_id)}: {payload}"
+            f"Got message for {self.get_device_name(device_id)}: set {components[-2]} to {payload}"
         )
         asyncio.run_coroutine_threadsafe(
             self.send_command(device_id, payload, attribute), self.loop
@@ -196,8 +196,6 @@ class MqttMixin:
 
             # Example topics:
             # blink2mqtt/switch/blink2mqtt_G8xxxxxxxxxxxx/motion_detection/set
-
-            self.logger.info(f"Command topic sent with {len(components)} components")
 
             # Case 1: .../<device>/<attribute>/set
             if len(components) >= 5 and "_" in components[-3]:

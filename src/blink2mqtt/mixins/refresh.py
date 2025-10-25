@@ -14,61 +14,33 @@ class RefreshMixin:
         self: "BlinkServiceProtocol"
 
     async def refresh_all_devices(self: "Blink2Mqtt") -> None:
-        # don't let this kick off until we are done with our list
-        while not self.discovery_complete and self.running:
-            await asyncio.sleep(1)
+        self.logger.info(f"Refreshing all devices from Blink (every {self.device_interval} sec)")
+        await self.blink_refresh()
 
-        self.logger.info(
-            f"Refreshing all devices from Blink (every {self.device_interval} sec)"
-        )
+        blink_devices = await self.get_cameras()
+        sync_modules = await self.get_sync_modules()
 
-        for device_id in self.devices:
-            if not self.running:
-                break
-            if device_id == "service" or device_id in self.boosted:
-                continue
+        for device_id in sync_modules:
+            sync_module = sync_modules[device_id]["config"]
+            self.build_sync_module_states(device_id, sync_module)
+            self.publish_device_state(device_id)
 
-            self.build_device_states(
-                self.states[device_id],
-                self.get_raw_id(device_id),
-            )
-
-    async def refresh_boosted_devices(self: "Blink2Mqtt") -> None:
-        # don't let this kick off until we are done with our list
-        while not self.discovery_complete and self.running:
-            await asyncio.sleep(1)
-
-        if len(self.boosted) > 0:
-            self.logger.info(
-                f"Refreshing {len(self.boosted)} boosted devices from Blink"
-            )
-            for device_id in self.boosted:
-                if not self.running:
-                    break
-                self.build_device_states(
-                    self.states[device_id],
-                    self.get_raw_id(device_id),
-                )
+        for device_id in blink_devices:
+            camera = blink_devices[device_id]["config"]
+            self.build_camera_states(device_id, camera)
+            self.publish_device_state(device_id)
 
     async def refresh_snapshot_all_devices(self: "Blink2Mqtt") -> None:
-        self.logger.info(
-            f"Requesting snapshots on devices (every {self.snapshot_update_interval} sec)"
-        )
-        async with timeout(30):
-            await self.blink_refresh()
+        self.logger.info(f"Requesting snapshots on devices (every {self.snapshot_update_interval} sec)")
+        await self.blink_refresh()
 
         tasks1 = []
         tasks2 = []
         for device_id in self.devices:
-            if self.get_component_type(device_id) == "camera" and self.is_discovered(
-                device_id
-            ):
-                tasks1.append(
-                    asyncio.create_task(self.take_snapshot_from_device(device_id))
-                )
-                tasks2.append(
-                    asyncio.create_task(self.refresh_snapshot(device_id, "snapshot"))
-                )
+            if self.get_component_type(device_id) == "camera" and self.is_discovered(device_id):
+                tasks1.append(asyncio.create_task(self.take_snapshot_from_device(device_id)))
+                tasks2.append(asyncio.create_task(self.refresh_snapshot(device_id, "snapshot")))
+
         await asyncio.gather(*tasks1)
         await asyncio.gather(*tasks2)
 

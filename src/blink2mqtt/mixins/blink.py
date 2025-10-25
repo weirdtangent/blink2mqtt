@@ -49,8 +49,7 @@ class BlinkMixin:
 
         # Handle first discovery completion
         if not self.discovery_complete:
-            await asyncio.sleep(5)
-            self.rediscover_all()
+            await asyncio.sleep(1)
             self.logger.info("First-time device setup and discovery is done")
             self.discovery_complete = True
 
@@ -82,15 +81,15 @@ class BlinkMixin:
 
         return None
 
-    def build_switch(self: Blink2Mqtt, device: list) -> str:
-        raw_id = device["serial_number"]
+    def build_switch(self: Blink2Mqtt, sync_module: list[str, str]) -> str:
+        raw_id = sync_module["serial_number"]
         device_id = raw_id
 
         self.devices.setdefault(device_id, {})
 
         component = {
             "component_type": "switch",
-            "name": f"{device["device_name"]} Armed",
+            "name": f"{sync_module["device_name"]} Armed",
             "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'armed')}",
             "stat_t": self.get_state_topic(device_id, "switch", "armed"),
             "cmd_t": self.get_command_topic(device_id, "switch", "armed"),
@@ -103,16 +102,13 @@ class BlinkMixin:
             "via_device": self.get_service_device(),
             "device": self.get_device_block(
                 self.get_device_slug(device_id),
-                device["device_name"],
+                sync_module["device_name"],
                 self.get_service_device(),
-                device["software_version"],
-                device["vendor"],
+                sync_module["software_version"],
+                sync_module["vendor"],
             ),
         }
         self.upsert_state(device_id, internal={"raw_id": raw_id})
-        self.upsert_state(
-            device_id, switch={"armed": "ON" if device["arm_mode"] else "OFF"}
-        )
         modes = {}
 
         # add local storage ?
@@ -130,22 +126,20 @@ class BlinkMixin:
             "via_device": self.get_service_device(),
             "device": self.get_device_block(
                 self.get_device_slug(device_id),
-                device["device_name"],
+                sync_module["device_name"],
                 self.get_service_device(),
-                device["software_version"],
-                device["vendor"],
+                sync_module["software_version"],
+                sync_module["vendor"],
             ),
         }
-        self.upsert_state(device_id, sensor={"local_storage": {}})
 
         # insert, or update anything that changed, but don't lose anything
         self.upsert_device(device_id, component=component, modes=modes)
-
-        self.build_device_states(self.states[device_id], raw_id)
+        self.build_sync_module_states(device_id, sync_module)
 
         if not self.is_discovered(device_id):
             self.logger.info(
-                f'Added new switch: "{device["device_name"]}" [Blink {device["device_type"]}] ({device_id})'
+                f'Added new switch: "{sync_module["device_name"]}" [Blink {sync_module["device_type"]}] ({device_id})'
             )
 
         self.publish_device_discovery(device_id)
@@ -154,8 +148,8 @@ class BlinkMixin:
 
         return device_id
 
-    def build_camera(self: Blink2Mqtt, device: list) -> str:
-        raw_id = device["serial_number"]
+    def build_camera(self: Blink2Mqtt, camera: list[str, str]) -> str:
+        raw_id = camera["serial_number"]
         device_id = raw_id
 
         component = {
@@ -173,12 +167,13 @@ class BlinkMixin:
             "via_device": self.get_service_device(),
             "device": self.get_device_block(
                 self.get_device_slug(device_id),
-                device["device_name"],
+                camera["device_name"],
                 self.get_service_device(),
-                device["software_version"],
-                device["vendor"],
+                camera["software_version"],
+                camera["vendor"],
             ),
         }
+        self.upsert_state(device_id, internal={"raw_id": raw_id}, camera="online", snapshot=None)
         modes = {}
 
         modes["event"] = {
@@ -196,10 +191,10 @@ class BlinkMixin:
             "via_device": self.get_service_device(),
             "device": self.get_device_block(
                 self.get_device_slug(device_id),
-                device["device_name"],
+                camera["device_name"],
                 self.get_service_device(),
-                device["software_version"],
-                device["vendor"],
+                camera["software_version"],
+                camera["vendor"],
             ),
         }
 
@@ -218,10 +213,10 @@ class BlinkMixin:
             "via_device": self.get_service_device(),
             "device": self.get_device_block(
                 self.get_device_slug(device_id),
-                device["device_name"],
+                camera["device_name"],
                 self.get_service_device(),
-                device["software_version"],
-                device["vendor"],
+                camera["software_version"],
+                camera["vendor"],
             ),
         }
 
@@ -239,10 +234,10 @@ class BlinkMixin:
             "via_device": self.get_service_device(),
             "device": self.get_device_block(
                 self.get_device_slug(device_id),
-                device["device_name"],
+                camera["device_name"],
                 self.get_service_device(),
-                device["software_version"],
-                device["vendor"],
+                camera["software_version"],
+                camera["vendor"],
             ),
         }
 
@@ -260,10 +255,10 @@ class BlinkMixin:
             "via_device": self.get_service_device(),
             "device": self.get_device_block(
                 self.get_device_slug(device_id),
-                device["device_name"],
+                camera["device_name"],
                 self.get_service_device(),
-                device["software_version"],
-                device["vendor"],
+                camera["software_version"],
+                camera["vendor"],
             ),
         }
 
@@ -279,10 +274,10 @@ class BlinkMixin:
             "via_device": self.get_service_device(),
             "device": self.get_device_block(
                 self.get_device_slug(device_id),
-                device["device_name"],
+                camera["device_name"],
                 self.get_service_device(),
-                device["software_version"],
-                device["vendor"],
+                camera["software_version"],
+                camera["vendor"],
             ),
         }
 
@@ -290,9 +285,7 @@ class BlinkMixin:
             "component_type": "sensor",
             "name": "Wifi Signal",
             "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'wifi_signal')}",
-            "stat_t": self.get_state_topic(device_id, "attributes"),
-            "value_template": "{{ value_json.wifi_signal }}",
-            "json_attributes_topic": self.get_state_topic(device_id, "attributes"),
+            "stat_t": self.get_state_topic(device_id, "sensor", "wifi_signal"),
             "avty_t": self.get_availability_topic(device_id, "camera"),
             "avty_tpl": "{{ value_json.availability }}",
             "device_class": "signal_strength",
@@ -302,10 +295,10 @@ class BlinkMixin:
             "via_device": self.get_service_device(),
             "device": self.get_device_block(
                 self.get_device_slug(device_id),
-                device["device_name"],
+                camera["device_name"],
                 self.get_service_device(),
-                device["software_version"],
-                device["vendor"],
+                camera["software_version"],
+                camera["vendor"],
             ),
         }
 
@@ -315,30 +308,11 @@ class BlinkMixin:
         #                                                        "battery": "ok", "battery_voltage": 169, "wifi_strength": -46, "sync_strength": null}
 
         self.upsert_device(device_id, component=component, modes=modes)
-
-        # insert, or update anything that changed, but don't lose anything
-        self.upsert_state(
-            device_id,
-            internal={"raw_id": raw_id},
-            camera="online",
-            snapshot=None,
-            switch={
-                "motion_detection": "ON" if device["motion_detection"] else "OFF",
-            },
-            sensor={
-                "wifi_signal": device["wifi_strength"],
-                "battery_status": device["battery"],
-                "temperature": device["temperature"],
-            },
-            binary_sensor={
-                "motion": device["motion"],
-            },
-        )
-        self.build_device_states(self.states[device_id], raw_id)
+        self.build_camera_states(device_id, camera)
 
         if not self.is_discovered(device_id):
             self.logger.info(
-                f'Added new camera: "{device["device_name"]}" [Blink {device["device_type"]}] ({device_id})'
+                f'Added new camera: "{camera["device_name"]}" [Blink {camera["device_type"]}] ({device_id})'
             )
 
         self.publish_device_discovery(device_id)
@@ -403,8 +377,7 @@ class BlinkMixin:
                 self.mqtt_safe_publish(topic, json.dumps(flat), retain=True)
             else:
                 flat = defn
-                self.mqtt_safe_publish(topic, json.dumps(flat), retain=True)
-                # self.mqtt_safe_publish(topic, flat, retain=True)
+                self.mqtt_safe_publish(topic, flat, retain=True)
 
         if not self.is_discovered(device_id):
             self.logger.debug(
@@ -449,11 +422,3 @@ class BlinkMixin:
 
         self.mqtt_safe_publish(avty_t, payload, retain=True)
 
-    async def collect_snapshots(self: Blink2Mqtt) -> None:
-        try:
-            while self.running:
-                await self.refresh_snapshot_all_devices()
-                await asyncio.sleep(self.snapshot_update_interval)
-        except Exception as err:
-            self.running = False
-            self.logger.error(f"Caught exception: {err}", exc_info=True)

@@ -100,7 +100,7 @@ class ServiceMixin:
                     "cmd_t": self.get_command_topic("service", "device_refresh"),
                     "unit_of_measurement": "s",
                     "min": 1,
-                    "max": 3600,
+                    "max": 900,
                     "step": 1,
                     "icon": "mdi:timer-refresh",
                     "device": app,
@@ -141,7 +141,7 @@ class ServiceMixin:
             ),
             payload=json.dumps(
                 {
-                    "name": f"{self.service_name} Device Boost Refresh Interval",
+                    "name": f"{self.service_name} Snapshot Refresh Interval",
                     "uniq_id": f"{self.service_slug}_snapshot_refresh",
                     "stat_t": self.get_state_topic(
                         "service", "service", "snapshot_refresh"
@@ -152,7 +152,7 @@ class ServiceMixin:
                     "cmd_t": self.get_command_topic("service", "snapshot_refresh"),
                     "unit_of_measurement": "s",
                     "min": 1,
-                    "max": 30,
+                    "max": 3600,
                     "step": 1,
                     "icon": "mdi:lightning-bolt",
                     "device": app,

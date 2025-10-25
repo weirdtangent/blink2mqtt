@@ -1,8 +1,5 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
-import os
-import signal
-import threading
 from deepmerge import Merger
 from typing import TYPE_CHECKING, Any
 
@@ -15,36 +12,28 @@ class HelpersMixin:
     if TYPE_CHECKING:
         self: "BlinkServiceProtocol"
 
-    def build_device_states(self: Blink2Mqtt, states: str, raw_id: str) -> None:
-        return
+    def build_camera_states(self: Blink2Mqtt, device_id: str, camera: list[str,str]) -> None:
+        self.upsert_state(
+            device_id,
+            switch={
+                "motion_detection": "ON" if camera["motion_detection"] else "OFF",
+            },
+            sensor={
+                "wifi_signal": camera["wifi_strength"],
+                "battery_status": camera["battery"],
+                "temperature": camera["temperature"],
+            },
+            binary_sensor={
+                "motion": camera["motion"],
+            },
+        )
 
-    # convert MQTT attributes to Blink capabilities
-    def build_blink_capabilities(
-        self: Blink2Mqtt, device_id: str, attributes: list
-    ) -> None:
-        return
-
-    def _extract_scalar(self: Blink2Mqtt, val):
-        """Try to get a representative scalar from arbitrary API data."""
-        # direct primitive
-        if isinstance(val, (int, float, str, bool)):
-            return val
-
-        # dict: look for a likely scalar value
-        if isinstance(val, dict):
-            for v in val.values():
-                if isinstance(v, (int, float, str, bool)):
-                    return v
-            return None
-
-        # list: prefer first simple element
-        if isinstance(val, list) and val:
-            for v in val:
-                if isinstance(v, (int, float, str, bool)):
-                    return v
-            return None
-
-        return None
+    def build_sync_module_states(self: Blink2Mqtt, device_id: str, sync_module: list[str,str]) -> None:
+            self.upsert_state(
+                device_id,
+                switch={"armed": "ON" if sync_module["arm_mode"] else "OFF"},
+                sensor={"local_storage": sync_module["local_storage"]},
+            )
 
     # send command to Blink -----------------------------------------------------------------------
 
@@ -59,9 +48,17 @@ class HelpersMixin:
 
         self.logger.info(f"{device_id} ; {payload} ; {attribute}")
         match attribute:
-            case "motion_detections":
-                response = await self.set_motion_detection(device_id, (payload == "ON"))
-                self.logger.info(response)
+            case "motion_detection":
+                # lets update HA, assuming it will work, but remember prior state in case we have to go back
+                was = self.states[device_id]["sensor"][attribute]
+                self.upsert_state(device_id, switch={"motion_detection": payload})
+                self.logger.info(f"sending {device_id} motion_detection to {payload} command to Blink")
+                self.publish_device_state(device_id)
+                success = await self.set_motion_detection(device_id, "ON" if payload else "OFF")
+                if not success:
+                    self.logger.error(f"setting {device_id} motion_detection to {payload} failed")
+                    self.upsert_state(device_id, switch={"motion_detection": was})
+                    self.publish_device_state(device_id)
             case _:
                 self.logger.error(
                     f"Received command for unknown: {attribute} with payload {payload}"
@@ -94,28 +91,6 @@ class HelpersMixin:
                 continue
             self.publish_device_state(device_id)
             self.publish_device_discovery(device_id)
-
-    # Utility functions ---------------------------------------------------------------------------
-
-    def _install_signal_handlers(self: Blink2Mqtt):
-        """Install very simple shutdown handlers (used in Docker)."""
-        try:
-            signal.signal(signal.SIGTERM, self._handle_signal)
-            signal.signal(signal.SIGINT, self._handle_signal)
-        except Exception:
-            self.logger.debug("Signal handlers not supported on this platform")
-
-    def _handle_signal(self: Blink2Mqtt, signum, frame=None):
-        """Handle SIGTERM/SIGINT and exit cleanly or forcefully."""
-        sig_name = signal.Signals(signum).name
-        self.logger.warning(f"{sig_name} received - stopping service loop")
-        self.running = False
-
-        def _force_exit():
-            self.logger.warning("Force-exiting process after signal")
-            os._exit(0)
-
-        threading.Timer(5.0, _force_exit).start()
 
     # Upsert devices and states -------------------------------------------------------------------
 
