@@ -1,3 +1,10 @@
+## [2.0.1](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.0...v2.0.1) (2025-10-25)
+
+
+### Bug Fixes
+
+* cleanup 3 interval timers: config, controls, cmd topic, update ([8aa4667](https://github.com/weirdtangent/blink2mqtt/commit/8aa4667533e21d7b4da6ee20d8ef9e57243b7be3))
+
 # [2.0.0](https://github.com/weirdtangent/blink2mqtt/compare/v1.0.1...v2.0.0) (2025-10-25)
 
 
