@@ -19,9 +19,11 @@ class HelpersMixin:
                 "motion_detection": "ON" if camera["motion_detection"] else "OFF",
             },
             sensor={
-                "wifi_signal": camera["wifi_strength"],
                 "battery_status": camera["battery"],
                 "temperature": camera["temperature"],
+                "wifi_signal": camera["wifi_strength"],
+                "last_event": "",
+                "last_event_time": "",
             },
             binary_sensor={
                 "motion": camera["motion"],

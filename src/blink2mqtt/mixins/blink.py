@@ -173,11 +173,11 @@ class BlinkMixin:
         self.upsert_state(device_id, internal={"raw_id": raw_id}, camera="online", snapshot=None)
         modes = {}
 
-        modes["event"] = {
+        modes["eventshot"] = {
             "component_type": "camera",
-            "name": "Event",
-            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'event')}",
-            "topic": self.get_state_topic(device_id, "event"),
+            "name": "Event Snapshot",
+            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'eventshot')}",
+            "topic": self.get_state_topic(device_id, "eventshot"),
             "image_encoding": "b64",
             "avty_t": self.get_availability_topic(device_id, "camera"),
             "avty_tpl": "{{ value_json.availability }}",
@@ -289,6 +289,43 @@ class BlinkMixin:
             "unit_of_measurement": "dBm",
             "icon": "mdi:wifi",
             "entity_category": "diagnostic",
+            "via_device": self.get_service_device(),
+            "device": self.get_device_block(
+                self.get_device_slug(device_id),
+                camera["device_name"],
+                self.get_service_device(),
+                camera["software_version"],
+                camera["vendor"],
+            ),
+        }
+
+        modes["last_event"] = {
+            "component_type": "sensor",
+            "name": "Last Event",
+            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'last_event')}",
+            "stat_t": self.get_state_topic(device_id, "sensor", "last_event"),
+            "avty_t": self.get_availability_topic(device_id, "camera"),
+            "avty_tpl": "{{ value_json.availability }}",
+            "icon": "mdi:message-text-outline",
+            "via_device": self.get_service_device(),
+            "device": self.get_device_block(
+                self.get_device_slug(device_id),
+                camera["device_name"],
+                self.get_service_device(),
+                camera["software_version"],
+                camera["vendor"],
+            ),
+        }
+
+        modes["last_event_time"] = {
+            "component_type": "sensor",
+            "name": "Last Event Time",
+            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'last_event_time')}",
+            "stat_t": self.get_state_topic(device_id, "sensor", "last_event_time"),
+            "avty_t": self.get_availability_topic(device_id, "camera"),
+            "avty_tpl": "{{ value_json.availability }}",
+            "device_class": "timestamp",
+            "icon": "mdi:clock-outline",
             "via_device": self.get_service_device(),
             "device": self.get_device_block(
                 self.get_device_slug(device_id),

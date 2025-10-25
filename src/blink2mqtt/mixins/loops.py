@@ -42,6 +42,24 @@ class LoopsMixin:
                 self.logger.debug("snapshot_loop cancelled during sleep")
                 break
 
+    async def collect_events_loop(self: Blink2Mqtt) -> None:
+        while self.running:
+            try:
+                await asyncio.sleep(1)
+                await self.collect_all_blink_events()
+            except asyncio.CancelledError:
+                self.logger.debug("collect_events_loop cancelled during sleep")
+                break
+
+    async def process_events_loop(self: Blink2Mqtt) -> None:
+        while self.running:
+            try:
+                await asyncio.sleep(1)
+                await self.process_events()
+            except asyncio.CancelledError:
+                self.logger.debug("process_events_loop cancelled during sleep")
+                break
+
     async def heartbeat(self: Blink2Mqtt) -> None:
         while self.running:
             try:
@@ -87,6 +105,9 @@ class LoopsMixin:
             asyncio.create_task(self.device_list_loop(), name="device_list_loop"),
             asyncio.create_task(self.device_loop(), name="device_loop"),
             asyncio.create_task(self.collect_snapshots_loop(), name="collect_snapshots_loop"),
+            # turned off while the API is unknown - Blink's 09/2025 update broke the endpoint being used (they moved it somewhere/replaced it/whatever)
+            # asyncio.create_task(self.collect_events_loop(), name="collect_events_loop"),
+            # asyncio.create_task(self.process_events_loop(), name="process_events_loop"),
             asyncio.create_task(self.heartbeat(), name="heartbeat"),
         ]
 

@@ -303,3 +303,125 @@ class BlinkAPIMixin(object):
 
         if tries == 3:
             self.logger.error(f"[recording] Failed after 3 attempts for {device_id}", exc_info=True)
+
+    # collect/process blink events ----------------------------------------------------------------
+
+    async def collect_all_blink_events(self) -> None:
+        tasks = [self.get_events_from_device(device_id) for device_id in self.blink_sync_modules]
+
+        await asyncio.gather(*tasks)
+
+    async def get_events_from_device(self, device_id: str) -> None:
+        blink_device = self.blink_sync_modules[device_id]
+        sync_module = self.blink.sync.get(blink_device["config"]["device_name"], None)
+        if not sync_module:
+            self.logger.error(f"Tried to get events from unknown sync_module {device_id}")
+            return
+
+        tries = 0
+        while tries < 3:
+            try:
+                event = await sync_module.get_events()
+                if not event:
+                    self.logger.info("No more events waiting...")
+                    break
+                self.logger.info(f"Got event: {json.dumps(event)}")
+                    # await self.queue_device_event(device_id, code, payload)
+            except Exception as err:
+                tries += 1
+                self.logger.warning(f"[events] Retry {tries}/3 checking for events from {device_id}: {err}")
+        if tries == 3:
+            self.logger.error(f'[events] Failed to communicate for events for device ({device_id})')
+
+    async def queue_device_event(self, device_id:str, code:str, payload: any) -> None:
+        self.logger.info(f"queue_device_event for {device_id}, code {code}, payload {json.dumps(payload)}")
+        device = self.blink_cameras.get(device_id)
+        config = device['config']
+        try:
+            if ((code == 'ProfileAlarmTransmit' and config['is_ad110'])
+            or (code == 'VideoMotion' and not config['is_ad110'])):
+                motion_payload = {
+                    'state': 'on' if payload['action'] == 'Start' else 'off',
+                    'region': ', '.join(payload['data']['RegionName'])
+                }
+                self.events.append({ 'device_id': device_id, 'event': 'motion', 'payload': motion_payload })
+            elif code == 'CrossRegionDetection' and payload['data']['ObjectType'] == 'Human':
+                human_payload = 'on' if payload['action'] == 'Start' else 'off'
+                self.events.append({ 'device_id': device_id, 'event': 'human', 'payload': human_payload })
+            elif code == '_DoTalkAction_':
+                doorbell_payload = 'on' if payload['data']['Action'] == 'Invite' else 'off'
+                self.events.append({ 'device_id': device_id, 'event': 'doorbell', 'payload': doorbell_payload })
+            elif code == 'NewFile':
+                if ('File' in payload['data'] and '[R]' not in payload['data']['File']
+                and ('StoragePoint' not in payload['data'] or payload['data']['StoragePoint'] != 'Temporary')):
+                    file_payload = { 'file': payload['data']['File'], 'size': payload['data']['Size'] }
+                    self.events.append({ 'device_id': device_id, 'event': 'recording', 'payload': file_payload })
+            elif code == 'LensMaskOpen':
+                device['privacy_mode'] = True
+                self.events.append({ 'device_id': device_id, 'event': 'privacy_mode', 'payload': 'on' })
+            elif code == 'LensMaskClose':
+                device['privacy_mode'] = False
+                self.events.append({ 'device_id': device_id, 'event': 'privacy_mode', 'payload': 'off' })
+            # lets send these but not bother logging them here
+            elif code == 'TimeChange':
+                self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload['action'] })
+            elif code == 'NTPAdjustTime':
+                self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload['action'] })
+            elif code == 'RtspSessionDisconnect':
+                self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload['action'] })
+            # lets just ignore these
+            elif code == 'InterVideoAccess': # I think this is US, accessing the API of the camera, lets not inception!
+                pass
+            elif code == 'VideoMotionInfo':
+                pass
+            # save everything else as a 'generic' event
+            else:
+                self.logger.debug(f'Event on {device_id} - {code}: {payload}')
+                self.events.append({ 'device_id': device_id, 'event': code , 'payload': payload })
+        except Exception as err:
+            self.logger.error(f'[queue_device_event] Failed to understand event from {device_id}: {err}', exc_info=True)
+
+    def get_next_event(self) -> None:
+        return self.events.pop(0) if len(self.events) > 0 else None
+
+    async def process_events(self) -> None:
+        try:
+            while device_event := self.get_next_event():
+                if device_event is None:
+                    break
+                if 'device_id' not in device_event:
+                    self.logger.debug(f"[process_events] Got event but it's missing a device_id: {device_event}")
+                    continue
+
+                device_id = device_event['device_id']
+                event = device_event['event']
+                payload = device_event['payload']
+                states = self.states.get(device_id, None)
+                if not states:
+                    self.logger.debug(f"[process_events] Got event for device_id we don't know: {device_event}")
+                    continue
+
+                # if one of our known sensors
+                if event in ['motion','human','doorbell','recording','privacy_mode']:
+                    if event == 'recording' and payload['file'].endswith('.jpg'):
+                        image = await self.get_recorded_file(device_id, payload['file'], 'eventshot')
+                        # only store and send to MQTT if we got an image AND the image has changed
+                        if image and (states["eventshot"] is None or states["eventshot"] != image):
+                            states["eventshot"] = image
+                            self.publish_device_image(device_id, "eventshot")
+                    else:
+                        # only log details if not a recording
+                        if event != 'recording':
+                            self.logger.debug(f'Got event for {self.get_device_name(device_id)}: {event} - {payload}')
+                        self.upsert_state(device_id, last_event=f"{event}: {json.dumps(payload)}", last_event_time=str(datetime.now()))
+
+                    # other ways to infer "privacy mode" is off and needs updating
+                    # if event in ['motion','human','doorbell'] and states['privacy_mode'] == 'on':
+                        # states['privacy_mode'] = 'off'
+                else:
+                    self.logger.debug(f'Got {{{event}: {payload}}} for "{self.get_device_name(device_id)}"')
+                    self.upsert_state(device_id, last_event=f"{event}: {json.dumps(payload)}", last_event_time=str(datetime.now()))
+
+                self.publish_device_state(device_id)
+        except Exception as err:
+            self.logger.error(f"[process_events] Failed trying to process event: {err}", exc_info=True)

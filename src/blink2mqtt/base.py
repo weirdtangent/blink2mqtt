@@ -42,8 +42,11 @@ class Base:
         self.mqtt_config = self.config["mqtt"]
         self.blink_config = self.config["blink"]
 
+        self.blink_cameras = {}
+        self.blink_sync_modules = {}
         self.devices = {}
         self.states = {}
+        self.events = []
 
         self.mqttc = None
         self.mqtt_connect_time = None
@@ -57,8 +60,6 @@ class Base:
 
         self.session = None
         self.blink = None
-        self.blink_cameras = {}
-        self.blink_sync_modules = {}
         self.api_calls = 0
         self.last_call_date = None
         self.rate_limited = False
