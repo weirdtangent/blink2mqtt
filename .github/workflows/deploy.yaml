@@ -85,6 +85,16 @@ jobs:
             @semantic-release/git
             @semantic-release/npm
 
+      - name: Update VERSION file in repo
+        if: steps.semrel.outputs.new_release_published == 'true'
+        run: |
+          echo "${{ steps.semrel.outputs.new_release_version }}" > VERSION
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit -m "chore: update VERSION to ${{ steps.semrel.outputs.new_release_version }}"
+          git push
+
   docker:
     name: Build and Push Docker Image
     needs: [release]
@@ -141,10 +151,8 @@ jobs:
             fi
             echo "Using existing tag: $TAG"
               echo "VERSION=$TAG" >> $GITHUB_ENV
-              echo $TAG > VERSION
           else
             echo "VERSION=${{ needs.release.outputs.version }}" >> $GITHUB_ENV
-            echo "${{ needs.release.outputs.version }}" > VERSION
           fi
 
       - name: Build and push
