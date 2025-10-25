@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.8
+# syntax=docker/dockerfile:1.18.0
 FROM python:3-slim
 
 # Work inside /app
