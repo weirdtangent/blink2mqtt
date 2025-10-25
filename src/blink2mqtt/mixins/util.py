@@ -31,7 +31,7 @@ class UtilMixin:
             raise FileNotFoundError(f"File not found: {file_name}")
 
     def load_config(self: Blink2Mqtt, config_arg=None):
-        version = os.getenv("BLINK2MQTT_VERSION", "0.0.0")
+        version = os.getenv("BLINK2MQTT_VERSION", self.read_file("VERSION"))
         config_from = "env"
         config = {}
 

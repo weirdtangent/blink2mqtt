@@ -140,9 +140,11 @@ jobs:
               TAG="0.0.0"
             fi
             echo "Using existing tag: $TAG"
-            echo "VERSION=$TAG" >> $GITHUB_ENV
+              echo "VERSION=$TAG" >> $GITHUB_ENV
+              echo $TAG > VERSION
           else
             echo "VERSION=${{ needs.release.outputs.version }}" >> $GITHUB_ENV
+            echo "${{ needs.release.outputs.version }}" > VERSION
           fi
 
       - name: Build and push
