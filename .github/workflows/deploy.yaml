@@ -126,6 +126,9 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
+      - name: Fetch tags
+        run: git fetch --tags --force
+
       - name: Ensure VERSION is set
         id: version-fallback
         run: |
