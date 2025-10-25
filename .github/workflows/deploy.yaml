@@ -57,7 +57,9 @@ jobs:
     needs: [lint]
     if: github.event_name != 'schedule'
     outputs:
-      release_tag: ${{ steps.get_release.outputs.release_tag }}
+      published: ${{ steps.semrel.outputs.new_release_published }}
+      version: ${{ steps.semrel.outputs.new_release_version }}
+      tag: ${{ steps.semrel.outputs.new_release_git_tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -73,19 +75,15 @@ jobs:
         run: npm ci
 
       - name: Run semantic-release
-        id: semantic
+        id: semrel
+        uses: cycjimmy/semantic-release-action@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
-
-      - name: Determine release tag
-        id: get_release
-        run: |
-          git fetch --tags --force
-          TAG=$(git describe --tags --abbrev=0)
-          echo "$TAG" > VERSION
-          echo "release_tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Found release tag: $TAG"
+        with:
+          extra_plugins: |
+            @semantic-release/changelog
+            @semantic-release/git
+            @semantic-release/npm
 
   docker:
     name: Build and Push Docker Image
@@ -93,7 +91,8 @@ jobs:
     if: github.event_name == 'schedule' || needs.release.result == 'success'
     runs-on: ubuntu-latest
     env:
-      RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
+      RELEASE_VERSION: ${{ needs.release.outputs.version }}
+      RELEASE_TAG: ${{ needs.release.outputs.tag }}
 
     steps:
       - name: Checkout code
