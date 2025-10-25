@@ -126,6 +126,17 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
+      - name: Ensure VERSION is set
+        id: version-fallback
+        run: |
+          if [ -z "${{ needs.release.outputs.version }}" ]; then
+            TAG=$(git describe --tags --abbrev=0)
+            echo "Using existing tag: $TAG"
+            echo "VERSION=$TAG" >> $GITHUB_ENV
+          else
+            echo "VERSION=${{ needs.release.outputs.version }}" >> $GITHUB_ENV
+          fi
+
       - name: Build and push
         id: build-and-push
         uses: docker/build-push-action@v6
@@ -133,7 +144,7 @@ jobs:
           context: .
           push: true
           build-args: |
-            VERSION=${{ env.RELEASE_VERSION }}
+            VERSION=${{ env.VERSION }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/arm64,linux/amd64
