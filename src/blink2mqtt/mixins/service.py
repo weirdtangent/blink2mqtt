@@ -3,10 +3,18 @@
 
 from datetime import datetime
 import json
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from blink2mqtt.core import Blink2Mqtt
+    from blink2mqtt.interface import BlinkServiceProtocol
 
 
 class ServiceMixin:
-    def publish_service_discovery(self):
+    if TYPE_CHECKING:
+        self: "BlinkServiceProtocol"
+
+    def publish_service_discovery(self: Blink2Mqtt) -> None:
         app = self.get_device_block(self.service_slug, self.service_name)
 
         self.mqtt_safe_publish(
@@ -176,12 +184,12 @@ class ServiceMixin:
             f"[HA] Discovery published for {self.service} ({self.service_slug})"
         )
 
-    def publish_service_availability(self, status="online"):
+    def publish_service_availability(self: Blink2Mqtt, status: str = "online") -> None:
         self.mqtt_safe_publish(
             self.get_service_topic("status"), status, qos=self.qos, retain=True
         )
 
-    def publish_service_state(self):
+    def publish_service_state(self: Blink2Mqtt) -> None:
         service = {
             "state": "online",
             "api_calls": {

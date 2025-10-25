@@ -4,25 +4,33 @@ import os
 import logging
 import pathlib
 import yaml
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from blink2mqtt.core import Blink2Mqtt
+    from blink2mqtt.interface import BlinkServiceProtocol
 
 READY_FILE = os.getenv("READY_FILE", "/tmp/blink2mqtt.ready")
 
 
 class UtilMixin:
-    def mark_ready(self):
+    if TYPE_CHECKING:
+        self: "BlinkServiceProtocol"
+
+    def mark_ready(self: Blink2Mqtt):
         pathlib.Path(READY_FILE).touch()
 
-    def heartbeat_ready(self):
+    def heartbeat_ready(self: Blink2Mqtt):
         pathlib.Path(READY_FILE).touch()
 
-    def read_file(self, file_name):
+    def read_file(self: Blink2Mqtt, file_name):
         try:
             with open(file_name, "r", encoding="utf-8") as file:
                 return file.read().strip()
         except FileNotFoundError:
             raise FileNotFoundError(f"File not found: {file_name}")
 
-    def load_config(self, config_arg=None):
+    def load_config(self: Blink2Mqtt, config_arg=None):
         version = os.getenv("BLINK2MQTT_VERSION", "0.0.0")
         config_from = "env"
         config = {}

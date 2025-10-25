@@ -4,8 +4,16 @@ import argparse
 import logging
 from json_logging import get_logger
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from blink2mqtt.interface import BlinkServiceProtocol
+
 
 class Base:
+    if TYPE_CHECKING:
+        self: "BlinkServiceProtocol"
+
     def __init__(self, *, args: argparse.Namespace | None = None, **kwargs):
         super().__init__(**kwargs)
 
@@ -29,6 +37,7 @@ class Base:
 
         self.running = False
         self.discovery_complete = False
+        self.loop = None
 
         self.mqtt_config = self.config["mqtt"]
         self.blink_config = self.config["blink"]

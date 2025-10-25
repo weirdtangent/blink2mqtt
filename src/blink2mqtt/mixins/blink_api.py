@@ -10,28 +10,37 @@ from blinkpy.helpers.util import json_load
 from datetime import datetime
 import os
 
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from blink2mqtt.core import Blink2Mqtt
+    from blink2mqtt.interface import BlinkServiceProtocol
+
 
 class BlinkAPIMixin(object):
-    def increase_api_calls(self):
+    if TYPE_CHECKING:
+        self: "BlinkServiceProtocol"
+
+    def increase_api_calls(self: Blink2Mqtt) -> None:
         if not self.last_call_date or self.last_call_date != str(datetime.now()):
             self.reset_api_call_count()
         self.api_calls += 1
 
-    def reset_api_call_count(self):
+    def reset_api_call_count(self: Blink2Mqtt) -> None:
         self.api_calls = 0
         self.last_call_date = str(datetime.now())
         self.logger.debug("Reset api call count for new day")
 
-    def get_api_calls(self):
+    def get_api_calls(self: Blink2Mqtt) -> int:
         return self.api_calls
 
-    def get_last_call_date(self):
+    def get_last_call_date(self: Blink2Mqtt) -> datetime:
         return self.last_call_date
 
-    def is_rate_limited(self):
+    def is_rate_limited(self: Blink2Mqtt) -> bool:
         return self.rate_limited
 
-    async def connect(self):
+    async def connect(self: Blink2Mqtt) -> None:
         if self.session and not self.session.closed:
             await self.session.close()
         self.session = ClientSession()
@@ -95,17 +104,17 @@ class BlinkAPIMixin(object):
         await self.blink.refresh(force=True)
         await self.blink.save(cred_path)
 
-    async def disconnect(self):
+    async def disconnect(self: Blink2Mqtt) -> None:
         cred_path = os.path.join(self.config["config_path"], "blink.cred")
         await self.blink.save(cred_path)
         if self.blink and hasattr(self.blink, "close"):
             await self.blink.close()
         await self.session.close()
 
-    async def blink_refresh(self):
+    async def blink_refresh(self: Blink2Mqtt) -> None:
         await self.blink.refresh(force=True)
 
-    async def get_cameras(self):
+    async def get_cameras(self: Blink2Mqtt) -> list:
         for name, camera in self.blink.cameras.items():
             attributes = camera.attributes
             self.blink_cameras[attributes["serial"]] = {
@@ -136,7 +145,7 @@ class BlinkAPIMixin(object):
 
         return self.blink_cameras
 
-    async def get_sync_modules(self):
+    async def get_sync_modules(self: Blink2Mqtt) -> list:
         for _, sync_module in self.blink.sync.items():
             await sync_module.get_network_info()
             attributes = sync_module.attributes
@@ -164,7 +173,9 @@ class BlinkAPIMixin(object):
 
     # Arm mode  -----------------------------------------------------------------------------------
 
-    async def set_arm_mode(self, device_id, switch):
+    async def set_arm_mode(
+        self: Blink2Mqtt, device_id: str, switch: bool
+    ) -> Any | None:
         if device_id in self.blink_cameras:
             name = self.blink_cameras[device_id]["config"]["device_name"]
             device = self.blink.cameras[name]
@@ -184,7 +195,7 @@ class BlinkAPIMixin(object):
 
     # Motion --------------------------------------------------------------------------------------
 
-    def get_camera_motion(self, device_id):
+    def get_camera_motion(self: Blink2Mqtt, device_id: str) -> Any | None:
 
         try:
             device = self.blink_cameras.get(device_id)
@@ -196,12 +207,14 @@ class BlinkAPIMixin(object):
 
         return motion
 
-    def set_motion_detection(self, device_id, switch):
+    async def set_motion_detection(
+        self: Blink2Mqtt, device_id: str, switch: bool
+    ) -> Any | None:
 
         try:
             device = self.blink_cameras.get(device_id)
             camera = self.blink.cameras.get(device["config"]["name"])
-            response = camera.set_motion_detection(switch)
+            response = await camera.set_motion_detection(switch)
         except Exception as e:
             self.logger.error(f"[set_motion] Failed for {device_id}: {e}")
             return
@@ -210,7 +223,7 @@ class BlinkAPIMixin(object):
 
     # Snapshots -----------------------------------------------------------------------------------
 
-    async def take_snapshot_from_device(self, device_id):
+    async def take_snapshot_from_device(self: Blink2Mqtt, device_id: str) -> None:
 
         try:
             device = self.blink_cameras.get(device_id)
@@ -222,7 +235,7 @@ class BlinkAPIMixin(object):
                 f"[take_snapshot] Failed to take snapshot for {device_id}: {e}"
             )
 
-    async def get_snapshot_from_device(self, device_id):
+    async def get_snapshot_from_device(self: Blink2Mqtt, device_id: str) -> str | None:
 
         try:
             device = self.blink_cameras[device_id]
@@ -243,7 +256,7 @@ class BlinkAPIMixin(object):
         return encoded
 
     # Recorded file -------------------------------------------------------------------------------
-    def get_recorded_file(self, device_id, file):
+    def get_recorded_file(self: Blink2Mqtt, device_id: str, file: str) -> str | None:
         device = self.blink_cameras.get(device_id)
         camera = self.blink.cameras.get(device["config"]["name"])
 

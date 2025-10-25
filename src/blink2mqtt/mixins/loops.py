@@ -2,10 +2,18 @@
 # Copyright (c) 2025 Jeff Culverhouse
 import asyncio
 import signal
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from blink2mqtt.core import Blink2Mqtt
+    from blink2mqtt.interface import BlinkServiceProtocol
 
 
 class LoopsMixin:
-    async def device_list_loop(self):
+    if TYPE_CHECKING:
+        self: "BlinkServiceProtocol"
+
+    async def device_list_loop(self: Blink2Mqtt) -> None:
         while self.running:
             if self.discovery_complete:
                 await self.refresh_device_list()
@@ -15,7 +23,7 @@ class LoopsMixin:
                 self.logger.debug("device_list_loop cancelled during sleep")
                 break
 
-    async def device_loop(self):
+    async def device_loop(self: Blink2Mqtt) -> None:
         while self.running:
             if self.discovery_complete:
                 await self.refresh_all_devices()
@@ -25,7 +33,7 @@ class LoopsMixin:
                 self.logger.debug("device_loop cancelled during sleep")
                 break
 
-    async def collect_snapshots_loop(self):
+    async def collect_snapshots_loop(self: Blink2Mqtt) -> None:
         while self.running:
             if self.discovery_complete:
                 await self.collect_snapshots()
@@ -35,7 +43,7 @@ class LoopsMixin:
                 self.logger.debug("snapshot_loop cancelled during sleep")
                 break
 
-    async def heartbeat(self):
+    async def heartbeat(self: Blink2Mqtt) -> None:
         while self.running:
             self.heartbeat_ready()
             try:
@@ -45,7 +53,8 @@ class LoopsMixin:
                 break
 
     # main loop
-    async def main_loop(self):
+    async def main_loop(self: Blink2Mqtt) -> None:
+        self.loop = asyncio.get_running_loop()
         await self.connect()
 
         await self.refresh_device_list()

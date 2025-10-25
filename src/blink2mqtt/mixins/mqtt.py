@@ -1,15 +1,25 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
+import asyncio
 import json
 import paho.mqtt.client as mqtt
+from paho.mqtt.client import Client, MQTTMessageInfo, LogLevel
 from paho.mqtt.properties import Properties
 from paho.mqtt.packettypes import PacketTypes
 import ssl
 import time
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from blink2mqtt.core import Blink2Mqtt
+    from blink2mqtt.interface import BlinkServiceProtocol
 
 
 class MqttMixin:
-    def mqttc_create(self):
+    if TYPE_CHECKING:
+        self: "BlinkServiceProtocol"
+
+    def mqttc_create(self: "Blink2Mqtt") -> None:
         self.mqttc = mqtt.Client(
             client_id=self.client_id,
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
@@ -66,7 +76,14 @@ class MqttMixin:
             )
             self.running = False
 
-    def mqtt_on_connect(self, client, userdata, flags, reason_code, properties):
+    def mqtt_on_connect(
+        self: "Blink2Mqtt",
+        client: Client,
+        userdata: Any,
+        flags: dict,
+        reason_code: int,
+        properties: MQTTMessageInfo = None,
+    ) -> None:
         if reason_code.value != 0:
             self.logger.error(f"MQTT failed to connect ({reason_code.getName()})")
             self.running = False
@@ -80,9 +97,16 @@ class MqttMixin:
         client.subscribe("homeassistant/status")
         client.subscribe(f"{self.service_slug}/service/+/set")
         client.subscribe(f"{self.service_slug}/service/+/command")
-        client.subscribe(f"{self.service_slug}/light/#")
+        client.subscribe(f"{self.service_slug}/switch/#")
 
-    def mqtt_on_disconnect(self, client, userdata, flags, reason_code, properties):
+    def mqtt_on_disconnect(
+        self: "Blink2Mqtt",
+        client: Client,
+        userdata: Any,
+        flags: dict,
+        reason_code: int,
+        properties: MQTTMessageInfo = None,
+    ) -> None:
         if reason_code.value != 0:
             self.logger.error(f"MQTT lost connection ({reason_code.getName()})")
         else:
@@ -98,13 +122,21 @@ class MqttMixin:
             self.logger.info("MQTT disconnect — stopping service loop")
             self.running = False
 
-    def mqtt_on_log(self, client, userdata, paho_log_level, msg):
+    def mqtt_on_log(
+        self: "Blink2Mqtt",
+        client: Client,
+        userdata: Any,
+        paho_log_level: LogLevel,
+        msg: str,
+    ) -> None:
         if paho_log_level == mqtt.LogLevel.MQTT_LOG_ERR:
             self.logger.error(f"MQTT logged: {msg}")
         if paho_log_level == mqtt.LogLevel.MQTT_LOG_WARNING:
             self.logger.warning(f"MQTT logged: {msg}")
 
-    def mqtt_on_message(self, client, userdata, msg):
+    def mqtt_on_message(
+        self: "Blink2Mqtt", client: Client, userdata: Any, msg: str
+    ) -> None:
         topic = msg.topic
         payload = self._decode_payload(msg.payload)
         components = topic.split("/")
@@ -121,9 +153,9 @@ class MqttMixin:
         if components[0] == self.service_slug:
             return self._handle_device_topic(components, payload)
 
-        # self.logger.debug(f"Ignoring unrelated MQTT topic: {topic}")
+        self.logger.debug(f"Ignoring unrelated MQTT topic: {topic}")
 
-    def _decode_payload(self, raw):
+    def _decode_payload(self: "Blink2Mqtt", raw):
         """Try to decode MQTT payload as JSON, fallback to UTF-8 string, else None."""
         try:
             return json.loads(raw)
@@ -135,59 +167,59 @@ class MqttMixin:
                 self.logger.warning("Failed to decode MQTT payload")
                 return None
 
-    def _handle_homeassistant_message(self, payload):
+    def _handle_homeassistant_message(self: "Blink2Mqtt", payload):
         if payload == "online":
             self.rediscover_all()
             self.logger.info("Home Assistant came online — rediscovering devices")
 
-    def _handle_device_topic(self, components, payload):
+    def _handle_device_topic(self: "Blink2Mqtt", components, payload):
         vendor, device_id, attribute = self._parse_device_topic(components)
         if not vendor or not vendor.startswith(self.service_slug):
-            self.logger.debug(
-                f"Ignoring non-Blink device topic: {'/'.join(components)}"
-            )
+            self.logger.error(f"Ignoring non-Blink device command, got vendor {vendor}")
             return
         if not self.devices.get(device_id, None):
             self.logger.warning(f"Got MQTT message for unknown device: {device_id}")
             return
 
-        self.logger.debug(
+        self.logger.info(
             f"Got message for {self.get_device_name(device_id)}: {payload}"
         )
-        self.send_command(device_id, payload)
+        asyncio.run_coroutine_threadsafe(
+            self.send_command(device_id, payload, attribute), self.loop
+        )
 
-    def _parse_device_topic(self, components):
+    def _parse_device_topic(self: "Blink2Mqtt", components):
         """Extract (vendor, device_id, attribute) from an MQTT topic components list (underscore-delimited)."""
         try:
             if components[-1] != "set":
                 return (None, None, None)
 
             # Example topics:
-            # blink2mqtt/light/blink2mqtt_2BEFD0C907BB6BF2/set
-            # blink2mqtt/light/blink2mqtt_2BEFD0C907BB6BF2/brightness/set
+            # blink2mqtt/switch/blink2mqtt_G8xxxxxxxxxxxx/motion_detection/set
 
-            # Case 1: .../<device>/set
-            if len(components) >= 4 and "_" in components[-2]:
-                vendor, device_id = components[-2].split("_", 1)
-                attribute = None
+            self.logger.info(f"Command topic sent with {len(components)} components")
 
-            # Case 2: .../<device>/<attribute>/set
-            elif len(components) >= 5 and "_" in components[-3]:
+            # Case 1: .../<device>/<attribute>/set
+            if len(components) >= 5 and "_" in components[-3]:
                 vendor, device_id = components[-3].split("_", 1)
                 attribute = components[-2]
+
+            # Case 2: .../<device>/set
+            elif len(components) >= 4 and "_" in components[-2]:
+                vendor, device_id = components[-2].split("_", 1)
+                attribute = None
 
             else:
                 raise ValueError(
                     f"Malformed topic (expected underscore): {'/'.join(components)}"
                 )
-
             return (vendor, device_id, attribute)
 
         except Exception as e:
             self.logger.warning(f"Malformed device topic: {components} ({e})")
             return (None, None, None)
 
-    def safe_split_device(self, topic, segment):
+    def safe_split_device(self: "Blink2Mqtt", topic: str, segment: str) -> (str, str):
         """Split a topic segment into (vendor, device_id) safely."""
         try:
             return segment.split("-", 1)
@@ -195,20 +227,24 @@ class MqttMixin:
             self.logger.warning(f"Ignoring malformed topic: {topic}")
             return (None, None)
 
-    def is_discovered(self, device_id) -> bool:
-        return bool(
-            self.states.get(device_id, {}).get("internal", {}).get("discovered", False)
-        )
-
-    def set_discovered(self, device_id) -> None:
+    def set_discovered(self: "Blink2Mqtt", device_id: str) -> None:
         self.upsert_state(device_id, internal={"discovered": True})
 
-    def mqtt_on_subscribe(self, client, userdata, mid, reason_code_list, properties):
+    def mqtt_on_subscribe(
+        self: "Blink2Mqtt",
+        client: Client,
+        userdata: any,
+        mid: int,
+        reason_code_list: list[mqtt.ReasonCode],
+        properties: mqtt.Properties,
+    ) -> None:
         reason_names = [rc.getName() for rc in reason_code_list]
         joined = "; ".join(reason_names) if reason_names else "none"
         self.logger.debug(f"MQTT subscribed (mid={mid}): {joined}")
 
-    def mqtt_safe_publish(self, topic, payload, **kwargs):
+    def mqtt_safe_publish(
+        self: "Blink2Mqtt", topic: str, payload: dict | str | bool | int, **kwargs: Any
+    ) -> None:
         if isinstance(payload, dict) and (
             "component" in payload or "//////" in payload
         ):

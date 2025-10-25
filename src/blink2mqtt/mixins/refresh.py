@@ -2,10 +2,18 @@
 # Copyright (c) 2025 Jeff Culverhouse
 import asyncio
 from asyncio import timeout
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from blink2mqtt.core import Blink2Mqtt
+    from blink2mqtt.interface import BlinkServiceProtocol
 
 
 class RefreshMixin:
-    async def refresh_all_devices(self):
+    if TYPE_CHECKING:
+        self: "BlinkServiceProtocol"
+
+    async def refresh_all_devices(self: "Blink2Mqtt") -> None:
         # don't let this kick off until we are done with our list
         while not self.discovery_complete and self.running:
             await asyncio.sleep(1)
@@ -25,7 +33,7 @@ class RefreshMixin:
                 self.get_raw_id(device_id),
             )
 
-    async def refresh_boosted_devices(self):
+    async def refresh_boosted_devices(self: "Blink2Mqtt") -> None:
         # don't let this kick off until we are done with our list
         while not self.discovery_complete and self.running:
             await asyncio.sleep(1)
@@ -42,7 +50,7 @@ class RefreshMixin:
                     self.get_raw_id(device_id),
                 )
 
-    async def refresh_snapshot_all_devices(self):
+    async def refresh_snapshot_all_devices(self: "Blink2Mqtt") -> None:
         self.logger.info(
             f"Requesting snapshots on devices (every {self.snapshot_update_interval} sec)"
         )
@@ -64,7 +72,7 @@ class RefreshMixin:
         await asyncio.gather(*tasks1)
         await asyncio.gather(*tasks2)
 
-    async def refresh_snapshot(self, device_id, type):
+    async def refresh_snapshot(self: "Blink2Mqtt", device_id: str, type: str) -> None:
         states = self.states[device_id]
 
         image = await self.get_snapshot_from_device(device_id)

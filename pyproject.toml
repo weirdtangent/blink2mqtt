@@ -89,9 +89,10 @@ indent-width = 4
 target-version = "py313"
 
 [tool.pyright]
-include = [ "." ]
-extraPaths = [ "./mixins" ]
+include = [ "src" ]
+extraPaths = [ "src" ]
 venvPath = "./.venv"
+typeCheckingMode = "basic"
 venv = ".venv"
 
 [tool.pytest.ini_options]

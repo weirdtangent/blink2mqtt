@@ -2,10 +2,18 @@
 # Copyright (c) 2025 Jeff Culverhouse
 import asyncio
 import json
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from blink2mqtt.core import Blink2Mqtt
+    from blink2mqtt.interface import BlinkServiceProtocol
 
 
 class BlinkMixin:
-    async def refresh_device_list(self):
+    if TYPE_CHECKING:
+        self: "BlinkServiceProtocol"
+
+    async def refresh_device_list(self: Blink2Mqtt) -> None:
         self.logger.info(
             f"Refreshing device list from Blink (every {self.device_list_interval} sec)"
         )
@@ -47,7 +55,7 @@ class BlinkMixin:
             self.discovery_complete = True
 
     # convert Blink device capabilities into MQTT components
-    def build_component(self, device):
+    def build_component(self: Blink2Mqtt, device: list) -> []:
         device_class = self.classify_device(device)
         match device_class:
             case "switch":
@@ -56,7 +64,7 @@ class BlinkMixin:
                 return self.build_camera(device)
         return []
 
-    def classify_device(self, device):
+    def classify_device(self: Blink2Mqtt, device: list) -> str | None:
         type = device.get("device_type", None)
 
         if type == "sync_module":
@@ -74,7 +82,7 @@ class BlinkMixin:
 
         return None
 
-    def build_switch(self, device):
+    def build_switch(self: Blink2Mqtt, device: list) -> str:
         raw_id = device["serial_number"]
         device_id = raw_id
 
@@ -146,7 +154,7 @@ class BlinkMixin:
 
         return device_id
 
-    def build_camera(self, device):
+    def build_camera(self: Blink2Mqtt, device: list) -> str:
         raw_id = device["serial_number"]
         device_id = raw_id
 
@@ -339,7 +347,7 @@ class BlinkMixin:
 
         return device_id
 
-    def publish_device_discovery(self, device_id):
+    def publish_device_discovery(self: Blink2Mqtt, device_id: str) -> None:
         def _publish_one(dev_id: str, defn: dict, suffix: str | None = None):
             # Compute a per-mode device_id for topic namespacing
             eff_device_id = dev_id if not suffix else f"{dev_id}_{suffix}"
@@ -366,7 +374,7 @@ class BlinkMixin:
         for slug, mode in modes.items():
             _publish_one(device_id, mode, suffix=slug)
 
-    def publish_device_state(self, device_id):
+    def publish_device_state(self: Blink2Mqtt, device_id: str) -> None:
         def _publish_one(dev_id: str, mode_name: str, defn):
             # Grab device states and this component's state topic
             topic = self.get_device_state_topic(dev_id, mode_name)
@@ -418,7 +426,7 @@ class BlinkMixin:
             )
             _publish_one(device_id, name, type_states)
 
-    def publish_device_image(self, device_id, type):
+    def publish_device_image(self: Blink2Mqtt, device_id: str, type: str) -> None:
         payload = self.states[device_id][type]
         if payload and isinstance(payload, str):
             self.logger.info(
@@ -427,7 +435,9 @@ class BlinkMixin:
             topic = self.get_device_image_topic(device_id)
             self.mqtt_safe_publish(topic, payload, retain=True)
 
-    def publish_device_availability(self, device_id, online: bool = True):
+    def publish_device_availability(
+        self: Blink2Mqtt, device_id: str, online: bool = True
+    ) -> None:
         payload = "online" if online else "offline"
 
         # if state and availability are the SAME, we don't want to
@@ -439,7 +449,7 @@ class BlinkMixin:
 
         self.mqtt_safe_publish(avty_t, payload, retain=True)
 
-    async def collect_snapshots(self):
+    async def collect_snapshots(self: Blink2Mqtt) -> None:
         try:
             while self.running:
                 await self.refresh_snapshot_all_devices()
