@@ -85,19 +85,21 @@ class ServiceMixin:
         )
         self.mqtt_safe_publish(
             topic=self.get_discovery_topic(
-                "number", f"{self.service_slug}_device_refresh"
+                "number", f"{self.service_slug}_device_update_interval"
             ),
             payload=json.dumps(
                 {
-                    "name": f"{self.service_name} Device Refresh Interval",
-                    "uniq_id": f"{self.service_slug}_device_refresh",
+                    "name": f"{self.service_name} Device Update Interval",
+                    "uniq_id": f"{self.service_slug}_device_update_interval",
                     "stat_t": self.get_state_topic(
-                        "service", "service", "device_refresh"
+                        "service", "service", "device_update_interval"
                     ),
                     "json_attr_t": self.get_attribute_topic(
-                        "service", "service", "device_refresh", "attributes"
+                        "service", "service", "device_update_interval", "attributes"
                     ),
-                    "cmd_t": self.get_command_topic("service", "device_refresh"),
+                    "cmd_t": self.get_command_topic(
+                        "service", "device_update_interval"
+                    ),
                     "unit_of_measurement": "s",
                     "min": 1,
                     "max": 900,
@@ -111,19 +113,21 @@ class ServiceMixin:
         )
         self.mqtt_safe_publish(
             topic=self.get_discovery_topic(
-                "number", f"{self.service_slug}_device_list_refresh"
+                "number", f"{self.service_slug}_device_rescan_interval"
             ),
             payload=json.dumps(
                 {
-                    "name": f"{self.service_name} Device List Refresh Interval",
-                    "uniq_id": f"{self.service_slug}_device_list_refresh",
+                    "name": f"{self.service_name} Device Rescan Interval",
+                    "uniq_id": f"{self.service_slug}_device_rescan_interval",
                     "stat_t": self.get_state_topic(
-                        "service", "service", "device_list_refresh"
+                        "service", "service", "device_rescan_interval"
                     ),
                     "json_attr_t": self.get_attribute_topic(
-                        "service", "service", "device_list_refresh", "attributes"
+                        "service", "service", "device_rescan_interval", "attributes"
                     ),
-                    "cmd_t": self.get_command_topic("service", "device_list_refresh"),
+                    "cmd_t": self.get_command_topic(
+                        "service", "device_rescan_interval"
+                    ),
                     "unit_of_measurement": "s",
                     "min": 1,
                     "max": 3600,
@@ -137,19 +141,21 @@ class ServiceMixin:
         )
         self.mqtt_safe_publish(
             topic=self.get_discovery_topic(
-                "number", f"{self.service_slug}_snapshot_refresh"
+                "number", f"{self.service_slug}_snapshot_update_interval"
             ),
             payload=json.dumps(
                 {
-                    "name": f"{self.service_name} Snapshot Refresh Interval",
-                    "uniq_id": f"{self.service_slug}_snapshot_refresh",
+                    "name": f"{self.service_name} Snapshot Update Interval",
+                    "uniq_id": f"{self.service_slug}_snapshot_update_interval",
                     "stat_t": self.get_state_topic(
-                        "service", "service", "snapshot_refresh"
+                        "service", "service", "snapshot_update_interval"
                     ),
                     "json_attr_t": self.get_attribute_topic(
-                        "service", "service", "snapshot_refresh", "attributes"
+                        "service", "service", "snapshot_update_interval", "attributes"
                     ),
-                    "cmd_t": self.get_command_topic("service", "snapshot_refresh"),
+                    "cmd_t": self.get_command_topic(
+                        "service", "snapshot_update_interval"
+                    ),
                     "unit_of_measurement": "s",
                     "min": 1,
                     "max": 3600,
@@ -197,13 +203,12 @@ class ServiceMixin:
                 "last_api_call": self.get_last_call_date(),
             },
             "rate_limited": "yes" if self.is_rate_limited() else "no",
-            "device_refresh": self.device_interval,
-            "device_list_refresh": self.device_list_interval,
-            "snapshot_refresh": self.snapshot_update_interval,
+            "device_update_interval": self.device_interval,
+            "device_rescan_interval": self.device_list_interval,
+            "snapshot_update_interval": self.snapshot_update_interval,
         }
 
         for key, value in service.items():
-            # Scalars like "state" -> just publish as is (but as a string)
             if not isinstance(value, dict):
                 payload = str(value)
             else:

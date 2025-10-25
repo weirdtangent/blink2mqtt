@@ -69,51 +69,39 @@ class UtilMixin:
         mqtt = config.get("mqtt", {})
         blink = config.get("blink", {})
 
+        # fmt: off
         mqtt = {
-            "host": mqtt.get("host") or os.getenv("MQTT_HOST", "localhost"),
-            "port": int(mqtt.get("port") or os.getenv("MQTT_PORT", 1883)),
-            "qos": int(mqtt.get("qos") or os.getenv("MQTT_QOS", 0)),
-            "username": mqtt.get("username") or os.getenv("MQTT_USERNAME", ""),
-            "password": mqtt.get("password") or os.getenv("MQTT_PASSWORD", ""),
-            "tls_enabled": mqtt.get("tls_enabled")
-            or (os.getenv("MQTT_TLS_ENABLED", "false").lower() == "true"),
-            "tls_ca_cert": mqtt.get("tls_ca_cert") or os.getenv("MQTT_TLS_CA_CERT"),
-            "tls_cert": mqtt.get("tls_cert") or os.getenv("MQTT_TLS_CERT"),
-            "tls_key": mqtt.get("tls_key") or os.getenv("MQTT_TLS_KEY"),
-            "prefix": mqtt.get("prefix") or os.getenv("MQTT_PREFIX", "blink2mqtt"),
-            "discovery_prefix": mqtt.get("discovery_prefix")
-            or os.getenv("MQTT_DISCOVERY_PREFIX", "homeassistant"),
+            "host":             mqtt.get("host")             or os.getenv("MQTT_HOST", "localhost"),
+            "port":         int(mqtt.get("port")             or os.getenv("MQTT_PORT", 1883)),
+            "qos":          int(mqtt.get("qos")              or os.getenv("MQTT_QOS", 0)),
+            "username":         mqtt.get("username")         or os.getenv("MQTT_USERNAME", ""),
+            "password":         mqtt.get("password")         or os.getenv("MQTT_PASSWORD", ""),
+            "tls_enabled":      mqtt.get("tls_enabled")      or (os.getenv("MQTT_TLS_ENABLED", "false").lower() == "true"),
+            "tls_ca_cert":      mqtt.get("tls_ca_cert")      or os.getenv("MQTT_TLS_CA_CERT"),
+            "tls_cert":         mqtt.get("tls_cert")         or os.getenv("MQTT_TLS_CERT"),
+            "tls_key":          mqtt.get("tls_key")          or os.getenv("MQTT_TLS_KEY"),
+            "prefix":           mqtt.get("prefix")           or os.getenv("MQTT_PREFIX", "blink2mqtt"),
+            "discovery_prefix": mqtt.get("discovery_prefix") or os.getenv("MQTT_DISCOVERY_PREFIX", "homeassistant"),
         }
 
         blink = {
-            "username": blink.get("username") or os.getenv("BLINK_USERNAME") or "admin",
-            "password": blink.get("password") or os.getenv("BLINK_PASSWORD") or "",
-            "device_interval": int(
-                blink.get("device_update_interval")
-                or os.getenv("BLINK_DEVICE_UPDATE_INTERVAL", 30)
-            ),
-            "device_list_interval": int(
-                blink.get("device_rescan_interval")
-                or os.getenv("BLINK_RESCAN_INTERVAL", 3600)
-            ),
-            "snapshot_update_interval": int(
-                blink.get("snapshot_update_interval")
-                or os.getenv("SNAPSHOT_UPDATE_INTERVAL", 900)
-            ),
+            "username":                     blink.get("username")                 or os.getenv("BLINK_USERNAME") or "admin",
+            "password":                     blink.get("password")                 or os.getenv("BLINK_PASSWORD") or "",
+            "device_interval":          int(blink.get("device_update_interval")   or os.getenv("DEVICE_UPDATE_INTERVAL", 30)),
+            "device_list_interval":     int(blink.get("device_rescan_interval")   or os.getenv("DEVICE_RESCAN_INTERVAL", 3600)),
+            "snapshot_update_interval": int(blink.get("snapshot_update_interval") or os.getenv("SNAPSHOT_UPDATE_INTERVAL", 900)),
         }
 
         config = {
             "mqtt": mqtt,
             "blink": blink,
             "debug": config.get("debug", os.getenv("DEBUG", "").lower() == "true"),
-            "hide_ts": config.get(
-                "hide_ts", os.getenv("HIDE_TS", "").lower() == "true"
-            ),
             "timezone": config.get("timezone", os.getenv("TZ", "UTC")),
             "config_from": config_from,
             "config_path": config_path,
             "version": version,
         }
+        # fmt: on
 
         # Validate required fields
         if not config["blink"].get("username"):

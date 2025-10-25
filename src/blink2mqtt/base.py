@@ -63,13 +63,9 @@ class Base:
         self.last_call_date = None
         self.rate_limited = False
 
-        self.device_interval = self.config["blink"].get("device_interval", 30)
-        self.snapshot_update_interval = self.config["blink"].get(
-            "self.snapshot_update_interval", 180
-        )
-        self.device_list_interval = self.config["blink"].get(
-            "device_list_interval", 300
-        )
+        self.device_interval = self.blink_config["device_interval"]
+        self.device_list_interval = self.blink_config["device_list_interval"]
+        self.snapshot_update_interval = self.blink_config["snapshot_update_interval"]
 
     def __enter__(self):
         super_enter = getattr(super(), "__enter__", None)

@@ -76,12 +76,15 @@ class HelpersMixin:
 
     def handle_service_message(self: Blink2Mqtt, handler: str, message: str) -> None:
         match handler:
-            case "device_refresh":
+            case "device_update_interval":
                 self.device_interval = message
-            case "device_list_refresh":
+                self.logger.debug(f"device_interval updated to be {message}")
+            case "device_rescan_interval":
                 self.device_list_interval = message
-            case "snapshot_refresh":
+                self.logger.debug(f"device_list_interval updated to be {message}")
+            case "snapshot_update_interval":
                 self.snapshot_update_interval = message
+                self.logger.debug(f"snapshot_update_interval updated to be {message}")
             case "refresh_device_list":
                 if message == "refresh":
                     self.rediscover_all()

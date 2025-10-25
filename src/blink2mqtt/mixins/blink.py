@@ -14,9 +14,12 @@ class BlinkMixin:
         self: "BlinkServiceProtocol"
 
     async def refresh_device_list(self: Blink2Mqtt) -> None:
-        self.logger.info(
-            f"Refreshing device list from Blink (every {self.device_list_interval} sec)"
-        )
+        if self.discovery_complete:
+            self.logger.info(
+                f"Refreshing device list from Blink (every {self.device_list_interval} sec)"
+            )
+        else:
+            self.logger.info("Grabbing device list from Blink")
 
         blink_devices = await self.get_cameras()
         sync_modules = await self.get_sync_modules()
