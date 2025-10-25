@@ -10,6 +10,8 @@ Built on [`blinkpy`](https://github.com/fronzbot/blinkpy).
 Based on my forked versions of [amcrest2mqtt](https://github.com/weirdtangent/amcrest2mqtt)
 and [govee2mqtt](https://github.com/weirdtangent/govee2mqtt).
 
+UPDATE: I've reworked this app almost entirely, as I learn Python (and MQTT and their ingestion by HomeAssistant). v2 completely changes what I was sending for discovery messages and everything is MUCH closer to what HA wants and expects. But also, v2 has had several breaking changes which are cleaned up if you can remove the v1 service and devices from your HomeAssistant AND from your MQTT server (clear them specifically with something like MQTT Explorer; or restart your MQTT service so it loses those old, retained messages. Also, a couple of config/ENV vars have been removed as they were really not necessary (MQTT_HOMEASSISTANT and HIDE_TS). I have many fixes left to do and many features to add (or add back) in. Thanks for being patient for a bit - or I understand you not wanting an app going through so many updates.
+
 A few notes:
 * "Rediscover" button added to service - when pressed, device discovery is re-run so HA will rediscover deleted devices
 
@@ -55,18 +57,6 @@ A docker image is available at `graystorm/blink2mqtt:latest`. You can mount your
 | `DEVICE_UPDATE_INTERVAL` | No | `30` | Seconds between device updates |
 | `DEVICE_RESCAN_INTERVAL` | No | `3600` | Seconds between device rescans |
 | `SNAPSHOT_UPDATE_INTERVAL` | No | `900` | Seconds between snapshot fetches |
-
-It exposes through device discovery a `service` and a `device` with components for each camera:
-
--   `homeassistant/device/blink-service` - service config
-
--   `homeassistant/device/blink-[SERIAL_NUMBER]` per camera, and per sync module, with appropriate components:
--    `camera`           - a snapshot is saved every SNAPSHOT_UPDATE_INTERVAL (also based on how often camera saves snapshot image), also an "eventshot" is stored at the time an "event" is triggered in the camera. This is collected by filename, when the Blink camera logs a snapshot was saved because of an event (rather than just a routine timed snapshot)
--    `motion`           - motion events (if supported)
--    `config`           - device configuration information
--    `battery`          - status, voltage, and % left
--    `arm mode`         - whether camera or sync module has motion detection on (is armed)
--    `motion_detection` - get (and set) the motion detection switch of the camera
 
 ## Snapshots/Eventshots plus Home Assistant Area Cards
 
