@@ -70,14 +70,7 @@ class MqttMixin:
             self.logger.error(f"Network problem trying to connect to MQTT host {host}: {error}")
             self.running = False
 
-    def mqtt_on_connect(
-        self: "Blink2Mqtt",
-        client: Client,
-        userdata: Any,
-        flags: dict,
-        reason_code: int,
-        properties: MQTTMessageInfo = None,
-    ) -> None:
+    def mqtt_on_connect(self: "Blink2Mqtt", client: Client, userdata: Any, flags: dict, reason_code: int, properties: MQTTMessageInfo = None) -> None:
         if reason_code.value != 0:
             self.logger.error(f"MQTT failed to connect ({reason_code.getName()})")
             self.running = False
@@ -93,14 +86,7 @@ class MqttMixin:
         client.subscribe(f"{self.service_slug}/service/+/command")
         client.subscribe(f"{self.service_slug}/switch/#")
 
-    def mqtt_on_disconnect(
-        self: "Blink2Mqtt",
-        client: Client,
-        userdata: Any,
-        flags: dict,
-        reason_code: int,
-        properties: MQTTMessageInfo = None,
-    ) -> None:
+    def mqtt_on_disconnect(self: "Blink2Mqtt", client: Client, userdata: Any, flags: dict, reason_code: int, properties: MQTTMessageInfo = None) -> None:
         if reason_code.value != 0:
             self.logger.error(f"MQTT lost connection ({reason_code.getName()})")
         else:
@@ -114,13 +100,7 @@ class MqttMixin:
             self.logger.info("MQTT disconnect — stopping service loop")
             self.running = False
 
-    def mqtt_on_log(
-        self: "Blink2Mqtt",
-        client: Client,
-        userdata: Any,
-        paho_log_level: LogLevel,
-        msg: str,
-    ) -> None:
+    def mqtt_on_log(self: "Blink2Mqtt", client: Client, userdata: Any, paho_log_level: LogLevel, msg: str) -> None:
         if paho_log_level == mqtt.LogLevel.MQTT_LOG_ERR:
             self.logger.error(f"MQTT logged: {msg}")
         if paho_log_level == mqtt.LogLevel.MQTT_LOG_WARNING:
@@ -138,7 +118,7 @@ class MqttMixin:
             return self._handle_homeassistant_message(payload)
 
         if components[0] == self.service_slug and components[1] == "service":
-            return self.handle_service_message(components[2], payload)
+            return self.handle_service_command(components[2], payload)
 
         if components[0] == self.service_slug:
             return self._handle_device_topic(components, payload)
@@ -172,7 +152,7 @@ class MqttMixin:
             return
 
         self.logger.info(f"Got message for {self.get_device_name(device_id)}: set {components[-2]} to {payload}")
-        asyncio.run_coroutine_threadsafe(self.send_command(device_id, payload, attribute), self.loop)
+        asyncio.run_coroutine_threadsafe(self.handle_device_command(device_id, attribute, payload), self.loop)
 
     def _parse_device_topic(self: "Blink2Mqtt", components):
         """Extract (vendor, device_id, attribute) from an MQTT topic components list (underscore-delimited)."""
@@ -213,12 +193,7 @@ class MqttMixin:
         self.upsert_state(device_id, internal={"discovered": True})
 
     def mqtt_on_subscribe(
-        self: "Blink2Mqtt",
-        client: Client,
-        userdata: any,
-        mid: int,
-        reason_code_list: list[mqtt.ReasonCode],
-        properties: mqtt.Properties,
+        self: "Blink2Mqtt", client: Client, userdata: any, mid: int, reason_code_list: list[mqtt.ReasonCode], properties: mqtt.Properties
     ) -> None:
         reason_names = [rc.getName() for rc in reason_code_list]
         joined = "; ".join(reason_names) if reason_names else "none"
