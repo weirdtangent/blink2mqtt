@@ -4,7 +4,7 @@ from aiohttp import ClientSession
 import asyncio
 from asyncio import timeout
 import base64
-from blinkpy.auth import Auth, BlinkTwoFARequiredError
+from blinkpy.auth import Auth, BlinkTwoFARequiredError, UnauthorizedError
 from blinkpy.blinkpy import Blink
 from blinkpy.helpers.util import json_load
 from datetime import datetime
@@ -14,14 +14,10 @@ import os
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from blink2mqtt.core import Blink2Mqtt
-    from blink2mqtt.interface import BlinkServiceProtocol
+    from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
 
 
 class BlinkAPIMixin(object):
-    if TYPE_CHECKING:
-        self: "BlinkServiceProtocol"
-
     def increase_api_calls(self: Blink2Mqtt) -> None:
         if not self.last_call_date or self.last_call_date != str(datetime.now()):
             self.reset_api_call_count()
@@ -35,7 +31,7 @@ class BlinkAPIMixin(object):
     def get_api_calls(self: Blink2Mqtt) -> int:
         return self.api_calls
 
-    def get_last_call_date(self: Blink2Mqtt) -> datetime:
+    def get_last_call_date(self: Blink2Mqtt) -> str:
         return self.last_call_date
 
     def is_rate_limited(self: Blink2Mqtt) -> bool:
@@ -44,6 +40,7 @@ class BlinkAPIMixin(object):
     async def connect(self: Blink2Mqtt) -> None:
         if self.session and not self.session.closed:
             await self.session.close()
+
         self.session = ClientSession()
         self.blink = Blink(session=self.session)
 
@@ -55,7 +52,7 @@ class BlinkAPIMixin(object):
         if os.path.exists(cred_path):
             self.logger.info("Prior credential file found, trying those credentials")
             auth = Auth(await json_load(cred_path), no_prompt=True)
-        else:
+        elif self.blink_config["username"] and self.blink_config["password"]:
             self.logger.info("Prior credential file not found, trying simple name/password")
             auth = Auth(
                 {
@@ -64,11 +61,19 @@ class BlinkAPIMixin(object):
                 },
                 no_prompt=True,
             )
+        else:
+            self.logger.info("Prior credential file not found, and no username and/or password found in config. Cannot auth")
+            raise SystemExit(1)
 
         self.blink.auth = auth
 
         try:
             await self.blink.start()
+        except UnauthorizedError:
+            self.logger.error("Prior credential file is no longer valid. Removing file, please try again.")
+            os.remove(cred_path)
+            raise SystemExit(1)
+
         except BlinkTwoFARequiredError:
             self.logger.warning(
                 "The 2fa key that Blink sends you will be needed. Save the key as filename key.txt in your config directory and I will wait up to 10 minutes for you to do this."
@@ -76,7 +81,7 @@ class BlinkAPIMixin(object):
             for _ in range(1200):
                 if os.path.exists(key_path):
                     self.logger.info("I see the key.txt file, sending the key to Blink and deleting that file")
-                    key = self.read_file(key_path).strip()
+                    key = self.read_file(key_path)
                     try:
                         os.remove(key_path)
                         await self.blink.send_2fa_code(key)
@@ -102,9 +107,8 @@ class BlinkAPIMixin(object):
     async def disconnect(self: Blink2Mqtt) -> None:
         cred_path = os.path.join(self.config["config_path"], "blink.cred")
         await self.blink.save(cred_path)
-        if self.blink and hasattr(self.blink, "close"):
-            await self.blink.close()
-        await self.session.close()
+        if self.session:
+            await self.session.close()
 
     async def blink_refresh(self: Blink2Mqtt) -> None:
         try:
@@ -113,7 +117,7 @@ class BlinkAPIMixin(object):
             self.logger.error(f"Blink failed a 'refresh' command: {e}")
             pass
 
-    async def get_cameras(self: Blink2Mqtt) -> list:
+    async def get_cameras(self: Blink2Mqtt) -> dict[str, Any]:
         for name, camera in self.blink.cameras.items():
             attributes = camera.attributes
             self.blink_cameras[attributes["serial"]] = {
@@ -137,14 +141,12 @@ class BlinkAPIMixin(object):
                     "thumbnail": attributes["thumbnail"],
                     "video": attributes["video"],
                     "recent_clips": attributes["recent_clips"],
-                    # "network_id": attributes["network_id"],
-                    # "last_record": attributes["last_record"],
                 }
             }
 
         return self.blink_cameras
 
-    async def get_sync_modules(self: Blink2Mqtt) -> list:
+    async def get_sync_modules(self: Blink2Mqtt) -> dict[str, Any]:
         for _, sync_module in self.blink.sync.items():
             await sync_module.get_network_info()
             attributes = sync_module.attributes
@@ -187,15 +189,17 @@ class BlinkAPIMixin(object):
                 return response
         except asyncio.TimeoutError:
             self.logger.error(f"[set_arm_mode] Request time out for {device_id}")
+            return None
         except Exception as e:
             self.logger.error(f"[set_arm_mode] Failed for {device_id}: {e}")
+            return None
 
     # Motion --------------------------------------------------------------------------------------
 
     def get_camera_motion(self: Blink2Mqtt, device_id: str) -> Any | None:
         try:
-            device = self.blink_cameras.get(device_id)
-            name = device["config"]["device_name"]
+            name = self.blink_cameras[device_id]["config"]["device_name"]
+            device = self.blink.cameras[name]
             motion = device.sync.motion[name]
             device["config"]["motion"] = motion
         except Exception:
@@ -206,13 +210,14 @@ class BlinkAPIMixin(object):
     async def set_motion_detection(self: Blink2Mqtt, device_id: str, switch: bool) -> bool | None:
         max_retries = 5
         base_delay = 2
+        response: dict[str, Any]
 
         for attempt in range(1, max_retries + 1):
             try:
                 if device_id in self.blink_cameras:
                     dev = self.blink_cameras[device_id]
                     cam = self.blink.cameras[dev["config"]["name"]]
-                    response: dict[str, Any] | None = await cam.async_arm(switch)
+                    response = await cam.async_arm(switch)
                     self.logger.debug(f"[set_motion] Camera response ({attempt}/{max_retries}): {json.dumps(response)}")
 
                     if response and response.get("code") == 307:
@@ -224,10 +229,10 @@ class BlinkAPIMixin(object):
                     await self.blink.refresh()
                     return cam.arm is switch
 
-                elif device_id in self.sync_modules:
-                    sync = self.sync_modules[device_id]
+                elif device_id in self.blink_sync_modules:
+                    sync = self.blink_sync_modules[device_id]
                     sync_obj = self.blink.sync[sync["device_name"]]
-                    response: dict[str, Any] | None = await sync_obj.async_arm(switch)
+                    response = await sync_obj.async_arm(switch)
                     self.logger.debug(f"[set_motion] Sync response ({attempt}/{max_retries}): {json.dumps(response)}")
 
                     if response and response.get("code") == 307:
@@ -258,8 +263,8 @@ class BlinkAPIMixin(object):
     async def take_snapshot_from_device(self: Blink2Mqtt, device_id: str) -> None:
 
         try:
-            device = self.blink_cameras.get(device_id)
-            camera = self.blink.cameras.get(device["config"]["name"])
+            device = self.blink_cameras[device_id]
+            camera = self.blink.cameras[device["config"]["name"]]
             await camera.snap_picture()
             await asyncio.sleep(3)  # Blink says to give them 2-5 seconds
         except Exception as e:
@@ -269,22 +274,21 @@ class BlinkAPIMixin(object):
 
         try:
             device = self.blink_cameras[device_id]
-            camera = self.blink.cameras.get(device["config"]["name"])
+            camera = self.blink.cameras[device["config"]["name"]]
             image = camera.image_from_cache
             if not image:
                 self.logger.info(f"[get_snapshot] Empty cache for {device_id}, skipping.")
-                return
+                return None
             encoded = base64.b64encode(image).decode("utf-8")
+            return encoded
         except Exception as e:
             self.logger.error(f"[get_snapshot_from_device] Failed to take snapshot for {device_id}: {e}")
-            return
-
-        return encoded
+            return None
 
     # Recorded file -------------------------------------------------------------------------------
     def get_recorded_file(self: Blink2Mqtt, device_id: str, file: str) -> str | None:
-        device = self.blink_cameras.get(device_id)
-        camera = self.blink.cameras.get(device["config"]["name"])
+        device = self.blink_cameras[device_id]
+        camera = self.blink.cameras[device["config"]["name"]]
 
         tries = 0
         while tries < 3:
@@ -295,7 +299,7 @@ class BlinkAPIMixin(object):
                     self.logger.info(f"[recording] Processed recording from ({device_id}) {len(data_raw)} bytes raw, and {len(data_base64)} bytes base64")
                     if len(data_base64) >= 100 * 1024 * 1024:
                         self.logger.error("[recording] Skipping oversized recording (>100 MB)")
-                        return
+                        return None
                     return data_base64
             except Exception as err:
                 tries += 1
@@ -303,15 +307,16 @@ class BlinkAPIMixin(object):
 
         if tries == 3:
             self.logger.error(f"[recording] Failed after 3 attempts for {device_id}", exc_info=True)
+        return None
 
     # collect/process blink events ----------------------------------------------------------------
 
-    async def collect_all_blink_events(self) -> None:
+    async def collect_all_blink_events(self: Blink2Mqtt) -> None:
         tasks = [self.get_events_from_device(device_id) for device_id in self.blink_sync_modules]
 
         await asyncio.gather(*tasks)
 
-    async def get_events_from_device(self, device_id: str) -> None:
+    async def get_events_from_device(self: Blink2Mqtt, device_id: str) -> None:
         blink_device = self.blink_sync_modules[device_id]
         sync_module = self.blink.sync.get(blink_device["config"]["device_name"], None)
         if not sync_module:
@@ -333,9 +338,9 @@ class BlinkAPIMixin(object):
         if tries == 3:
             self.logger.error(f"[events] Failed to communicate for events for device ({device_id})")
 
-    async def queue_device_event(self, device_id: str, code: str, payload: any) -> None:
+    async def queue_device_event(self: Blink2Mqtt, device_id: str, code: str, payload: Any) -> None:
         self.logger.info(f"queue_device_event for {device_id}, code {code}, payload {json.dumps(payload)}")
-        device = self.blink_cameras.get(device_id)
+        device = self.blink_cameras[device_id]
         config = device["config"]
         try:
             if (code == "ProfileAlarmTransmit" and config["is_ad110"]) or (code == "VideoMotion" and not config["is_ad110"]):
@@ -380,14 +385,12 @@ class BlinkAPIMixin(object):
         except Exception as err:
             self.logger.error(f"[queue_device_event] Failed to understand event from {device_id}: {err}", exc_info=True)
 
-    def get_next_event(self) -> None:
+    def get_next_event(self: Blink2Mqtt) -> dict[str, Any] | None:
         return self.events.pop(0) if len(self.events) > 0 else None
 
-    async def process_events(self) -> None:
+    async def process_events(self: Blink2Mqtt) -> None:
         try:
             while device_event := self.get_next_event():
-                if device_event is None:
-                    break
                 if "device_id" not in device_event:
                     self.logger.debug(f"[process_events] Got event but it's missing a device_id: {device_event}")
                     continue
@@ -403,7 +406,7 @@ class BlinkAPIMixin(object):
                 # if one of our known sensors
                 if event in ["motion", "human", "doorbell", "recording", "privacy_mode"]:
                     if event == "recording" and payload["file"].endswith(".jpg"):
-                        image = await self.get_recorded_file(device_id, payload["file"], "eventshot")
+                        image = self.get_recorded_file(device_id, payload["file"])
                         # only store and send to MQTT if we got an image AND the image has changed
                         if image and (states["eventshot"] is None or states["eventshot"] != image):
                             states["eventshot"] = image

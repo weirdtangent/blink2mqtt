@@ -1,28 +1,29 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
 import argparse
+import asyncio
+from asyncio import AbstractEventLoop
+
+# from aiohttp import ClientSession
+from blinkpy.blinkpy import Blink
+from datetime import datetime
 import logging
 from json_logging import get_logger
+from mqtt_helper import MqttHelper
+from paho.mqtt.client import Client
+from types import TracebackType
 
-from typing import TYPE_CHECKING
+from typing import Any, Self, cast
 
-if TYPE_CHECKING:
-    from blink2mqtt.interface import BlinkServiceProtocol
+from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
 
 
 class Base:
-    if TYPE_CHECKING:
-        self: "BlinkServiceProtocol"
-
-    def __init__(self, *, args: argparse.Namespace | None = None, **kwargs):
+    def __init__(self: Blink2Mqtt, args: argparse.Namespace | None = None, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
         self.args = args
         self.logger = get_logger(__name__)
-
-        # and quiet down some others
-        logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
-        logging.getLogger("blinkpy.blinkpy").setLevel(logging.WARNING)
 
         # now load self.config right away
         cfg_arg = getattr(args, "config", None)
@@ -35,66 +36,79 @@ class Base:
         if self.config.get("debug"):
             self.logger.setLevel(logging.DEBUG)
 
-        self.running = False
-        self.discovery_complete = False
-        self.loop = None
-
         self.mqtt_config = self.config["mqtt"]
         self.blink_config = self.config["blink"]
-
-        self.blink_cameras = {}
-        self.blink_sync_modules = {}
-        self.devices = {}
-        self.states = {}
-        self.events = []
-
-        self.mqttc = None
-        self.mqtt_connect_time = None
-        self.client_id = self.get_new_client_id()
 
         self.service = self.mqtt_config["prefix"]
         self.service_name = f"{self.service} service"
         self.service_slug = self.service
 
+        self.mqtt_helper = MqttHelper(self.service)
+
+        self.running = False
+        self.discovery_complete = False
+        self.loop: AbstractEventLoop
+
+        self.blink_cameras: dict[str, dict[str, Any]] = {}
+        self.blink_sync_modules: dict[str, dict[str, Any]] = {}
+        self.devices: dict[str, Any] = {}
+        self.states: dict[str, Any] = {}
+        self.events: list[str] = []
+
+        self.mqttc: Client
+        self.mqtt_connect_time: datetime
+        self.client_id = self.mqtt_helper.client_id()
+
         self.qos = self.mqtt_config["qos"]
 
-        self.session = None
-        self.blink = None
+        self.session: Any = None
+        self.blink: Blink
         self.api_calls = 0
-        self.last_call_date = None
+        self.last_call_date = ""
         self.rate_limited = False
 
         self.device_interval = self.blink_config["device_interval"]
         self.device_list_interval = self.blink_config["device_list_interval"]
         self.snapshot_update_interval = self.blink_config["snapshot_update_interval"]
 
-    def __enter__(self):
+    def __enter__(self: Self) -> Blink2Mqtt:
         super_enter = getattr(super(), "__enter__", None)
         if callable(super_enter):
             super_enter()
 
-        self.mqttc_create()
+        cast(Any, self).mqttc_create()
         self.running = True
 
-        return self
+        return cast(Blink2Mqtt, self)
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self: Self, exc_type: BaseException | None, exc_val: BaseException | None, exc_tb: TracebackType) -> None:
         super_exit = getattr(super(), "__exit__", None)
         if callable(super_exit):
             super_exit(exc_type, exc_val, exc_tb)
 
         self.running = False
 
-        if self.mqttc is not None:
+        if self.session and not self.session.closed:
             try:
-                self.publish_service_availability("offline")
-                self.mqttc.loop_stop()
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
+                loop.create_task(self.session.close())
+            else:
+                asyncio.run(self.session.close())
+
+        if cast(Any, self).mqttc is not None:
+            try:
+                cast(Any, self).publish_service_availability("offline")
+                cast(Any, self).mqttc.loop_stop()
             except Exception as e:
                 self.logger.debug(f"MQTT loop_stop failed: {e}")
 
-            if self.mqttc.is_connected():
+            if cast(Any, self).mqttc.is_connected():
                 try:
-                    self.mqttc.disconnect()
+                    cast(Any, self).mqttc.disconnect()
                     self.logger.info("Disconnected from MQTT broker")
                 except Exception as e:
                     self.logger.warning(f"Error during MQTT disconnect: {e}")

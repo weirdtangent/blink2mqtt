@@ -7,15 +7,16 @@ name = "blink2mqtt"
 dynamic = ["version"]
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
     "blinkpy>=0.24.0",
     "deepmerge==2.0",
     "paho-mqtt>=2.1.0",
     "pyyaml>=6.0.3",
     "requests>=2.32.5",
-    "json-logging-graystorm",
     "pathlib>=1.0.1",
+    "json-logging-graystorm",
+    "mqtt-helper-graystorm",
 ]
 
 [project.scripts]
@@ -23,7 +24,7 @@ blink2mqtt = "blink2mqtt.app:main"
 
 [project.optional-dependencies]
 dev = [
-    # linting/formating
+    # linting/formating/static typing
     "black>=24.10.0",
     "ruff>=0.6.9",
 
@@ -141,11 +142,37 @@ extend-exclude = '''
 '''
 
 [tool.uv.sources]
-json-logging-graystorm = { url = "https://github.com/weirdtangent/json_logging/archive/refs/tags/0.1.3.tar.gz" }
+json-logging-graystorm = { git = "https://github.com/weirdtangent/json-logging.git", branch = "main" }
+mqtt-helper-graystorm = { git = "https://github.com/weirdtangent/mqtt-helper.git", branch = "main" }
 
 [dependency-groups]
 dev = [
     "black>=25.9.0",
+    "mypy>=1.18.2",
     "pytest>=8.4.2",
     "ruff>=0.14.1",
+    "types-pyyaml>=6.0.12.20250915",
 ]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+warn_unused_ignores = true
+warn_return_any = true
+warn_redundant_casts = true
+warn_unreachable = true
+strict_equality = true
+allow_untyped_globals = false
+allow_redefinition = false
+
+# Temporarily quiet noisy files or folders
+[[tool.mypy.overrides]]
+module = [
+  "blinkpy.*",
+  "aiohttp.*",
+  "paho.*",
+]
+ignore_missing_imports = true

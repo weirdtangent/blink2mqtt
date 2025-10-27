@@ -2,19 +2,13 @@
 # Copyright (c) 2025 Jeff Culverhouse
 import asyncio
 import signal
-import os
-import threading
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from blink2mqtt.core import Blink2Mqtt
-    from blink2mqtt.interface import BlinkServiceProtocol
+    from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
 
 
 class LoopsMixin:
-    if TYPE_CHECKING:
-        self: "BlinkServiceProtocol"
-
     async def device_list_loop(self: Blink2Mqtt) -> None:
         while self.running:
             try:
@@ -69,17 +63,6 @@ class LoopsMixin:
                 self.logger.debug("heartbeat cancelled during sleep")
                 break
 
-    def _handle_signal(self: Blink2Mqtt, signum, frame=None):
-        sig_name = signal.Signals(signum).name
-        self.logger.warning(f"{sig_name} received - stopping service loop")
-        self.running = False
-
-        def _force_exit():
-            self.logger.warning("Force-exiting process after signal")
-            os._exit(0)
-
-        threading.Timer(5.0, _force_exit).start()
-
     # main loop
     async def main_loop(self: Blink2Mqtt) -> None:
         self.loop = asyncio.get_running_loop()
@@ -91,7 +74,7 @@ class LoopsMixin:
 
         for sig in (signal.SIGTERM, signal.SIGINT):
             try:
-                signal.signal(sig, self._handle_signal)
+                signal.signal(sig, self.handle_signal)
             except Exception:
                 self.logger.debug(f"Cannot install handler for {sig}")
 
@@ -112,11 +95,7 @@ class LoopsMixin:
         ]
 
         try:
-            results = await asyncio.gather(*tasks)
-            for result in results:
-                if isinstance(result, Exception):
-                    self.logger.error(f"Task raised exception: {result}", exc_info=True)
-                    self.running = False
+            await asyncio.gather(*tasks)
         except asyncio.CancelledError:
             self.logger.warning("Main loop cancelled — shutting down...")
         except Exception as err:

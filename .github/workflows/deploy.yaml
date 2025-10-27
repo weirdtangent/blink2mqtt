@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   lint:
-    name: Lint (ruff/black)
+    name: Lint (ruff/black/mypy)
     runs-on: ubuntu-latest
     if: github.event_name != 'schedule'
     strategy:
@@ -50,6 +50,10 @@ jobs:
         run: |
           uv run black --version
           uv run black --check --color --diff .
+
+      - name: Mypy
+        run: |
+          uv run mypy .
 
   release:
     name: Semantic Release

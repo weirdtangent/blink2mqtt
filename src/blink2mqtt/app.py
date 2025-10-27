@@ -21,12 +21,12 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def main(argv=None):
+def main() -> int:
     setup_logging()
     logger = get_logger(__name__)
 
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args()
 
     try:
         with Blink2Mqtt(args=args) as blink2mqtt:
@@ -39,15 +39,15 @@ def main(argv=None):
                     loop.run_until_complete(blink2mqtt.main_loop())
                 else:
                     raise
-    except TypeError as e:
-        logger.error(f"TypeError: {e}", exc_info=True)
-    except ValueError:
-        pass
     except KeyboardInterrupt:
         logger.warning("Shutdown requested (Ctrl+C). Exiting gracefully...")
+        return 1
     except asyncio.CancelledError:
         logger.warning("Main loop cancelled.")
+        return 1
     except Exception as e:
-        logger.exception(f"Unhandled exception in main loop: {e}", exc_info=True)
+        logger.error(f"unhandled exception: {e}", exc_info=True)
+        return 1
     finally:
         logger.info("blink2mqtt stopped.")
+    return 0

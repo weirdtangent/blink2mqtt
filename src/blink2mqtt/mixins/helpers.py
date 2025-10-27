@@ -1,24 +1,23 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
-from deepmerge import Merger
+from deepmerge.merger import Merger
 import logging
 import os
 import pathlib
-from typing import TYPE_CHECKING, Any
+import signal
+import threading
+from types import FrameType
+from typing import TYPE_CHECKING, Any, cast
 import yaml
 
 if TYPE_CHECKING:
-    from blink2mqtt.core import Blink2Mqtt
-    from blink2mqtt.interface import BlinkServiceProtocol
+    from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
 
 READY_FILE = os.getenv("READY_FILE", "/tmp/blink2mqtt.ready")
 
 
 class HelpersMixin:
-    if TYPE_CHECKING:
-        self: "BlinkServiceProtocol"
-
-    def build_camera_states(self: Blink2Mqtt, device_id: str, camera: list[str, str]) -> None:
+    def build_camera_states(self: Blink2Mqtt, device_id: str, camera: dict[str, str]) -> None:
         self.upsert_state(
             device_id,
             switch={
@@ -36,7 +35,7 @@ class HelpersMixin:
             },
         )
 
-    def build_sync_module_states(self: Blink2Mqtt, device_id: str, sync_module: list[str, str]) -> None:
+    def build_sync_module_states(self: Blink2Mqtt, device_id: str, sync_module: dict[str, str]) -> None:
         self.upsert_state(
             device_id,
             switch={"armed": "ON" if sync_module["arm_mode"] else "OFF"},
@@ -52,7 +51,7 @@ class HelpersMixin:
                 self.upsert_state(device_id, switch={"motion_detection": message})
                 self.logger.info(f"sending {device_id} motion_detection to {message} command to Blink")
                 self.publish_device_state(device_id)
-                success = await self.set_motion_detection(device_id, "ON" if message else "OFF")
+                success = await self.set_motion_detection(device_id, message == "ON")
                 if not success:
                     self.logger.error(f"setting {device_id} motion_detection to {message} failed")
                     self.upsert_state(device_id, switch={"motion_detection": was})
@@ -63,13 +62,13 @@ class HelpersMixin:
     def handle_service_command(self: Blink2Mqtt, handler: str, message: str) -> None:
         match handler:
             case "device_update_interval":
-                self.device_interval = message
+                self.device_interval = int(message)
                 self.logger.debug(f"device_interval updated to be {message}")
             case "device_rescan_interval":
-                self.device_list_interval = message
+                self.device_list_interval = int(message)
                 self.logger.debug(f"device_list_interval updated to be {message}")
             case "snapshot_update_interval":
-                self.snapshot_update_interval = message
+                self.snapshot_update_interval = int(message)
                 self.logger.debug(f"snapshot_update_interval updated to be {message}")
             case "refresh_device_list":
                 if message == "refresh":
@@ -93,23 +92,34 @@ class HelpersMixin:
 
     # utilities -----------------------------------------------------------------------------------
 
-    def mark_ready(self: Blink2Mqtt):
+    def handle_signal(self: Blink2Mqtt, signum: int, frame: FrameType | None) -> Any:
+        sig_name = signal.Signals(signum).name
+        self.logger.warning(f"{sig_name} received - stopping service loop")
+        self.running = False
+
+        def _force_exit() -> None:
+            self.logger.warning("Force-exiting process after signal")
+            os._exit(0)
+
+        threading.Timer(5.0, _force_exit).start()
+
+    def mark_ready(self: Blink2Mqtt) -> None:
         pathlib.Path(READY_FILE).touch()
 
-    def heartbeat_ready(self: Blink2Mqtt):
+    def heartbeat_ready(self: Blink2Mqtt) -> None:
         pathlib.Path(READY_FILE).touch()
 
-    def read_file(self: Blink2Mqtt, file_name):
+    def read_file(self: Blink2Mqtt, file_name: str) -> str:
         try:
             with open(file_name, "r", encoding="utf-8") as file:
                 return file.read().strip()
         except FileNotFoundError:
             raise FileNotFoundError(f"File not found: {file_name}")
 
-    def load_config(self: Blink2Mqtt, config_arg=None):
+    def load_config(self: Blink2Mqtt, config_arg: Any | None = None) -> dict[str, Any]:
         version = os.getenv("BLINK2MQTT_VERSION", self.read_file("VERSION"))
         config_from = "env"
-        config = {}
+        config: dict[str, str | bool | int | dict] = {}
 
         # Determine config file path
         config_path = config_arg or "/config"
@@ -140,59 +150,52 @@ class HelpersMixin:
             logging.warning(f"Config file not found at {config_file}, falling back to environment vars")
 
         # Merge with environment vars (env vars override nothing if file exists)
-        mqtt = config.get("mqtt", {})
-        blink = config.get("blink", {})
+        mqtt = cast(dict[str, Any], config.get("mqtt", {}))
+        blink = cast(dict[str, Any], config.get("blink", {}))
 
         # fmt: off
         mqtt = {
-            "host":             mqtt.get("host")             or os.getenv("MQTT_HOST", "localhost"),
-            "port":         int(mqtt.get("port")             or os.getenv("MQTT_PORT", 1883)),
-            "qos":          int(mqtt.get("qos")              or os.getenv("MQTT_QOS", 0)),
-            "username":         mqtt.get("username")         or os.getenv("MQTT_USERNAME", ""),
-            "password":         mqtt.get("password")         or os.getenv("MQTT_PASSWORD", ""),
-            "tls_enabled":      mqtt.get("tls_enabled")      or (os.getenv("MQTT_TLS_ENABLED", "false").lower() == "true"),
-            "tls_ca_cert":      mqtt.get("tls_ca_cert")      or os.getenv("MQTT_TLS_CA_CERT"),
-            "tls_cert":         mqtt.get("tls_cert")         or os.getenv("MQTT_TLS_CERT"),
-            "tls_key":          mqtt.get("tls_key")          or os.getenv("MQTT_TLS_KEY"),
-            "prefix":           mqtt.get("prefix")           or os.getenv("MQTT_PREFIX", "blink2mqtt"),
-            "discovery_prefix": mqtt.get("discovery_prefix") or os.getenv("MQTT_DISCOVERY_PREFIX", "homeassistant"),
+            "host":         cast(str, mqtt.get("host"))            or os.getenv("MQTT_HOST", "localhost"),
+            "port":     int(cast(str, mqtt.get("port")             or os.getenv("MQTT_PORT", 1883))),
+            "qos":      int(cast(str, mqtt.get("qos")              or os.getenv("MQTT_QOS", 0))),
+            "username":               mqtt.get("username")         or os.getenv("MQTT_USERNAME", ""),
+            "password":               mqtt.get("password")         or os.getenv("MQTT_PASSWORD", ""),
+            "tls_enabled":            mqtt.get("tls_enabled")      or (os.getenv("MQTT_TLS_ENABLED", "false").lower() == "true"),
+            "tls_ca_cert":            mqtt.get("tls_ca_cert")      or os.getenv("MQTT_TLS_CA_CERT"),
+            "tls_cert":               mqtt.get("tls_cert")         or os.getenv("MQTT_TLS_CERT"),
+            "tls_key":                mqtt.get("tls_key")          or os.getenv("MQTT_TLS_KEY"),
+            "prefix":                 mqtt.get("prefix")           or os.getenv("MQTT_PREFIX", "blink2mqtt"),
+            "discovery_prefix":       mqtt.get("discovery_prefix") or os.getenv("MQTT_DISCOVERY_PREFIX", "homeassistant"),
         }
 
         blink = {
-            "username":                     blink.get("username")                 or os.getenv("BLINK_USERNAME") or "admin",
-            "password":                     blink.get("password")                 or os.getenv("BLINK_PASSWORD") or "",
-            "device_interval":          int(blink.get("device_update_interval")   or os.getenv("DEVICE_UPDATE_INTERVAL", 30)),
-            "device_list_interval":     int(blink.get("device_rescan_interval")   or os.getenv("DEVICE_RESCAN_INTERVAL", 3600)),
-            "snapshot_update_interval": int(blink.get("snapshot_update_interval") or os.getenv("SNAPSHOT_UPDATE_INTERVAL", 900)),
+            "username":                               blink.get("username")                 or os.getenv("BLINK_USERNAME") or "admin",
+            "password":                               blink.get("password")                 or os.getenv("BLINK_PASSWORD") or "",
+            "device_interval":          int(cast(str, blink.get("device_update_interval")   or os.getenv("DEVICE_UPDATE_INTERVAL", 30))),
+            "device_list_interval":     int(cast(str, blink.get("device_rescan_interval")   or os.getenv("DEVICE_RESCAN_INTERVAL", 3600))),
+            "snapshot_update_interval": int(cast(str, blink.get("snapshot_update_interval") or os.getenv("SNAPSHOT_UPDATE_INTERVAL", 900))),
         }
 
         config = {
-            "mqtt": mqtt,
-            "blink": blink,
-            "debug": config.get("debug", os.getenv("DEBUG", "").lower() == "true"),
-            "timezone": config.get("timezone", os.getenv("TZ", "UTC")),
+            "mqtt":        mqtt,
+            "blink":       blink,
+            "debug":       str(config.get("debug") or os.getenv("DEBUG", "")).lower() == "true",
+            "timezone":    config.get("timezone", os.getenv("TZ", "UTC")),
             "config_from": config_from,
             "config_path": config_path,
-            "version": version,
+            "version":     version,
         }
         # fmt: on
 
         # Validate required fields
-        if not config["blink"].get("username"):
+        if not cast(dict, config["blink"]).get("username"):
             raise ValueError("`blink.username` required in config file or BLINK_USERNAME env var")
 
         return config
 
     # Upsert devices and states -------------------------------------------------------------------
 
-    MERGER = Merger(
-        [(dict, "merge"), (list, "append_unique"), (set, "union")],
-        ["override"],  # type conflicts: new wins
-        ["override"],  # fallback
-    )
-
-    def _assert_no_tuples(self: Blink2Mqtt, data, path="root"):
-        """Recursively check for tuples in both keys and values of dicts/lists."""
+    def _assert_no_tuples(self: Blink2Mqtt, data: Any, path: str = "root") -> None:
         if isinstance(data, tuple):
             raise TypeError(f"⚠️ Found tuple at {path}: {data!r}")
 
@@ -205,18 +208,28 @@ class HelpersMixin:
             for idx, value in enumerate(data):
                 self._assert_no_tuples(value, f"{path}[{idx}]")
 
-    def upsert_device(self: Blink2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool) -> None:
+    def upsert_device(self: Blink2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool | None) -> None:
+        MERGER = Merger(
+            [(dict, "merge"), (list, "append_unique"), (set, "union")],
+            ["override"],  # type conflicts: new wins
+            ["override"],  # fallback
+        )
         for section, data in kwargs.items():
             # Pre-merge check
             self._assert_no_tuples(data, f"device[{device_id}].{section}")
-            merged = self.MERGER.merge(self.devices.get(device_id, {}), {section: data})
+            merged = MERGER.merge(self.devices.get(device_id, {}), {section: data})
             # Post-merge check
             self._assert_no_tuples(merged, f"device[{device_id}].{section} (post-merge)")
             self.devices[device_id] = merged
 
-    def upsert_state(self: Blink2Mqtt, device_id, **kwargs: dict[str, Any] | str | int | bool) -> None:
+    def upsert_state(self: Blink2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool | None) -> None:
+        MERGER = Merger(
+            [(dict, "merge"), (list, "append_unique"), (set, "union")],
+            ["override"],  # type conflicts: new wins
+            ["override"],  # fallback
+        )
         for section, data in kwargs.items():
             self._assert_no_tuples(data, f"state[{device_id}].{section}")
-            merged = self.MERGER.merge(self.states.get(device_id, {}), {section: data})
+            merged = MERGER.merge(self.states.get(device_id, {}), {section: data})
             self._assert_no_tuples(merged, f"state[{device_id}].{section} (post-merge)")
             self.states[device_id] = merged

@@ -1,3 +1,5 @@
+.dockerignore
+.env.sample
 .gitignore
 .releaserc
 CHANGELOG.md
@@ -5,21 +7,23 @@ Dockerfile
 LICENSE
 README.md
 VERSION
-blink_mqtt.py.old
 config.yaml.sample
 docker-compose.yaml
 package-lock.json
 package.json
 pyproject.toml
+uv.lock
 .github/FUNDING.yml
 .github/dependabot.yml
 .github/workflows/deploy.yaml
 .github/workflows/dockerhub-description.yaml
+src/healthcheck.py
 src/blink2mqtt/__init__.py
 src/blink2mqtt/__main__.py
 src/blink2mqtt/app.py
 src/blink2mqtt/base.py
 src/blink2mqtt/core.py
+src/blink2mqtt/interface.py
 src/blink2mqtt.egg-info/PKG-INFO
 src/blink2mqtt.egg-info/SOURCES.txt
 src/blink2mqtt.egg-info/dependency_links.txt
@@ -34,4 +38,3 @@ src/blink2mqtt/mixins/mqtt.py
 src/blink2mqtt/mixins/refresh.py
 src/blink2mqtt/mixins/service.py
 src/blink2mqtt/mixins/topics.py
-src/blink2mqtt/mixins/util.py

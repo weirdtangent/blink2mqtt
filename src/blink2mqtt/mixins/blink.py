@@ -2,17 +2,13 @@
 # Copyright (c) 2025 Jeff Culverhouse
 import asyncio
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from blink2mqtt.core import Blink2Mqtt
-    from blink2mqtt.interface import BlinkServiceProtocol
+    from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
 
 
 class BlinkMixin:
-    if TYPE_CHECKING:
-        self: "BlinkServiceProtocol"
-
     async def refresh_device_list(self: Blink2Mqtt) -> None:
         if self.discovery_complete:
             self.logger.info(f"Refreshing device list from Blink (every {self.device_list_interval} sec)")
@@ -31,14 +27,14 @@ class BlinkMixin:
             self.logger.info(f"Checking sync_module: {sync_module["device_name"]}")
 
             created = self.build_component(sync_module)
-            seen_devices.update(created)
+            seen_devices.add(created)
 
         for device_id in blink_devices:
             camera = blink_devices[device_id]["config"]
             self.logger.info(f"Checking blink_device: {camera["device_name"]}")
 
             created = self.build_component(camera)
-            seen_devices.update(created)
+            seen_devices.add(created)
 
         # Mark missing devices offline
         # missing_devices = set(self.devices.keys()) - seen_devices
@@ -55,16 +51,16 @@ class BlinkMixin:
             self.discovery_complete = True
 
     # convert Blink device capabilities into MQTT components
-    def build_component(self: Blink2Mqtt, device: list) -> []:
+    def build_component(self: Blink2Mqtt, device: dict[str, str]) -> str:
         device_class = self.classify_device(device)
         match device_class:
             case "switch":
                 return self.build_switch(device)
             case "camera":
                 return self.build_camera(device)
-        return []
+        return ""
 
-    def classify_device(self: Blink2Mqtt, device: list) -> str | None:
+    def classify_device(self: Blink2Mqtt, device: dict[str, str]) -> str | None:
         type = device.get("device_type", None)
 
         if type == "sync_module":
@@ -80,59 +76,45 @@ class BlinkMixin:
 
         return None
 
-    def build_switch(self: Blink2Mqtt, sync_module: list[str, str]) -> str:
-        raw_id = sync_module["serial_number"]
-        device_id = raw_id
+    def build_switch(self: Blink2Mqtt, sync_module: dict[str, str]) -> str:
+        device_id = sync_module["serial_number"]
 
-        self.devices.setdefault(device_id, {})
+        modes = {}
 
         component = {
             "component_type": "switch",
             "name": f"{sync_module["device_name"]} Armed",
-            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'armed')}",
-            "stat_t": self.get_state_topic(device_id, "switch", "armed"),
-            "cmd_t": self.get_command_topic(device_id, "switch", "armed"),
-            "avty_t": self.get_availability_topic(device_id),
-            "pl_avail": "online",
-            "pl_not_avail": "offline",
-            "payload_on": "ON",
-            "payload_off": "OFF",
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "armed"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "switch", "armed"),
+            "cmd_t": self.mqtt_helper.cmd_t(device_id, "switch", "armed"),
+            "avty_t": self.mqtt_helper.avty_t(device_id),
             "icon": "mdi:alarm-light",
-            "via_device": self.get_service_device(),
-            "device": self.get_device_block(
-                self.get_device_slug(device_id),
+            "via_device": self.mqtt_helper.service_slug,
+            "device": self.mqtt_helper.device_block(
                 sync_module["device_name"],
-                self.get_service_device(),
-                sync_module["software_version"],
+                self.mqtt_helper.device_slug(device_id),
                 sync_module["vendor"],
+                sync_module["software_version"],
             ),
         }
-        self.upsert_state(device_id, internal={"raw_id": raw_id})
-        modes = {}
 
-        # add local storage ?
         modes["local_storage"] = {
             "component_type": "sensor",
             "name": "Local storage",
-            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'local_storage')}",
-            "stat_t": self.get_state_topic(device_id, "sensor", "local_storage"),
-            "avty_t": self.get_availability_topic(device_id),
-            "pl_avail": "online",
-            "pl_not_avail": "offline",
-            "payload_on": "on",
-            "payload_off": "off",
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "local_storage"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "switch", "local_storage"),
+            "avty_t": self.mqtt_helper.avty_t(device_id),
             "icon": "mdi:usb-flash-drive",
-            "via_device": self.get_service_device(),
-            "device": self.get_device_block(
-                self.get_device_slug(device_id),
+            "via_device": self.mqtt_helper.service_slug,
+            "device": self.mqtt_helper.device_block(
                 sync_module["device_name"],
-                self.get_service_device(),
-                sync_module["software_version"],
+                self.mqtt_helper.device_slug(device_id),
                 sync_module["vendor"],
+                sync_module["software_version"],
             ),
         }
 
-        # insert, or update anything that changed, but don't lose anything
+        self.upsert_state(device_id, internal={"raw_id": device_id})
         self.upsert_device(device_id, component=component, modes=modes)
         self.build_sync_module_states(device_id, sync_module)
 
@@ -145,27 +127,26 @@ class BlinkMixin:
 
         return device_id
 
-    def build_camera(self: Blink2Mqtt, camera: list[str, str]) -> str:
+    def build_camera(self: Blink2Mqtt, camera: dict[str, str]) -> str:
         raw_id = camera["serial_number"]
         device_id = raw_id
 
         component = {
             "component_type": "camera",
             "name": "Snapshot",
-            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'snapshot')}",
-            "topic": self.get_state_topic(device_id, "snapshot"),
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "snapshot"),
+            "topic": self.mqtt_helper.stat_t(device_id, "snapshot"),
             "image_encoding": "b64",
-            "avty_t": self.get_availability_topic(device_id, "camera"),
+            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
             "avty_tpl": "{{ value_json.availability }}",
-            "json_attributes_topic": self.get_state_topic(device_id, "attributes"),
+            "json_attributes_topic": self.mqtt_helper.stat_t(device_id, "attributes"),
             "pl_avail": "online",
             "pl_not_avail": "offline",
             "icon": "mdi:camera",
-            "via_device": self.get_service_device(),
-            "device": self.get_device_block(
-                self.get_device_slug(device_id),
+            "via_device": self.mqtt_helper.service_slug,
+            "device": self.mqtt_helper.device_block(
+                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
-                self.get_service_device(),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -176,20 +157,19 @@ class BlinkMixin:
         modes["eventshot"] = {
             "component_type": "camera",
             "name": "Event Snapshot",
-            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'eventshot')}",
-            "topic": self.get_state_topic(device_id, "eventshot"),
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "eventshot"),
+            "topic": self.mqtt_helper.stat_t(device_id, "eventshot"),
             "image_encoding": "b64",
-            "avty_t": self.get_availability_topic(device_id, "camera"),
+            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
             "avty_tpl": "{{ value_json.availability }}",
-            "json_attributes_topic": self.get_state_topic(device_id, "attributes"),
+            "json_attributes_topic": self.mqtt_helper.stat_t(device_id, "attributes"),
             "pl_avail": "online",
             "pl_not_avail": "offline",
             "icon": "mdi:camera",
-            "via_device": self.get_service_device(),
-            "device": self.get_device_block(
-                self.get_device_slug(device_id),
+            "via_device": self.mqtt_helper.service_slug,
+            "device": self.mqtt_helper.device_block(
+                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
-                self.get_service_device(),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -198,20 +178,19 @@ class BlinkMixin:
         modes["motion"] = {
             "component_type": "binary_sensor",
             "name": "Motion",
-            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'motion')}",
-            "stat_t": self.get_state_topic(device_id, "camera", "attributes"),
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "motion"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "camera", "attributes"),
             "value_template": "{{ value_json.motion }}",
-            "json_attributes_topic": self.get_state_topic(device_id, "attributes"),
-            "avty_t": self.get_availability_topic(device_id, "camera"),
+            "json_attributes_topic": self.mqtt_helper.stat_t(device_id, "attributes"),
+            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
             "avty_tpl": "{{ value_json.availability }}",
             "pl_on": True,
             "pl_off": False,
             "icon": "mdi:motion-sensor-alert",
-            "via_device": self.get_service_device(),
-            "device": self.get_device_block(
-                self.get_device_slug(device_id),
+            "via_device": self.mqtt_helper.service_slug,
+            "device": self.mqtt_helper.device_block(
+                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
-                self.get_service_device(),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -220,19 +199,18 @@ class BlinkMixin:
         modes["motion_detection"] = {
             "component_type": "switch",
             "name": "Motion Detection",
-            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'motion_detection')}",
-            "stat_t": self.get_state_topic(device_id, "switch", "motion_detection"),
-            "cmd_t": self.get_command_topic(device_id, "switch", "motion_detection"),
-            "avty_t": self.get_availability_topic(device_id, "camera"),
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "motion_detection"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "switch", "motion_detection"),
+            "cmd_t": self.mqtt_helper.cmd_t(device_id, "switch", "motion_detection"),
+            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
             "avty_tpl": "{{ value_json.availability }}",
             "pl_on": "ON",
             "pl_off": "OFF",
             "icon": "mdi:motion-sensor",
-            "via_device": self.get_service_device(),
-            "device": self.get_device_block(
-                self.get_device_slug(device_id),
+            "via_device": self.mqtt_helper.service_slug,
+            "device": self.mqtt_helper.device_block(
+                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
-                self.get_service_device(),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -241,19 +219,18 @@ class BlinkMixin:
         modes["temperature"] = {
             "component_type": "sensor",
             "name": "Temperature",
-            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'temperature')}",
-            "stat_t": self.get_state_topic(device_id, "sensor", "temperature"),
-            "avty_t": self.get_availability_topic(device_id, "camera"),
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "temperature"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "temperature"),
+            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
             "avty_tpl": "{{ value_json.availability }}",
             "device_class": "temperature",
             "state_class": "measurement",
             "unit_of_measurement": "°F",
             "icon": "mdi:thermometer",
-            "via_device": self.get_service_device(),
-            "device": self.get_device_block(
-                self.get_device_slug(device_id),
+            "via_device": self.mqtt_helper.service_slug,
+            "device": self.mqtt_helper.device_block(
+                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
-                self.get_service_device(),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -262,17 +239,16 @@ class BlinkMixin:
         modes["battery_status"] = {
             "component_type": "sensor",
             "name": "Battery Status",
-            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'battery_status')}",
-            "stat_t": self.get_state_topic(device_id, "sensor", "battery_status"),
-            "avty_t": self.get_availability_topic(device_id, "camera"),
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "battery_status"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "battery_status"),
+            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
             "avty_tpl": "{{ value_json.availability }}",
             "entity_category": "diagnostic",
             "icon": "mdi:battery-alert",
-            "via_device": self.get_service_device(),
-            "device": self.get_device_block(
-                self.get_device_slug(device_id),
+            "via_device": self.mqtt_helper.service_slug,
+            "device": self.mqtt_helper.device_block(
+                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
-                self.get_service_device(),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -281,19 +257,18 @@ class BlinkMixin:
         modes["wifi_signal"] = {
             "component_type": "sensor",
             "name": "Wifi Signal",
-            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'wifi_signal')}",
-            "stat_t": self.get_state_topic(device_id, "sensor", "wifi_signal"),
-            "avty_t": self.get_availability_topic(device_id, "camera"),
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "wifi_signal"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "wifi_signal"),
+            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
             "avty_tpl": "{{ value_json.availability }}",
             "device_class": "signal_strength",
             "unit_of_measurement": "dBm",
             "icon": "mdi:wifi",
             "entity_category": "diagnostic",
-            "via_device": self.get_service_device(),
-            "device": self.get_device_block(
-                self.get_device_slug(device_id),
+            "via_device": self.mqtt_helper.service_slug,
+            "device": self.mqtt_helper.device_block(
+                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
-                self.get_service_device(),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -302,16 +277,15 @@ class BlinkMixin:
         modes["last_event"] = {
             "component_type": "sensor",
             "name": "Last Event",
-            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'last_event')}",
-            "stat_t": self.get_state_topic(device_id, "sensor", "last_event"),
-            "avty_t": self.get_availability_topic(device_id, "camera"),
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "last_event"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "last_event"),
+            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
             "avty_tpl": "{{ value_json.availability }}",
             "icon": "mdi:message-text-outline",
-            "via_device": self.get_service_device(),
-            "device": self.get_device_block(
-                self.get_device_slug(device_id),
+            "via_device": self.mqtt_helper.service_slug,
+            "device": self.mqtt_helper.device_block(
+                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
-                self.get_service_device(),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -320,17 +294,16 @@ class BlinkMixin:
         modes["last_event_time"] = {
             "component_type": "sensor",
             "name": "Last Event Time",
-            "uniq_id": f"{self.service_slug}_{self.get_device_slug(device_id, 'last_event_time')}",
-            "stat_t": self.get_state_topic(device_id, "sensor", "last_event_time"),
-            "avty_t": self.get_availability_topic(device_id, "camera"),
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "last_event_time"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "last_event_time"),
+            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
             "avty_tpl": "{{ value_json.availability }}",
             "device_class": "timestamp",
             "icon": "mdi:clock-outline",
-            "via_device": self.get_service_device(),
-            "device": self.get_device_block(
-                self.get_device_slug(device_id),
+            "via_device": self.mqtt_helper.service_slug,
+            "device": self.mqtt_helper.device_block(
+                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
-                self.get_service_device(),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -354,12 +327,12 @@ class BlinkMixin:
         return device_id
 
     def publish_device_discovery(self: Blink2Mqtt, device_id: str) -> None:
-        def _publish_one(dev_id: str, defn: dict, suffix: str | None = None):
+        def _publish_one(dev_id: str, defn: dict, suffix: str | None = None) -> None:
             # Compute a per-mode device_id for topic namespacing
             eff_device_id = dev_id if not suffix else f"{dev_id}_{suffix}"
 
             # Grab this component's discovery topic
-            topic = self.get_discovery_topic(defn["component_type"], eff_device_id)
+            topic = self.mqtt_helper.disc_t(defn["component_type"], eff_device_id)
 
             # Shallow copy to avoid mutating source
             payload = {k: v for k, v in defn.items() if k != "component_type"}
@@ -368,7 +341,7 @@ class BlinkMixin:
             self.mqtt_safe_publish(topic, json.dumps(payload), retain=True)
 
             # Mark discovered in state (per published entity)
-            self.states.setdefault(eff_device_id, {}).setdefault("internal", {})["discovered"] = 1
+            self.upsert_state(eff_device_id, internal={"discovered": True})
 
         component = self.get_component(device_id)
         _publish_one(device_id, component, suffix=None)
@@ -379,29 +352,17 @@ class BlinkMixin:
             _publish_one(device_id, mode, suffix=slug)
 
     def publish_device_state(self: Blink2Mqtt, device_id: str) -> None:
-        def _publish_one(dev_id: str, mode_name: str, defn):
+        def _publish_one(dev_id: str, mode_name: str, defn: str | dict[str, Any]) -> None:
             # Grab device states and this component's state topic
             topic = self.get_device_state_topic(dev_id, mode_name)
 
             # Shallow copy to avoid mutating source
-            flat = None
+            flat: str | int | bool | dict[str, Any] | None
             if isinstance(defn, dict):
-                payload = {k: v for k, v in defn.items() if k != "component_type"}
-                flat = None
-
-                if not payload:
-                    flat = ""
-                elif not isinstance(payload, dict):
-                    flat = payload
-                else:
-                    flat = {}
-                    for k, v in payload.items():
-                        if k == "component_type":
-                            continue
-                        flat[k] = v
+                flat = {k: v for k, v in defn.items() if k != "component_type"}
 
                 # Add metadata
-                meta = states.get("meta")
+                meta = self.states[dev_id].get("meta")
                 if isinstance(meta, dict) and "last_update" in meta:
                     flat["last_update"] = meta["last_update"]
                 self.mqtt_safe_publish(topic, json.dumps(flat), retain=True)
@@ -413,7 +374,7 @@ class BlinkMixin:
             self.logger.debug(f"[device state] Discovery not complete for {device_id} yet, holding off on sending state")
             return
 
-        states = self.states.get(device_id, None)
+        states = self.states[device_id]
         _publish_one(device_id, "", states[self.get_component_type(device_id)])
 
         # Publish any modes (0..n)

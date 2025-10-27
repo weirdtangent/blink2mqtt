@@ -4,14 +4,10 @@ import asyncio
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from blink2mqtt.core import Blink2Mqtt
-    from blink2mqtt.interface import BlinkServiceProtocol
+    from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
 
 
 class RefreshMixin:
-    if TYPE_CHECKING:
-        self: "BlinkServiceProtocol"
-
     async def refresh_all_devices(self: "Blink2Mqtt") -> None:
         self.logger.info(f"Refreshing all devices from Blink (every {self.device_interval} sec)")
         await self.blink_refresh()

@@ -3,8 +3,9 @@ deepmerge==2.0
 paho-mqtt>=2.1.0
 pyyaml>=6.0.3
 requests>=2.32.5
-json-logging-graystorm
 pathlib>=1.0.1
+json-logging-graystorm
+mqtt-helper-graystorm
 
 [dev]
 black>=24.10.0
