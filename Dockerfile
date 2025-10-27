@@ -9,10 +9,14 @@ ARG VERSION
 ENV BLINK2MQTT_VERSION=${VERSION}
 ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_BLINK2MQTT=${VERSION}
 
-# Install uv and git
+# Install uv and git - and get updates too
 RUN pip install uv
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && \
+    apt-get install -y git && \
+    apt-get upgrade -y && \
+    rm -rf /var/lib/apt/lists/*
 
 # copy source 
 COPY --exclude=.git . .
