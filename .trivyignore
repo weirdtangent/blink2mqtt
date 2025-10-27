@@ -1,0 +1,3 @@
+# libexpat is only pulled in via apt-get install git during build.
+# It is not used in the final runtime image or by blink2mqtt at all.
+CVE-2025-59375
