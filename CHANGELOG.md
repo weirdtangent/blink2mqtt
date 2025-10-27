@@ -1,3 +1,10 @@
+## [2.0.2](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.1...v2.0.2) (2025-10-27)
+
+
+### Bug Fixes
+
+* add apt-update to Dockerfile and also pull latest in github action ([f4f7d2a](https://github.com/weirdtangent/blink2mqtt/commit/f4f7d2a3cf6c86c5eff4c2df66b7a71b8702756a))
+
 ## [2.0.1](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.0...v2.0.1) (2025-10-25)
 
 
