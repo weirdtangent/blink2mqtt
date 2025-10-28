@@ -1,3 +1,10 @@
+## [2.0.3](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.2...v2.0.3) (2025-10-28)
+
+
+### Bug Fixes
+
+* name and edentifier of device were switched ([121f1d5](https://github.com/weirdtangent/blink2mqtt/commit/121f1d54f8061761d022151d53d73e8dcffbe427))
+
 ## [2.0.2](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.1...v2.0.2) (2025-10-27)
 
 
