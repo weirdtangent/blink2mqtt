@@ -145,8 +145,8 @@ class BlinkMixin:
             "icon": "mdi:camera",
             "via_device": self.mqtt_helper.service_slug,
             "device": self.mqtt_helper.device_block(
-                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
+                self.mqtt_helper.device_slug(device_id),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -168,8 +168,8 @@ class BlinkMixin:
             "icon": "mdi:camera",
             "via_device": self.mqtt_helper.service_slug,
             "device": self.mqtt_helper.device_block(
-                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
+                self.mqtt_helper.device_slug(device_id),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -189,8 +189,8 @@ class BlinkMixin:
             "icon": "mdi:motion-sensor-alert",
             "via_device": self.mqtt_helper.service_slug,
             "device": self.mqtt_helper.device_block(
-                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
+                self.mqtt_helper.device_slug(device_id),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -209,8 +209,8 @@ class BlinkMixin:
             "icon": "mdi:motion-sensor",
             "via_device": self.mqtt_helper.service_slug,
             "device": self.mqtt_helper.device_block(
-                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
+                self.mqtt_helper.device_slug(device_id),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -229,8 +229,8 @@ class BlinkMixin:
             "icon": "mdi:thermometer",
             "via_device": self.mqtt_helper.service_slug,
             "device": self.mqtt_helper.device_block(
-                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
+                self.mqtt_helper.device_slug(device_id),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -247,8 +247,8 @@ class BlinkMixin:
             "icon": "mdi:battery-alert",
             "via_device": self.mqtt_helper.service_slug,
             "device": self.mqtt_helper.device_block(
-                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
+                self.mqtt_helper.device_slug(device_id),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -267,8 +267,8 @@ class BlinkMixin:
             "entity_category": "diagnostic",
             "via_device": self.mqtt_helper.service_slug,
             "device": self.mqtt_helper.device_block(
-                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
+                self.mqtt_helper.device_slug(device_id),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -284,8 +284,8 @@ class BlinkMixin:
             "icon": "mdi:message-text-outline",
             "via_device": self.mqtt_helper.service_slug,
             "device": self.mqtt_helper.device_block(
-                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
+                self.mqtt_helper.device_slug(device_id),
                 camera["software_version"],
                 camera["vendor"],
             ),
@@ -302,8 +302,8 @@ class BlinkMixin:
             "icon": "mdi:clock-outline",
             "via_device": self.mqtt_helper.service_slug,
             "device": self.mqtt_helper.device_block(
-                self.mqtt_helper.device_slug(device_id),
                 camera["device_name"],
+                self.mqtt_helper.device_slug(device_id),
                 camera["software_version"],
                 camera["vendor"],
             ),
