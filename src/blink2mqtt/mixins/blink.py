@@ -332,7 +332,7 @@ class BlinkMixin:
             eff_device_id = dev_id if not suffix else f"{dev_id}_{suffix}"
 
             # Grab this component's discovery topic
-            topic = self.mqtt_helper.disc_t(defn["component_type"], suffix)
+            topic = self.get_device_discovery_topic(device_id)
 
             # Shallow copy to avoid mutating source
             payload = {k: v for k, v in defn.items() if k != "component_type"}

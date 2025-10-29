@@ -43,3 +43,7 @@ class TopicsMixin:
     def get_device_availability_topic(self: Blink2Mqtt, device_id: str) -> str:
         component = self.get_component(device_id)
         return cast(str, component.get("avty_t") or component.get("availability_topic"))
+
+    def get_device_discovery_topic(self: Blink2Mqtt, device_id: str) -> str:
+        component = self.get_component(device_id)
+        return cast(str, component.get("disc_t") or component.get("discovery_topic"))

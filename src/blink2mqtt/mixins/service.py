@@ -13,12 +13,12 @@ class ServiceMixin:
         device_block = self.mqtt_helper.device_block(self.service_name, self.mqtt_helper.service_slug, "weirdTangent")
 
         self.mqtt_safe_publish(
-            topic=self.mqtt_helper.disc_t("binary_sensor"),
+            topic=self.mqtt_helper.disc_t("binary_sensor", "service"),
             payload=json.dumps(
                 {
                     "name": self.service_name,
-                    "uniq_id": self.mqtt_helper.svc_unique_id(),
-                    "stat_t": self.mqtt_helper.svc_t("status"),
+                    "uniq_id": self.mqtt_helper.svc_unique_id("service"),
+                    "stat_t": self.mqtt_helper.svc_t("service"),
                     "device_class": "connectivity",
                     "icon": "mdi:server",
                     "device": device_block,
