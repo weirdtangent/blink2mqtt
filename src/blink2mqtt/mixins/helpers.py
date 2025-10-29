@@ -16,6 +16,12 @@ if TYPE_CHECKING:
 READY_FILE = os.getenv("READY_FILE", "/tmp/blink2mqtt.ready")
 
 
+class ConfigError(ValueError):
+    """Raised when the configuration file is invalid."""
+
+    pass
+
+
 class HelpersMixin:
     def build_camera_states(self: Blink2Mqtt, device_id: str, camera: dict[str, str]) -> None:
         self.upsert_state(
@@ -28,7 +34,7 @@ class HelpersMixin:
                 "temperature": camera["temperature"],
                 "wifi_signal": camera["wifi_strength"],
                 "last_event": "",
-                "last_event_time": "",
+                "last_event_time": None,
             },
             binary_sensor={
                 "motion": camera["motion"],
@@ -189,7 +195,7 @@ class HelpersMixin:
 
         # Validate required fields
         if not cast(dict, config["blink"]).get("username"):
-            raise ValueError("`blink.username` required in config file or BLINK_USERNAME env var")
+            raise ConfigError("`blink.username` required in config file or BLINK_USERNAME env var")
 
         return config
 

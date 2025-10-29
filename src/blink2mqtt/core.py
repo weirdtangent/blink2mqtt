@@ -1,7 +1,7 @@
 from .mixins.helpers import HelpersMixin
 from .mixins.mqtt import MqttMixin
 from .mixins.topics import TopicsMixin
-from .mixins.service import ServiceMixin
+from .mixins.publish import PublishMixin
 from .mixins.blink import BlinkMixin
 from .mixins.blink_api import BlinkAPIMixin
 from .mixins.refresh import RefreshMixin
@@ -12,7 +12,7 @@ from .base import Base
 class Blink2Mqtt(
     HelpersMixin,
     TopicsMixin,
-    ServiceMixin,
+    PublishMixin,
     BlinkMixin,
     BlinkAPIMixin,
     RefreshMixin,

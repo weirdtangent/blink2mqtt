@@ -31,10 +31,13 @@ class TopicsMixin:
     def get_device_state_topic(self: Blink2Mqtt, device_id: str, mode_name: str = "") -> str:
         component = self.get_mode(device_id, mode_name) if mode_name else self.get_component(device_id)
 
-        if component["component_type"] == "camera":
-            return cast(str, component["json_attributes_topic"])
-        else:
-            return cast(str, component.get("stat_t") or component.get("state_topic"))
+        match component["component_type"]:
+            case "camera":
+                return cast(str, component["topic"])
+            case "image":
+                return cast(str, component["image_topic"])
+            case _:
+                return cast(str, component.get("stat_t") or component.get("state_topic"))
 
     def get_device_image_topic(self: Blink2Mqtt, device_id: str) -> str:
         component = self.get_component(device_id)

@@ -17,6 +17,12 @@ if TYPE_CHECKING:
     from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
 
 
+class MqttError(ValueError):
+    """Raised when the connection to the MQTT server fails"""
+
+    pass
+
+
 class MqttMixin:
     def mqttc_create(self: Blink2Mqtt) -> None:
         self.mqttc = mqtt.Client(
@@ -47,7 +53,7 @@ class MqttMixin:
         self.mqttc.on_log = self.mqtt_on_log
 
         # Define a "last will" message (LWT):
-        self.mqttc.will_set(self.mqtt_helper.svc_t("status"), "offline", qos=1, retain=True)
+        self.mqttc.will_set(self.mqtt_helper.avty_t("service"), "offline", qos=1, retain=True)
 
         try:
             host = self.mqtt_config["host"]
@@ -75,9 +81,7 @@ class MqttMixin:
         self: Blink2Mqtt, client: Client, userdata: dict[str, Any], flags: ConnectFlags, reason_code: ReasonCode, properties: Properties | None
     ) -> None:
         if reason_code.value != 0:
-            self.logger.error(f"MQTT failed to connect ({reason_code.getName()})")
-            self.running = False
-            return
+            raise MqttError(f"MQTT failed to connect ({reason_code.getName()})")
 
         self.publish_service_discovery()
         self.publish_service_availability()
@@ -213,13 +217,18 @@ class MqttMixin:
         joined = "; ".join(reason_names) if reason_names else "none"
         self.logger.debug(f"MQTT subscribed (mid={mid}): {joined}")
 
-    def mqtt_safe_publish(self: Blink2Mqtt, topic: str, payload: str | bool | int | dict, **kwargs: Any) -> None:
+    def mqtt_safe_publish(self: Blink2Mqtt, topic: str, payload: str | bool | int | dict | None, **kwargs: Any) -> None:
+        if not topic:
+            raise ValueError("Cannot post to a blank topic")
         if isinstance(payload, dict) and ("component" in payload or "//////" in payload):
             self.logger.warning("Questionable payload includes 'component' or string of slashes - wont't send to HA")
             self.logger.warning(f"topic: {topic}")
             self.logger.warning(f"payload: {payload}")
             raise ValueError("Possible invalid payload. topic: {topic} payload: {payload}")
         try:
-            self.mqttc.publish(topic, cast(PayloadType, payload), **kwargs)
+            if payload is None:
+                self.mqttc.publish(topic, "null", **kwargs)
+            else:
+                self.mqttc.publish(topic, cast(PayloadType, payload), **kwargs)
         except Exception as e:
-            self.logger.warning(f"MQTT publish failed for {topic} with {payload}: {e}")
+            self.logger.warning(f"MQTT publish failed for {topic} with {payload[:120] if isinstance(payload, str) else payload}: {e}")

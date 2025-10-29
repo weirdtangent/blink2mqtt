@@ -9,6 +9,8 @@ import asyncio
 import argparse
 from json_logging import setup_logging, get_logger
 from .core import Blink2Mqtt
+from .mixins.helpers import ConfigError
+from .mixins.mqtt import MqttError
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -39,6 +41,12 @@ def main() -> int:
                     loop.run_until_complete(blink2mqtt.main_loop())
                 else:
                     raise
+    except ConfigError as e:
+        logger.error(f"Fatal config error was found: {e}")
+        return 1
+    except MqttError as e:
+        logger.error(f"MQTT service problems: {e}")
+        return 1
     except KeyboardInterrupt:
         logger.warning("Shutdown requested (Ctrl+C). Exiting gracefully...")
         return 1

@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
 import asyncio
-import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
@@ -136,12 +135,8 @@ class BlinkMixin:
             "name": "Snapshot",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "snapshot"),
             "topic": self.mqtt_helper.stat_t(device_id, "snapshot"),
+            "avty_t": self.mqtt_helper.avty_t(device_id),
             "image_encoding": "b64",
-            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
-            "avty_tpl": "{{ value_json.availability }}",
-            "json_attributes_topic": self.mqtt_helper.stat_t(device_id, "attributes"),
-            "pl_avail": "online",
-            "pl_not_avail": "offline",
             "icon": "mdi:camera",
             "via_device": self.mqtt_helper.service_slug,
             "device": self.mqtt_helper.device_block(
@@ -159,12 +154,8 @@ class BlinkMixin:
             "name": "Event Snapshot",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "eventshot"),
             "topic": self.mqtt_helper.stat_t(device_id, "eventshot"),
+            "avty_t": self.mqtt_helper.avty_t(device_id),
             "image_encoding": "b64",
-            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
-            "avty_tpl": "{{ value_json.availability }}",
-            "json_attributes_topic": self.mqtt_helper.stat_t(device_id, "attributes"),
-            "pl_avail": "online",
-            "pl_not_avail": "offline",
             "icon": "mdi:camera",
             "via_device": self.mqtt_helper.service_slug,
             "device": self.mqtt_helper.device_block(
@@ -179,11 +170,8 @@ class BlinkMixin:
             "component_type": "binary_sensor",
             "name": "Motion",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "motion"),
-            "stat_t": self.mqtt_helper.stat_t(device_id, "camera", "attributes"),
-            "value_template": "{{ value_json.motion }}",
-            "json_attributes_topic": self.mqtt_helper.stat_t(device_id, "attributes"),
-            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
-            "avty_tpl": "{{ value_json.availability }}",
+            "stat_t": self.mqtt_helper.stat_t(device_id, "binary_sensor", "motion"),
+            "avty_t": self.mqtt_helper.avty_t(device_id),
             "pl_on": True,
             "pl_off": False,
             "icon": "mdi:motion-sensor-alert",
@@ -202,8 +190,7 @@ class BlinkMixin:
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "motion_detection"),
             "stat_t": self.mqtt_helper.stat_t(device_id, "switch", "motion_detection"),
             "cmd_t": self.mqtt_helper.cmd_t(device_id, "switch", "motion_detection"),
-            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
-            "avty_tpl": "{{ value_json.availability }}",
+            "avty_t": self.mqtt_helper.avty_t(device_id),
             "pl_on": "ON",
             "pl_off": "OFF",
             "icon": "mdi:motion-sensor",
@@ -221,12 +208,12 @@ class BlinkMixin:
             "name": "Temperature",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "temperature"),
             "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "temperature"),
-            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
-            "avty_tpl": "{{ value_json.availability }}",
+            "avty_t": self.mqtt_helper.avty_t(device_id),
             "device_class": "temperature",
             "state_class": "measurement",
             "unit_of_measurement": "°F",
             "icon": "mdi:thermometer",
+            "entity_category": "diagnostic",
             "via_device": self.mqtt_helper.service_slug,
             "device": self.mqtt_helper.device_block(
                 camera["device_name"],
@@ -241,8 +228,7 @@ class BlinkMixin:
             "name": "Battery Status",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "battery_status"),
             "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "battery_status"),
-            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
-            "avty_tpl": "{{ value_json.availability }}",
+            "avty_t": self.mqtt_helper.avty_t(device_id),
             "entity_category": "diagnostic",
             "icon": "mdi:battery-alert",
             "via_device": self.mqtt_helper.service_slug,
@@ -259,8 +245,7 @@ class BlinkMixin:
             "name": "Wifi Signal",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "wifi_signal"),
             "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "wifi_signal"),
-            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
-            "avty_tpl": "{{ value_json.availability }}",
+            "avty_t": self.mqtt_helper.avty_t(device_id),
             "device_class": "signal_strength",
             "unit_of_measurement": "dBm",
             "icon": "mdi:wifi",
@@ -279,8 +264,7 @@ class BlinkMixin:
             "name": "Last Event",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "last_event"),
             "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "last_event"),
-            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
-            "avty_tpl": "{{ value_json.availability }}",
+            "avty_t": self.mqtt_helper.avty_t(device_id),
             "icon": "mdi:message-text-outline",
             "via_device": self.mqtt_helper.service_slug,
             "device": self.mqtt_helper.device_block(
@@ -296,8 +280,7 @@ class BlinkMixin:
             "name": "Last Event Time",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "last_event_time"),
             "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "last_event_time"),
-            "avty_t": self.mqtt_helper.avty_t(device_id, "camera"),
-            "avty_tpl": "{{ value_json.availability }}",
+            "avty_t": self.mqtt_helper.avty_t(device_id),
             "device_class": "timestamp",
             "icon": "mdi:clock-outline",
             "via_device": self.mqtt_helper.service_slug,
@@ -325,80 +308,3 @@ class BlinkMixin:
         self.publish_device_state(device_id)
 
         return device_id
-
-    def publish_device_discovery(self: Blink2Mqtt, device_id: str) -> None:
-        def _publish_one(dev_id: str, defn: dict, suffix: str = "") -> None:
-            # Compute a per-mode device_id for topic namespacing
-            eff_device_id = dev_id if not suffix else f"{dev_id}_{suffix}"
-
-            # Grab this component's discovery topic
-            topic = self.mqtt_helper.disc_t(defn["component_type"], suffix)
-
-            # Shallow copy to avoid mutating source
-            payload = {k: v for k, v in defn.items() if k != "component_type"}
-
-            # Publish discovery
-            self.mqtt_safe_publish(topic, json.dumps(payload), retain=True)
-
-            # Mark discovered in state (per published entity)
-            self.upsert_state(eff_device_id, internal={"discovered": True})
-
-        component = self.get_component(device_id)
-        _publish_one(device_id, component, suffix="")
-
-        # Publish any modes (0..n)
-        modes = self.get_modes(device_id)
-        for slug, mode in modes.items():
-            _publish_one(device_id, mode, suffix=slug)
-
-    def publish_device_state(self: Blink2Mqtt, device_id: str) -> None:
-        def _publish_one(dev_id: str, mode_name: str, defn: str | dict[str, Any]) -> None:
-            # Grab device states and this component's state topic
-            topic = self.get_device_state_topic(dev_id, mode_name)
-
-            # Shallow copy to avoid mutating source
-            flat: str | int | bool | dict[str, Any] | None
-            if isinstance(defn, dict):
-                flat = {k: v for k, v in defn.items() if k != "component_type"}
-
-                # Add metadata
-                meta = self.states[dev_id].get("meta")
-                if isinstance(meta, dict) and "last_update" in meta:
-                    flat["last_update"] = meta["last_update"]
-                self.mqtt_safe_publish(topic, json.dumps(flat), retain=True)
-            else:
-                flat = defn
-                self.mqtt_safe_publish(topic, flat, retain=True)
-
-        if not self.is_discovered(device_id):
-            self.logger.debug(f"[device state] Discovery not complete for {device_id} yet, holding off on sending state")
-            return
-
-        states = self.states[device_id]
-        _publish_one(device_id, "", states[self.get_component_type(device_id)])
-
-        # Publish any modes (0..n)
-        modes = self.get_modes(device_id)
-        for name, mode in modes.items():
-            component_type = mode["component_type"]
-            type_states = states[component_type][name] if isinstance(states[component_type], dict) else states[component_type]
-            _publish_one(device_id, name, type_states)
-
-    def publish_device_image(self: Blink2Mqtt, device_id: str, type: str) -> None:
-        payload = self.states[device_id][type]
-        if payload and isinstance(payload, str):
-            self.logger.info(f"Updating {self.get_device_name(device_id)} with latest snapshot")
-            topic = self.get_device_image_topic(device_id)
-            self.mqtt_safe_publish(topic, payload, retain=True)
-
-    def publish_device_availability(self: Blink2Mqtt, device_id: str, online: bool = True) -> None:
-        payload = "online" if online else "offline"
-
-        # if state and availability are the SAME, we don't want to
-        # overwrite the big json state with just online/offline
-        stat_t = self.get_device_state_topic(device_id)
-        avty_t = self.get_device_availability_topic(device_id)
-        if stat_t and avty_t and stat_t == avty_t:
-            return
-
-        self.mqtt_safe_publish(avty_t, payload, retain=True)
