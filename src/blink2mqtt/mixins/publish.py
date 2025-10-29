@@ -183,10 +183,8 @@ class PublishMixin:
             else:
                 payload = json.dumps(value)
 
-            topic = self.mqtt_helper.stat_t("service", "service", key)
-            self.logger.info(f"PUBLISH SERVICE STATE: to {topic}, {payload}")
             self.mqtt_safe_publish(
-                topic,
+                self.mqtt_helper.stat_t("service", "service", key),
                 payload,
                 qos=self.mqtt_config["qos"],
                 retain=True,
