@@ -1,3 +1,10 @@
+## [2.0.7](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.6...v2.0.7) (2025-10-29)
+
+
+### Bug Fixes
+
+* not dev_id, but component_type ([99e4d72](https://github.com/weirdtangent/blink2mqtt/commit/99e4d72e196457a22b7d7ff2e3d302ee4ea366d9))
+
 ## [2.0.6](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.5...v2.0.6) (2025-10-29)
 
 
