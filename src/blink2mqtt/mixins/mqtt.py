@@ -4,14 +4,14 @@ import asyncio
 from datetime import datetime, timedelta
 import json
 import paho.mqtt.client as mqtt
-from paho.mqtt.client import Client, MQTTMessage, PayloadType, ConnectFlags, DisconnectFlags
+from paho.mqtt.client import Client, MQTTMessage, ConnectFlags, DisconnectFlags
 from paho.mqtt.enums import LogLevel
 from paho.mqtt.properties import Properties
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.reasoncodes import ReasonCode
 from paho.mqtt.enums import CallbackAPIVersion
 import ssl
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
@@ -83,6 +83,9 @@ class MqttMixin:
         if reason_code.value != 0:
             raise MqttError(f"MQTT failed to connect ({reason_code.getName()})")
 
+        # send our helper the client
+        self.mqtt_helper.set_client(self.mqttc)
+
         self.publish_service_discovery()
         self.publish_service_availability()
         self.publish_service_state()
@@ -96,6 +99,9 @@ class MqttMixin:
     def mqtt_on_disconnect(
         self: Blink2Mqtt, client: Client, userdata: Any, flags: DisconnectFlags, reason_code: ReasonCode, properties: Properties | None
     ) -> None:
+        # clear the client on our helper
+        self.mqtt_helper.clear_client()
+
         if reason_code.value != 0:
             self.logger.error(f"MQTT lost connection ({reason_code.getName()})")
         else:
@@ -216,19 +222,3 @@ class MqttMixin:
         reason_names = [rc.getName() for rc in reason_code_list]
         joined = "; ".join(reason_names) if reason_names else "none"
         self.logger.debug(f"MQTT subscribed (mid={mid}): {joined}")
-
-    def mqtt_safe_publish(self: Blink2Mqtt, topic: str, payload: str | bool | int | dict | None, **kwargs: Any) -> None:
-        if not topic:
-            raise ValueError("Cannot post to a blank topic")
-        if isinstance(payload, dict) and ("component" in payload or "//////" in payload):
-            self.logger.warning("Questionable payload includes 'component' or string of slashes - wont't send to HA")
-            self.logger.warning(f"topic: {topic}")
-            self.logger.warning(f"payload: {payload}")
-            raise ValueError("Possible invalid payload. topic: {topic} payload: {payload}")
-        try:
-            if payload is None:
-                self.mqttc.publish(topic, "null", **kwargs)
-            else:
-                self.mqttc.publish(topic, cast(PayloadType, payload), **kwargs)
-        except Exception as e:
-            self.logger.warning(f"MQTT publish failed for {topic} with {payload[:120] if isinstance(payload, str) else payload}: {e}")

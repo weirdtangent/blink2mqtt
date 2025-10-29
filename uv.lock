@@ -384,7 +384,10 @@ wheels = [
 [[package]]
 name = "mqtt-helper-graystorm"
 version = "0.1.0"
-source = { git = "https://github.com/weirdtangent/mqtt-helper.git?branch=main#8772e3b3aab4cefc1ace2fdc0f96911609f22eb3" }
+source = { git = "https://github.com/weirdtangent/mqtt-helper.git?branch=main#576567322c874c16b69b5f2d996313b58744ccf6" }
+dependencies = [
+    { name = "paho-mqtt" },
+]
 
 [[package]]
 name = "multidict"
