@@ -1,3 +1,10 @@
+## [2.0.4](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.3...v2.0.4) (2025-10-29)
+
+
+### Bug Fixes
+
+* fix service_slug, disc_t calls ([d818625](https://github.com/weirdtangent/blink2mqtt/commit/d81862521005919a9109cbc74e1d6f306c3826ea))
+
 ## [2.0.3](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.2...v2.0.3) (2025-10-28)
 
 
