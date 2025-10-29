@@ -10,20 +10,18 @@ if TYPE_CHECKING:
 
 class ServiceMixin:
     def publish_service_discovery(self: Blink2Mqtt) -> None:
-        app = self.mqtt_helper.device_block(self.service_slug, self.service_name)
+        device_block = self.mqtt_helper.device_block(self.service_name, self.mqtt_helper.service_slug, "weirdTangent")
 
         self.mqtt_safe_publish(
-            topic=self.mqtt_helper.disc_t("binary_sensor", self.service_slug),
+            topic=self.mqtt_helper.disc_t("binary_sensor"),
             payload=json.dumps(
                 {
                     "name": self.service_name,
                     "uniq_id": self.mqtt_helper.svc_unique_id(),
                     "stat_t": self.mqtt_helper.svc_t("status"),
-                    "payload_on": "online",
-                    "payload_off": "offline",
                     "device_class": "connectivity",
                     "icon": "mdi:server",
-                    "device": app,
+                    "device": device_block,
                     "origin": {
                         "name": self.service_name,
                         "sw_version": self.config["version"],
@@ -36,7 +34,7 @@ class ServiceMixin:
         )
 
         self.mqtt_safe_publish(
-            topic=self.mqtt_helper.disc_t("sensor", f"{self.service_slug}_api_calls"),
+            topic=self.mqtt_helper.disc_t("sensor", "api_calls"),
             payload=json.dumps(
                 {
                     "name": f"{self.service_name} API Calls Today",
@@ -46,14 +44,14 @@ class ServiceMixin:
                     "unit_of_measurement": "calls",
                     "icon": "mdi:api",
                     "state_class": "total_increasing",
-                    "device": app,
+                    "device": device_block,
                 }
             ),
             qos=self.mqtt_config["qos"],
             retain=True,
         )
         self.mqtt_safe_publish(
-            topic=self.mqtt_helper.disc_t("binary_sensor", f"{self.service_slug}_rate_limited"),
+            topic=self.mqtt_helper.disc_t("binary_sensor", "rate_limited"),
             payload=json.dumps(
                 {
                     "name": f"{self.service_name} Rate Limited by Blink",
@@ -64,14 +62,14 @@ class ServiceMixin:
                     "payload_off": "no",
                     "device_class": "problem",
                     "icon": "mdi:speedometer-slow",
-                    "device": app,
+                    "device": device_block,
                 }
             ),
             qos=self.mqtt_config["qos"],
             retain=True,
         )
         self.mqtt_safe_publish(
-            topic=self.mqtt_helper.disc_t("number", f"{self.service_slug}_device_update_interval"),
+            topic=self.mqtt_helper.disc_t("number", "device_update_interval"),
             payload=json.dumps(
                 {
                     "name": f"{self.service_name} Device Update Interval",
@@ -84,14 +82,14 @@ class ServiceMixin:
                     "max": 900,
                     "step": 1,
                     "icon": "mdi:timer-refresh",
-                    "device": app,
+                    "device": device_block,
                 }
             ),
             qos=self.mqtt_config["qos"],
             retain=True,
         )
         self.mqtt_safe_publish(
-            topic=self.mqtt_helper.disc_t("number", f"{self.service_slug}_device_rescan_interval"),
+            topic=self.mqtt_helper.disc_t("number", "device_rescan_interval"),
             payload=json.dumps(
                 {
                     "name": f"{self.service_name} Device Rescan Interval",
@@ -104,14 +102,14 @@ class ServiceMixin:
                     "max": 3600,
                     "step": 1,
                     "icon": "mdi:format-list-bulleted",
-                    "device": app,
+                    "device": device_block,
                 }
             ),
             qos=self.mqtt_config["qos"],
             retain=True,
         )
         self.mqtt_safe_publish(
-            topic=self.mqtt_helper.disc_t("number", f"{self.service_slug}_snapshot_update_interval"),
+            topic=self.mqtt_helper.disc_t("number", "snapshot_update_interval"),
             payload=json.dumps(
                 {
                     "name": f"{self.service_name} Snapshot Update Interval",
@@ -124,14 +122,14 @@ class ServiceMixin:
                     "max": 3600,
                     "step": 1,
                     "icon": "mdi:lightning-bolt",
-                    "device": app,
+                    "device": device_block,
                 }
             ),
             qos=self.mqtt_config["qos"],
             retain=True,
         )
         self.mqtt_safe_publish(
-            topic=self.mqtt_helper.disc_t("button", f"{self.service_slug}_refresh_device_list"),
+            topic=self.mqtt_helper.disc_t("button", "refresh_device_list"),
             payload=json.dumps(
                 {
                     "name": f"{self.service_name} Refresh Device List",
@@ -139,13 +137,13 @@ class ServiceMixin:
                     "cmd_t": self.mqtt_helper.cmd_t("service", "refresh_device_list", "command"),
                     "payload_press": "refresh",
                     "icon": "mdi:refresh",
-                    "device": app,
+                    "device": device_block,
                 }
             ),
             qos=self.mqtt_config["qos"],
             retain=True,
         )
-        self.logger.debug(f"[HA] Discovery published for {self.service} ({self.service_slug})")
+        self.logger.debug(f"[HA] Discovery published for {self.service} ({self.mqtt_helper.service_slug})")
 
     def publish_service_availability(self: Blink2Mqtt, status: str = "online") -> None:
         self.mqtt_safe_publish(self.mqtt_helper.svc_t("status"), status, qos=self.qos, retain=True)

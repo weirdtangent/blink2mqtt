@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime, timedelta
 import json
 import paho.mqtt.client as mqtt
-from paho.mqtt.client import Client, MQTTMessageInfo, MQTTMessage, PayloadType
+from paho.mqtt.client import Client, MQTTMessage, PayloadType, ConnectFlags, DisconnectFlags
 from paho.mqtt.enums import LogLevel
 from paho.mqtt.properties import Properties
 from paho.mqtt.packettypes import PacketTypes
@@ -40,13 +40,11 @@ class MqttMixin:
                 password=self.mqtt_config.get("password") or None,
             )
 
-        # to get around that these _v2 attributes don't exist until run-time
-        mqttc_any = self.mqttc  # type: Any
-        mqttc_any.on_connect_v2 = self.mqtt_on_connect
-        mqttc_any.on_disconnect_v2 = self.mqtt_on_disconnect
-        mqttc_any.on_message_v2 = self.mqtt_on_message
-        mqttc_any.on_subscribe_v2 = self.mqtt_on_subscribe
-        mqttc_any.on_log_v2 = self.mqtt_on_log
+        self.mqttc.on_connect = self.mqtt_on_connect
+        self.mqttc.on_disconnect = self.mqtt_on_disconnect
+        self.mqttc.on_message = self.mqtt_on_message
+        self.mqttc.on_subscribe = self.mqtt_on_subscribe
+        self.mqttc.on_log = self.mqtt_on_log
 
         # Define a "last will" message (LWT):
         self.mqttc.will_set(self.mqtt_helper.svc_t("status"), "offline", qos=1, retain=True)
@@ -73,7 +71,9 @@ class MqttMixin:
             self.running = False
             raise SystemExit(1)
 
-    def mqtt_on_connect(self: Blink2Mqtt, client: Client, userdata: Any, flags: dict, reason_code: ReasonCode, properties: MQTTMessageInfo) -> None:
+    def mqtt_on_connect(
+        self: Blink2Mqtt, client: Client, userdata: dict[str, Any], flags: ConnectFlags, reason_code: ReasonCode, properties: Properties | None
+    ) -> None:
         if reason_code.value != 0:
             self.logger.error(f"MQTT failed to connect ({reason_code.getName()})")
             self.running = False
@@ -85,11 +85,13 @@ class MqttMixin:
 
         self.logger.info("Subscribing to topics on MQTT")
         client.subscribe("homeassistant/status")
-        client.subscribe(f"{self.service_slug}/service/+/set")
-        client.subscribe(f"{self.service_slug}/service/+/command")
-        client.subscribe(f"{self.service_slug}/switch/#")
+        client.subscribe(f"{self.mqtt_helper.service_slug}/service/+/set")
+        client.subscribe(f"{self.mqtt_helper.service_slug}/service/+/command")
+        client.subscribe(f"{self.mqtt_helper.service_slug}/switch/#")
 
-    def mqtt_on_disconnect(self: Blink2Mqtt, client: Client, userdata: Any, flags: dict, reason_code: ReasonCode, properties: MQTTMessageInfo) -> None:
+    def mqtt_on_disconnect(
+        self: Blink2Mqtt, client: Client, userdata: Any, flags: DisconnectFlags, reason_code: ReasonCode, properties: Properties | None
+    ) -> None:
         if reason_code.value != 0:
             self.logger.error(f"MQTT lost connection ({reason_code.getName()})")
         else:
@@ -103,7 +105,7 @@ class MqttMixin:
             self.logger.info("MQTT disconnect — stopping service loop")
             self.running = False
 
-    def mqtt_on_log(self: Blink2Mqtt, client: Client, userdata: Any, paho_log_level: LogLevel, msg: str) -> None:
+    def mqtt_on_log(self: Blink2Mqtt, client: Client, userdata: Any, paho_log_level: int, msg: str) -> None:
         if paho_log_level == LogLevel.MQTT_LOG_ERR:
             self.logger.error(f"MQTT logged: {msg}")
         if paho_log_level == LogLevel.MQTT_LOG_WARNING:
@@ -124,10 +126,10 @@ class MqttMixin:
         if components[0] == self.mqtt_config["discovery_prefix"] and payload:
             return self._handle_homeassistant_message(payload)
 
-        if components[0] == self.service_slug and components[1] == "service" and payload:
+        if components[0] == self.mqtt_helper.service_slug and components[1] == "service" and payload:
             return self.handle_service_command(components[2], payload)
 
-        if components[0] == self.service_slug:
+        if components[0] == self.mqtt_helper.service_slug:
             return self._handle_device_topic(components, payload)
 
         self.logger.debug(f"Ignoring unrelated MQTT topic: {topic}")
@@ -155,7 +157,7 @@ class MqttMixin:
             return
 
         (vendor, device_id, attribute) = parsed
-        if not vendor or not vendor.startswith(self.service_slug):
+        if not vendor or not vendor.startswith(self.mqtt_helper.service_slug):
             self.logger.error(f"Ignoring non-Blink device command, got vendor {vendor}")
             return
         if not device_id or not attribute:

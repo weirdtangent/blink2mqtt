@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 class TopicsMixin:
 
-    # Device propertiesi --------------------------------------------------------------------------
+    # Device properties ---------------------------------------------------------------------------
 
     def get_device_name(self: Blink2Mqtt, device_id: str) -> str:
         return cast(str, self.devices[device_id]["component"]["device"]["name"])

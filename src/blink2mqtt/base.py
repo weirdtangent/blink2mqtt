@@ -3,8 +3,6 @@
 import argparse
 import asyncio
 from asyncio import AbstractEventLoop
-
-# from aiohttp import ClientSession
 from blinkpy.blinkpy import Blink
 from datetime import datetime
 import logging
@@ -41,7 +39,6 @@ class Base:
 
         self.service = self.mqtt_config["prefix"]
         self.service_name = f"{self.service} service"
-        self.service_slug = self.service
 
         self.mqtt_helper = MqttHelper(self.service)
 

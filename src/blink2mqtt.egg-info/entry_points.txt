@@ -1,2 +1,0 @@
-[console_scripts]
-blink2mqtt = blink2mqtt.app:main

@@ -327,12 +327,12 @@ class BlinkMixin:
         return device_id
 
     def publish_device_discovery(self: Blink2Mqtt, device_id: str) -> None:
-        def _publish_one(dev_id: str, defn: dict, suffix: str | None = None) -> None:
+        def _publish_one(dev_id: str, defn: dict, suffix: str = "") -> None:
             # Compute a per-mode device_id for topic namespacing
             eff_device_id = dev_id if not suffix else f"{dev_id}_{suffix}"
 
             # Grab this component's discovery topic
-            topic = self.mqtt_helper.disc_t(defn["component_type"], eff_device_id)
+            topic = self.mqtt_helper.disc_t(defn["component_type"], suffix)
 
             # Shallow copy to avoid mutating source
             payload = {k: v for k, v in defn.items() if k != "component_type"}
@@ -344,7 +344,7 @@ class BlinkMixin:
             self.upsert_state(eff_device_id, internal={"discovered": True})
 
         component = self.get_component(device_id)
-        _publish_one(device_id, component, suffix=None)
+        _publish_one(device_id, component, suffix="")
 
         # Publish any modes (0..n)
         modes = self.get_modes(device_id)
