@@ -1,3 +1,10 @@
+## [2.0.6](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.5...v2.0.6) (2025-10-29)
+
+
+### Bug Fixes
+
+* no, we need to construct the disc_topic ([9cc1c51](https://github.com/weirdtangent/blink2mqtt/commit/9cc1c519bc504b32c66a88e391df441484f7b831))
+
 ## [2.0.5](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.4...v2.0.5) (2025-10-29)
 
 
