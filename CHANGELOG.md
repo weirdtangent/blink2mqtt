@@ -1,3 +1,10 @@
+## [2.0.5](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.4...v2.0.5) (2025-10-29)
+
+
+### Bug Fixes
+
+* use 'service' for main service entity ([7f57faf](https://github.com/weirdtangent/blink2mqtt/commit/7f57faf2d157a7a7277d1e8eae8abce58da186ee))
+
 ## [2.0.4](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.3...v2.0.4) (2025-10-29)
 
 
