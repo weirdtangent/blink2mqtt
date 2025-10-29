@@ -1,3 +1,10 @@
+## [2.0.8](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.7...v2.0.8) (2025-10-29)
+
+
+### Bug Fixes
+
+* more adjustments, they never end ([1b4bb03](https://github.com/weirdtangent/blink2mqtt/commit/1b4bb037be20f70b7d26a1715704f373ec045ac3))
+
 ## [2.0.7](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.6...v2.0.7) (2025-10-29)
 
 
