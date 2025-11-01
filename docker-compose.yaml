@@ -11,6 +11,12 @@ services:
     environment:
       - TZ=${TZ:-UTC}
       - CONFIG_PATH=/config/config.yaml     # or whatever your config file name is
+    healthcheck:
+      test: ["CMD", "python3", "/app/src/healthcheck.py"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     labels:
       org.opencontainers.image.title: "blink2mqtt"
       org.opencontainers.image.description: "Publishes Blink camera motion, battery, and sensor data via MQTT"
