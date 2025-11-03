@@ -14,7 +14,7 @@ from .mixins.mqtt import MqttError
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="govee2mqtt", exit_on_error=True)
+    p = argparse.ArgumentParser(prog="blink2mqtt", exit_on_error=True)
     p.add_argument(
         "-c",
         "--config",
