@@ -27,6 +27,8 @@ class PublishMixin:
                     "uniq_id": self.mqtt_helper.svc_unique_id("service"),
                     "stat_t": self.mqtt_helper.avty_t("service"),
                     "avty_t": self.mqtt_helper.avty_t("service"),
+                    "payload_on": "online",
+                    "payload_off": "offline",
                     "device_class": "connectivity",
                     "icon": "mdi:server",
                     "device": device_block,
