@@ -21,27 +21,19 @@ class BlinkMixin:
 
         seen_devices = set()
 
-        for device_id in sync_modules:
-            sync_module = sync_modules[device_id]["config"]
-            self.logger.info(f"Checking sync_module: {sync_module["device_name"]}")
-
-            created = self.build_component(sync_module)
+        for device in sync_modules.values():
+            created = self.build_component(device["config"])
             seen_devices.add(created)
 
-        for device_id in blink_devices:
-            camera = blink_devices[device_id]["config"]
-            self.logger.info(f"Checking blink_device: {camera["device_name"]}")
-
-            created = self.build_component(camera)
+        for device in blink_devices.values():
+            created = self.build_component(device["config"])
             seen_devices.add(created)
 
         # Mark missing devices offline
-        # missing_devices = set(self.devices.keys()) - seen_devices
-        # for device_id in missing_devices:
-        #     self.publish_device_availability(device_id, online=False)
-        #     self.logger.warning(
-        #         f"Device {device_id} not seen in Blink API list — marked offline"
-        #     )
+        missing_devices = set(self.devices.keys()) - seen_devices
+        for device_id in missing_devices:
+            self.publish_device_availability(device_id, online=False)
+            self.logger.warning(f"Device {device_id} not seen in Blink API list — marked offline")
 
         # Handle first discovery completion
         if not self.discovery_complete:

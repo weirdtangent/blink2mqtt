@@ -25,7 +25,7 @@ class PublishMixin:
                 {
                     "name": self.service_name,
                     "uniq_id": self.mqtt_helper.svc_unique_id("service"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
+                    "stat_t": self.mqtt_helper.avty_t("service"),
                     "avty_t": self.mqtt_helper.avty_t("service"),
                     "device_class": "connectivity",
                     "icon": "mdi:server",
@@ -47,8 +47,7 @@ class PublishMixin:
                 {
                     "name": f"{self.service_name} API Calls Today",
                     "uniq_id": self.mqtt_helper.svc_unique_id("api_calls"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
-                    "value_template": "{{ value_json.api_calls }}",
+                    "stat_t": self.mqtt_helper.stat_t("service", "service", "api_calls"),
                     "avty_t": self.mqtt_helper.avty_t("service"),
                     "unit_of_measurement": "calls",
                     "icon": "mdi:api",
@@ -65,8 +64,7 @@ class PublishMixin:
                 {
                     "name": f"{self.service_name} Rate Limited by Blink",
                     "uniq_id": self.mqtt_helper.svc_unique_id("rate_limited"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
-                    "value_template": "{{ value_json.rate_limited }}",
+                    "stat_t": self.mqtt_helper.stat_t("service", "service", "rate_limited"),
                     "avty_t": self.mqtt_helper.avty_t("service"),
                     "json_attr_t": self.mqtt_helper.attr_t("service"),
                     "payload_on": "YES",
@@ -85,8 +83,7 @@ class PublishMixin:
                 {
                     "name": f"{self.service_name} Device Update Interval",
                     "uniq_id": self.mqtt_helper.svc_unique_id("device_update_interval"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
-                    "value_template": "{{ value_json.device_update_interval }}",
+                    "stat_t": self.mqtt_helper.stat_t("service", "service", "device_update_interval"),
                     "avty_t": self.mqtt_helper.avty_t("service"),
                     "json_attr_t": self.mqtt_helper.attr_t("service"),
                     "cmd_t": self.mqtt_helper.cmd_t("service", "device_update_interval"),
@@ -107,8 +104,7 @@ class PublishMixin:
                 {
                     "name": f"{self.service_name} Device Rescan Interval",
                     "uniq_id": self.mqtt_helper.svc_unique_id("device_rescan_interval"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
-                    "value_template": "{{ value_json.device_rescan_interval }}",
+                    "stat_t": self.mqtt_helper.stat_t("service", "service", "device_rescan_interval"),
                     "avty_t": self.mqtt_helper.avty_t("service"),
                     "json_attr_t": self.mqtt_helper.attr_t("service"),
                     "cmd_t": self.mqtt_helper.cmd_t("service", "device_rescan_interval"),
@@ -129,8 +125,7 @@ class PublishMixin:
                 {
                     "name": f"{self.service_name} Snapshot Update Interval",
                     "uniq_id": self.mqtt_helper.svc_unique_id("snapshot_update_interval"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service"),
-                    "value_template": "{{ value_json.snapshot_update_interval }}",
+                    "stat_t": self.mqtt_helper.stat_t("service", "service", "snapshot_update_interval"),
                     "avty_t": self.mqtt_helper.avty_t("service"),
                     "json_attr_t": self.mqtt_helper.attr_t("service"),
                     "cmd_t": self.mqtt_helper.cmd_t("service", "snapshot_update_interval"),
@@ -176,16 +171,10 @@ class PublishMixin:
             "rate_limited": "YES" if self.is_rate_limited() else "NO",
         }
 
-        payload: Any
         for key, value in service.items():
-            if not isinstance(value, dict):
-                payload = str(value)
-            else:
-                payload = json.dumps(value)
-
             self.mqtt_helper.safe_publish(
                 self.mqtt_helper.stat_t("service", "service", key),
-                payload,
+                json.dumps(value) if isinstance(value, dict) else str(value),
                 qos=self.mqtt_config["qos"],
                 retain=True,
             )
@@ -194,25 +183,15 @@ class PublishMixin:
 
     def publish_device_discovery(self: Blink2Mqtt, device_id: str) -> None:
         def _publish_one(dev_id: str, defn: dict, suffix: str = "") -> None:
-            # Compute a per-mode device_id for topic namespacing
             eff_device_id = dev_id if not suffix else f"{dev_id}_{suffix}"
-
-            # Grab this component's discovery topic
             topic = self.mqtt_helper.disc_t(defn["component_type"], f"{dev_id}_{suffix}" if suffix else dev_id)
-
-            # Shallow copy to avoid mutating source
             payload = {k: v for k, v in defn.items() if k != "component_type"}
-
-            # Publish discovery
             self.mqtt_helper.safe_publish(topic, json.dumps(payload), retain=True)
-
-            # Mark discovered in state (per published entity)
             self.upsert_state(eff_device_id, internal={"discovered": True})
 
         component = self.get_component(device_id)
         _publish_one(device_id, component, suffix="")
 
-        # Publish any modes (0..n)
         modes = self.get_modes(device_id)
         for slug, mode in modes.items():
             _publish_one(device_id, mode, suffix=slug)
@@ -225,14 +204,9 @@ class PublishMixin:
 
     def publish_device_state(self: Blink2Mqtt, device_id: str) -> None:
         def _publish_one(dev_id: str, defn: str | dict[str, Any], suffix: str = "") -> None:
-            # Grab this component's state topic
             topic = self.get_device_state_topic(dev_id, suffix)
-
-            # Shallow copy to avoid mutating source
             if isinstance(defn, dict):
                 flat: dict[str, Any] = {k: v for k, v in defn.items() if k != "component_type"}
-
-                # Add metadata
                 meta = self.states[dev_id].get("meta")
                 if isinstance(meta, dict) and "last_update" in meta:
                     flat["last_update"] = meta["last_update"]
@@ -247,7 +221,6 @@ class PublishMixin:
         states = self.states[device_id]
         _publish_one(device_id, states[self.get_component_type(device_id)])
 
-        # Publish any modes (0..n)
         modes = self.get_modes(device_id)
         for name, mode in modes.items():
             component_type = mode["component_type"]

@@ -214,12 +214,13 @@ class HelpersMixin:
             for idx, value in enumerate(data):
                 self._assert_no_tuples(value, f"{path}[{idx}]")
 
-    def upsert_device(self: Blink2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool | None) -> None:
+    def upsert_device(self: Blink2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool | None) -> bool:
         MERGER = Merger(
             [(dict, "merge"), (list, "append_unique"), (set, "union")],
             ["override"],  # type conflicts: new wins
             ["override"],  # fallback
         )
+        prev = self.devices.get(device_id, {})
         for section, data in kwargs.items():
             # Pre-merge check
             self._assert_no_tuples(data, f"device[{device_id}].{section}")
@@ -227,15 +228,20 @@ class HelpersMixin:
             # Post-merge check
             self._assert_no_tuples(merged, f"device[{device_id}].{section} (post-merge)")
             self.devices[device_id] = merged
+        new = self.devices.get(device_id, {})
+        return False if prev == new else True
 
-    def upsert_state(self: Blink2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool | None) -> None:
+    def upsert_state(self: Blink2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool | None) -> bool:
         MERGER = Merger(
             [(dict, "merge"), (list, "append_unique"), (set, "union")],
             ["override"],  # type conflicts: new wins
             ["override"],  # fallback
         )
+        prev = self.states.get(device_id, {})
         for section, data in kwargs.items():
             self._assert_no_tuples(data, f"state[{device_id}].{section}")
             merged = MERGER.merge(self.states.get(device_id, {}), {section: data})
             self._assert_no_tuples(merged, f"state[{device_id}].{section} (post-merge)")
             self.states[device_id] = merged
+        new = self.states.get(device_id, {})
+        return False if prev == new else True
