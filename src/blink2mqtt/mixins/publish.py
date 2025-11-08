@@ -20,12 +20,12 @@ class PublishMixin:
             "stat_t": self.mqtt_helper.stat_t(device_id, "state"),
             "cmd_t": self.mqtt_helper.cmd_t(device_id),
             "avty_t": self.mqtt_helper.avty_t(device_id),
-            "device": self.mqtt_helper.device_block(
-                self.service_name,
-                self.mqtt_helper.service_slug,
-                "weirdTangent",
-                self.config["version"],
-            ),
+            "device": {
+                "name": self.service_name,
+                "identifiers": [self.mqtt_helper.service_slug],
+                "manufacturer": "weirdTangent",
+                "sw_version": self.config["version"],
+            },
             "origin": {"name": self.service_name, "sw": self.config["version"], "support_url": "https://github.com/weirdTangent/blink2mqtt"},
             "qos": self.qos,
             "cmps": {
@@ -37,6 +37,8 @@ class PublishMixin:
                     "cmd_t": self.mqtt_helper.cmd_t(device_id),
                     "payload_on": "online",
                     "payload_off": "offline",
+                    "device_class": "connectivity",
+                    "entity_category": "diagnostic",
                     "icon": "mdi:server",
                 },
                 "api_calls": {
@@ -46,6 +48,7 @@ class PublishMixin:
                     "stat_t": self.mqtt_helper.stat_t(device_id, "service", "api_calls"),
                     "unit_of_measurement": "calls",
                     "state_class": "total_increasing",
+                    "entity_category": "diagnostic",
                     "icon": "mdi:api",
                 },
                 "rate_limited": {
@@ -56,6 +59,7 @@ class PublishMixin:
                     "payload_on": "YES",
                     "payload_off": "NO",
                     "device_class": "problem",
+                    "entity_category": "diagnostic",
                     "icon": "mdi:speedometer-slow",
                 },
                 "update_interval": {
@@ -102,7 +106,7 @@ class PublishMixin:
         await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(payload), retain=True)
         self.upsert_state(device_id, internal={"discovered": True})
 
-        self.logger.debug(f"[HA] Discovery published for {self.service} ({self.mqtt_helper.service_slug})")
+        self.logger.debug(f"discovery published for {self.service} ({self.mqtt_helper.service_slug})")
 
     async def publish_service_availability(self: Blink2Mqtt, status: str = "online") -> None:
         await asyncio.to_thread(self.mqtt_helper.safe_publish, self.mqtt_helper.avty_t("service"), status, qos=self.qos, retain=True)
@@ -147,7 +151,7 @@ class PublishMixin:
 
     async def publish_device_state(self: Blink2Mqtt, device_id: str, subject: str = "", sub: str = "") -> None:
         if not self.is_discovered(device_id):
-            self.logger.debug(f"[device state] Discovery not complete for {device_id} yet, holding off on sending state")
+            self.logger.debug(f"discovery not complete for {device_id} yet, holding off on sending state")
             return
 
         for state, value in self.states[device_id].items():
