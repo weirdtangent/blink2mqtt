@@ -21,7 +21,7 @@ blink:
   password: password             # Blink account password
   device_update_interval: 30     # Seconds between device updates
   device_rescan_interval: 3600   # Seconds between device list rescans
-  snapshot_update_interval: 900  # Seconds between camera snapshot refreshes
+  snapshot_update_interval: 5    # Minutes between camera snapshot refreshes
 
 timezone: America/New_York       # Timezone (see TZ database list)
 hide_ts: false                   # Hide timestamps in MQTT payloads (optional)

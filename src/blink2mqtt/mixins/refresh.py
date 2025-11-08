@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
 import asyncio
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -38,10 +39,12 @@ class RefreshMixin:
 
         tasks1 = []
         tasks2 = []
-        for device_id in self.devices:
-            if self.get_component_type(device_id) == "camera" and self.is_discovered(device_id):
-                tasks1.append(asyncio.create_task(self.take_snapshot_from_device(device_id)))
-                tasks2.append(asyncio.create_task(self.refresh_snapshot(device_id, "snapshot")))
+        for device_id, device in self.devices.items():
+            if self.is_discovered(device_id):
+                for mode in device["modes"].values():
+                    if mode["platform"] == "camera":
+                        tasks1.append(asyncio.create_task(self.take_snapshot_from_device(device_id)))
+                        tasks2.append(asyncio.create_task(self.refresh_snapshot(device_id, "snapshot")))
 
         await asyncio.gather(*tasks1)
         await asyncio.gather(*tasks2)
@@ -52,6 +55,7 @@ class RefreshMixin:
         image = await self.get_snapshot_from_device(device_id)
 
         # only store and send to MQTT if we got an image AND the image has changed
-        if image and (states[type] is None or states[type] != image):
+        if image and (type not in states or states[type] is None or states[type] != image):
             states[type] = image
-            await self.publish_device_image(device_id, type)
+            self.upsert_state(device_id, sensor={"last_event": "Timed snapshot", "last_event_time": datetime.now(timezone.utc).isoformat()})
+            await asyncio.gather(self.publish_device_state(device_id), self.publish_device_image(device_id, type))

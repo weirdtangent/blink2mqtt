@@ -56,7 +56,7 @@ A docker image is available at `graystorm/blink2mqtt:latest`. You can mount your
 | `TZ` | ✅ Yes | — | Timezone (see [TZ database list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)) |
 | `DEVICE_UPDATE_INTERVAL` | No | `30` | Seconds between device updates |
 | `DEVICE_RESCAN_INTERVAL` | No | `3600` | Seconds between device rescans |
-| `SNAPSHOT_UPDATE_INTERVAL` | No | `900` | Seconds between snapshot fetches |
+| `SNAPSHOT_UPDATE_INTERVAL` | No | `5` | Minutes between snapshot fetches |
 
 ## Snapshots/Eventshots plus Home Assistant Area Cards
 

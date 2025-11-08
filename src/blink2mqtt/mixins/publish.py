@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Jeff Culverhouse
 import asyncio
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
@@ -13,159 +13,99 @@ class PublishMixin:
     # Service -------------------------------------------------------------------------------------
 
     async def publish_service_discovery(self: Blink2Mqtt) -> None:
-        device_block = self.mqtt_helper.device_block(
-            self.service_name,
-            self.mqtt_helper.service_slug,
-            "weirdTangent",
-            self.config["version"],
-        )
+        device_id = "service"
 
-        await asyncio.to_thread(
-            self.mqtt_helper.safe_publish,
-            topic=self.mqtt_helper.disc_t("binary_sensor", "service"),
-            payload=json.dumps(
-                {
-                    "name": self.service_name,
-                    "uniq_id": self.mqtt_helper.svc_unique_id("service"),
-                    "stat_t": self.mqtt_helper.avty_t("service"),
-                    "avty_t": self.mqtt_helper.avty_t("service"),
-                    "payload_on": "online",
-                    "payload_off": "offline",
-                    "device_class": "connectivity",
-                    "icon": "mdi:server",
-                    "device": device_block,
-                    "origin": {
-                        "name": self.service_name,
-                        "sw_version": self.config["version"],
-                        "support_url": "https://github.com/weirdtangent/blink2mqtt",
-                    },
-                }
+        component = {
+            "platform": "mqtt",
+            "stat_t": self.mqtt_helper.stat_t(device_id, "state"),
+            "cmd_t": self.mqtt_helper.cmd_t(device_id),
+            "avty_t": self.mqtt_helper.avty_t(device_id),
+            "device": self.mqtt_helper.device_block(
+                self.service_name,
+                self.mqtt_helper.service_slug,
+                "weirdTangent",
+                self.config["version"],
             ),
-            qos=self.mqtt_config["qos"],
-            retain=True,
-        )
+            "origin": {"name": self.service_name, "sw": self.config["version"], "support_url": "https://github.com/weirdTangent/blink2mqtt"},
+            "qos": self.qos,
+            "cmps": {},
+        }
+        modes = {}
 
-        await asyncio.to_thread(
-            self.mqtt_helper.safe_publish,
-            topic=self.mqtt_helper.disc_t("sensor", "api_calls"),
-            payload=json.dumps(
-                {
-                    "name": f"{self.service_name} API Calls Today",
-                    "uniq_id": self.mqtt_helper.svc_unique_id("api_calls"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service", "api_calls"),
-                    "avty_t": self.mqtt_helper.avty_t("service"),
-                    "unit_of_measurement": "calls",
-                    "icon": "mdi:api",
-                    "state_class": "total_increasing",
-                    "device": device_block,
-                }
-            ),
-            qos=self.mqtt_config["qos"],
-            retain=True,
-        )
-        await asyncio.to_thread(
-            self.mqtt_helper.safe_publish,
-            topic=self.mqtt_helper.disc_t("binary_sensor", "rate_limited"),
-            payload=json.dumps(
-                {
-                    "name": f"{self.service_name} Rate Limited by Blink",
-                    "uniq_id": self.mqtt_helper.svc_unique_id("rate_limited"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service", "rate_limited"),
-                    "avty_t": self.mqtt_helper.avty_t("service"),
-                    "json_attr_t": self.mqtt_helper.attr_t("service"),
-                    "payload_on": "YES",
-                    "payload_off": "NO",
-                    "device_class": "problem",
-                    "icon": "mdi:speedometer-slow",
-                    "device": device_block,
-                }
-            ),
-            qos=self.mqtt_config["qos"],
-            retain=True,
-        )
-        await asyncio.to_thread(
-            self.mqtt_helper.safe_publish,
-            topic=self.mqtt_helper.disc_t("number", "device_update_interval"),
-            payload=json.dumps(
-                {
-                    "name": f"{self.service_name} Device Update Interval",
-                    "uniq_id": self.mqtt_helper.svc_unique_id("device_update_interval"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service", "device_update_interval"),
-                    "avty_t": self.mqtt_helper.avty_t("service"),
-                    "json_attr_t": self.mqtt_helper.attr_t("service"),
-                    "cmd_t": self.mqtt_helper.cmd_t("service", "device_update_interval"),
-                    "unit_of_measurement": "s",
-                    "min": 1,
-                    "max": 900,
-                    "step": 1,
-                    "icon": "mdi:timer-refresh",
-                    "device": device_block,
-                }
-            ),
-            qos=self.mqtt_config["qos"],
-            retain=True,
-        )
-        await asyncio.to_thread(
-            self.mqtt_helper.safe_publish,
-            topic=self.mqtt_helper.disc_t("number", "device_rescan_interval"),
-            payload=json.dumps(
-                {
-                    "name": f"{self.service_name} Device Rescan Interval",
-                    "uniq_id": self.mqtt_helper.svc_unique_id("device_rescan_interval"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service", "device_rescan_interval"),
-                    "avty_t": self.mqtt_helper.avty_t("service"),
-                    "json_attr_t": self.mqtt_helper.attr_t("service"),
-                    "cmd_t": self.mqtt_helper.cmd_t("service", "device_rescan_interval"),
-                    "unit_of_measurement": "s",
-                    "min": 1,
-                    "max": 3600,
-                    "step": 1,
-                    "icon": "mdi:format-list-bulleted",
-                    "device": device_block,
-                }
-            ),
-            qos=self.mqtt_config["qos"],
-            retain=True,
-        )
-        await asyncio.to_thread(
-            self.mqtt_helper.safe_publish,
-            topic=self.mqtt_helper.disc_t("number", "snapshot_update_interval"),
-            payload=json.dumps(
-                {
-                    "name": f"{self.service_name} Snapshot Update Interval",
-                    "uniq_id": self.mqtt_helper.svc_unique_id("snapshot_update_interval"),
-                    "stat_t": self.mqtt_helper.stat_t("service", "service", "snapshot_update_interval"),
-                    "avty_t": self.mqtt_helper.avty_t("service"),
-                    "json_attr_t": self.mqtt_helper.attr_t("service"),
-                    "cmd_t": self.mqtt_helper.cmd_t("service", "snapshot_update_interval"),
-                    "unit_of_measurement": "s",
-                    "min": 1,
-                    "max": 3600,
-                    "step": 1,
-                    "icon": "mdi:lightning-bolt",
-                    "device": device_block,
-                }
-            ),
-            qos=self.mqtt_config["qos"],
-            retain=True,
-        )
-        await asyncio.to_thread(
-            self.mqtt_helper.safe_publish,
-            topic=self.mqtt_helper.disc_t("button", "refresh_device_list"),
-            payload=json.dumps(
-                {
-                    "name": f"{self.service_name} Refresh Device List",
-                    "uniq_id": self.mqtt_helper.svc_unique_id("refresh_device_list"),
-                    "avty_t": self.mqtt_helper.avty_t("service"),
-                    "cmd_t": self.mqtt_helper.cmd_t("service", "refresh_device_list", "command"),
-                    "payload_press": "refresh",
-                    "icon": "mdi:refresh",
-                    "device": device_block,
-                }
-            ),
-            qos=self.mqtt_config["qos"],
-            retain=True,
-        )
+        modes["server"] = {
+            "platform": "binary_sensor",
+            "name": self.service_name,
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "server"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "service", "server"),
+            "cmd_t": self.mqtt_helper.cmd_t(device_id),
+            "payload_on": "online",
+            "payload_off": "offline",
+            "icon": "mdi:server",
+        }
+        modes["api_calls"] = {
+            "platform": "sensor",
+            "name": "API calls today",
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "api_calls"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "service", "api_calls"),
+            "unit_of_measurement": "calls",
+            "state_class": "total_increasing",
+            "icon": "mdi:api",
+        }
+        modes["rate_limited"] = {
+            "platform": "binary_sensor",
+            "name": "Rate limited",
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "rate_limited"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "service", "rate_limited"),
+            "payload_on": "YES",
+            "payload_off": "NO",
+            "device_class": "problem",
+            "icon": "mdi:speedometer-slow",
+        }
+        modes["update_interval"] = {
+            "platform": "number",
+            "name": "Update interval",
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "update_interval"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "service", "update_interval"),
+            "unit_of_measurement": "s",
+            "min": 1,
+            "max": 900,
+            "step": 1,
+            "mode": "box",
+            "icon": "mdi:timer-refresh",
+        }
+        modes["rescan_interval"] = {
+            "platform": "number",
+            "name": "Rescan interval",
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "rescan_interval"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "service", "rescan_interval"),
+            "unit_of_measurement": "s",
+            "min": 1,
+            "max": 3600,
+            "step": 1,
+            "mode": "box",
+            "icon": "mdi:format-list_bulleted",
+        }
+        modes["snapshot_interval"] = {
+            "platform": "number",
+            "name": "Snapshot interval",
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "snapshot_interval"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "service", "snapshot_interval"),
+            "unit_of_measurement": "m",
+            "min": 1,
+            "max": 60,
+            "step": 1,
+            "mode": "box",
+            "icon": "mdi:lightning-bolt",
+        }
+
+        for slug, mode in modes.items():
+            component["cmps"][f"{device_id}_{slug}"] = mode
+
+        topic = self.mqtt_helper.disc_t("device", device_id)
+        payload = {k: v for k, v in component.items() if k != "platform"}
+        await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(payload), retain=True)
+        self.upsert_state(device_id, internal={"discovered": True})
+
         self.logger.debug(f"[HA] Discovery published for {self.service} ({self.mqtt_helper.service_slug})")
 
     async def publish_service_availability(self: Blink2Mqtt, status: str = "online") -> None:
@@ -173,11 +113,12 @@ class PublishMixin:
 
     async def publish_service_state(self: Blink2Mqtt) -> None:
         service = {
+            "server": "online",
             "api_calls": self.get_api_calls(),
             "last_api_call": self.get_last_call_date(),
-            "device_update_interval": self.device_interval,
-            "device_rescan_interval": self.device_list_interval,
-            "snapshot_update_interval": self.snapshot_update_interval,
+            "update_interval": self.device_interval,
+            "rescan_interval": self.device_list_interval,
+            "snapshot_interval": self.snapshot_update_interval,
             "rate_limited": "YES" if self.is_rate_limited() else "NO",
         }
 
@@ -193,19 +134,14 @@ class PublishMixin:
     # Devices -------------------------------------------------------------------------------------
 
     async def publish_device_discovery(self: Blink2Mqtt, device_id: str) -> None:
-        async def _publish_one(dev_id: str, defn: dict, suffix: str = "") -> None:
-            eff_device_id = dev_id if not suffix else f"{dev_id}_{suffix}"
-            topic = self.mqtt_helper.disc_t(defn["component_type"], f"{dev_id}_{suffix}" if suffix else dev_id)
-            payload = {k: v for k, v in defn.items() if k != "component_type"}
-            await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(payload), retain=True)
-            self.upsert_state(eff_device_id, internal={"discovered": True})
-
         component = self.get_component(device_id)
-        await _publish_one(device_id, component, suffix="")
+        for slug, mode in self.get_modes(device_id).items():
+            component["cmps"][f"{device_id}_{slug}"] = mode
 
-        modes = self.get_modes(device_id)
-        for slug, mode in modes.items():
-            await _publish_one(device_id, mode, suffix=slug)
+        topic = self.mqtt_helper.disc_t("device", device_id)
+        payload = {k: v for k, v in component.items() if k != "platform"}
+        await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(payload), retain=True)
+        self.upsert_state(device_id, internal={"discovered": True})
 
     async def publish_device_availability(self: Blink2Mqtt, device_id: str, online: bool = True) -> None:
         payload = "online" if online else "offline"
@@ -213,39 +149,27 @@ class PublishMixin:
         avty_t = self.get_device_availability_topic(device_id)
         await asyncio.to_thread(self.mqtt_helper.safe_publish, avty_t, payload, retain=True)
 
-    async def publish_device_state(self: Blink2Mqtt, device_id: str) -> None:
-        async def _publish_one(dev_id: str, defn: str | dict[str, Any], suffix: str = "") -> None:
-            topic = self.get_device_state_topic(dev_id, suffix)
-            if isinstance(defn, dict):
-                flat: dict[str, Any] = {k: v for k, v in defn.items() if k != "component_type"}
-                meta = self.states[dev_id].get("meta")
-                if isinstance(meta, dict) and "last_update" in meta:
-                    flat["last_update"] = meta["last_update"]
-                await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(flat), retain=True)
-            else:
-                await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, defn, retain=True)
-
+    async def publish_device_state(self: Blink2Mqtt, device_id: str, subject: str = "", sub: str = "") -> None:
         if not self.is_discovered(device_id):
             self.logger.debug(f"[device state] Discovery not complete for {device_id} yet, holding off on sending state")
             return
 
-        states = self.states[device_id]
-        await _publish_one(device_id, states[self.get_component_type(device_id)])
-
-        modes = self.get_modes(device_id)
-        for name, mode in modes.items():
-            component_type = mode["component_type"]
-
-            # if no state yet, skip it
-            if component_type not in states or (isinstance(states[component_type], dict) and name not in states[component_type]):
+        for state, value in self.states[device_id].items():
+            if subject and state != subject:
                 continue
-
-            type_states = states[component_type][name] if isinstance(states[component_type], dict) else states[component_type]
-            await _publish_one(device_id, type_states, name)
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    if sub and k != sub:
+                        continue
+                    topic = self.mqtt_helper.stat_t(device_id, state, k)
+                    await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, v, retain=True)
+            else:
+                topic = self.mqtt_helper.stat_t(device_id, state)
+                await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, value, retain=True)
 
     async def publish_device_image(self: Blink2Mqtt, device_id: str, type: str) -> None:
         payload = self.states[device_id][type]
         if payload and isinstance(payload, str):
             self.logger.info(f"Updating {self.get_device_name(device_id)} with latest snapshot")
-            topic = self.get_device_image_topic(device_id)
+            topic = self.mqtt_helper.stat_t(device_id, type)
             await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, payload, retain=True)

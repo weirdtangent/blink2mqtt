@@ -24,6 +24,8 @@ class ConfigError(ValueError):
 
 class HelpersMixin:
     async def build_camera_states(self: Blink2Mqtt, device_id: str, camera: dict[str, str]) -> None:
+        night_vision = await self.get_night_vision(device_id)
+
         self.upsert_state(
             device_id,
             switch={
@@ -33,8 +35,9 @@ class HelpersMixin:
                 "battery_status": camera["battery"],
                 "temperature": camera["temperature"],
                 "wifi_signal": camera["wifi_strength"],
-                "last_event": "",
-                "last_event_time": None,
+            },
+            select={
+                "night_vision": night_vision,
             },
             binary_sensor={
                 "motion": camera["motion"],
@@ -53,12 +56,18 @@ class HelpersMixin:
     async def handle_device_command(self: Blink2Mqtt, device_id: str, handler: str, message: str) -> None:
         match handler:
             case "motion_detection":
-                self.logger.info(f"sending {device_id} motion_detection to {message} command to Blink")
-                await self.publish_device_state(device_id)
+                self.logger.debug(f"sending {device_id} motion_detection to {message} command to Blink")
                 success = await self.set_motion_detection(device_id, message == "ON")
                 if success:
                     self.upsert_state(device_id, switch={"motion_detection": message})
+                    await self.publish_device_state(device_id, "switch", "motion_detection")
+            case "night_vision":
+                self.logger.debug(f"sending {device_id} night_vision to {message} command to Blink")
+                success = await self.set_night_vision(device_id, message)
+                if success:
+                    self.upsert_state(device_id, select={"night_vision": message})
                     await self.publish_device_state(device_id)
+
             case _:
                 self.logger.error(f"Received command for unknown: {handler} with payload {message}")
 
@@ -178,7 +187,7 @@ class HelpersMixin:
             "password":                               blink.get("password")                 or os.getenv("BLINK_PASSWORD") or "",
             "device_interval":          int(cast(str, blink.get("device_update_interval")   or os.getenv("DEVICE_UPDATE_INTERVAL", 30))),
             "device_list_interval":     int(cast(str, blink.get("device_rescan_interval")   or os.getenv("DEVICE_RESCAN_INTERVAL", 3600))),
-            "snapshot_update_interval": int(cast(str, blink.get("snapshot_update_interval") or os.getenv("SNAPSHOT_UPDATE_INTERVAL", 900))),
+            "snapshot_update_interval": int(cast(str, blink.get("snapshot_update_interval") or os.getenv("SNAPSHOT_UPDATE_INTERVAL", 5))),
         }
 
         config = {
@@ -191,6 +200,10 @@ class HelpersMixin:
             "version":     version,
         }
         # fmt: on
+
+        # Migrate snapshot interval to minutes
+        if blink["snapshot_update_interval"] > 60:
+            blink["snapshot_update_interval"] = int(blink["snapshot_update_interval"] / 60)
 
         # Validate required fields
         if not cast(dict, config["blink"]).get("username"):

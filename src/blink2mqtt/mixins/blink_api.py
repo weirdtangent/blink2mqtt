@@ -8,6 +8,7 @@ from blinkpy.auth import Auth, BlinkTwoFARequiredError, UnauthorizedError
 from blinkpy.blinkpy import Blink
 from blinkpy.helpers.util import json_load
 from datetime import datetime
+import inspect
 import json
 import os
 
@@ -176,6 +177,17 @@ class BlinkAPIMixin(object):
 
         return self.blink_sync_modules
 
+    async def handle_blink_response(self: Blink2Mqtt, response: str | dict[str, Any]) -> bool | None:
+        if response and isinstance(response, dict):
+            if response.get("code", 200) == 307:
+                self.logger.warning("Blink busy for device, retrying in 2s...")
+                await asyncio.sleep(2)
+                return None
+            if response.get("state_stage") in {"completed", "rest"}:
+                return True
+        self.logger.warning(f"failed command to blink device, response: {json.dumps(response)}")
+        return False
+
     # Arm mode  -----------------------------------------------------------------------------------
 
     async def set_arm_mode(self: Blink2Mqtt, device_id: str, switch: bool) -> Any | None:
@@ -198,6 +210,46 @@ class BlinkAPIMixin(object):
             self.logger.error(f"[set_arm_mode] Failed for {device_id}: {e}")
             return None
 
+    # Nightvision ---------------------------------------------------------------------------------
+
+    async def get_night_vision(self: Blink2Mqtt, device_id: str) -> str:
+        device = self.blink_cameras[device_id]
+        camera = self.blink.cameras[device["config"]["name"]]
+
+        try:
+            response = await camera.night_vision
+            return response and str(response.get("illuminator_enable", ""))
+            # {'night_vision_control': None, 'illuminator_enable': 'auto', 'illuminator_enable_v2': None}
+        except asyncio.TimeoutError:
+            self.logger.error(f"[get_night_vision] Request time out for {device_id}")
+            return ""
+        except Exception as e:
+            self.logger.error(f"[get_night_vision] Failed for {device_id}: {e}")
+            return ""
+
+    async def set_night_vision(self: Blink2Mqtt, device_id: str, switch: str) -> bool | None:
+        max_retries = 5
+        base_delay = 2
+        device = self.blink_cameras[device_id]
+        camera = self.blink.cameras[device["config"]["name"]]
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                blink_response = await camera.async_set_night_vision(switch)
+                result = await self.handle_blink_response(blink_response)
+                if result is None:
+                    continue
+                return result
+            except Exception as e:
+                self.logger.error(
+                    f"[set_night_vision] Exception on attempt {attempt} for {device_id}: {e}",
+                    exc_info=True,
+                )
+                await asyncio.sleep(base_delay * attempt)
+
+        self.logger.error(f"[set_night_vision] Failed for {device_id} after {max_retries} retries")
+        return None
+
     # Motion --------------------------------------------------------------------------------------
 
     def get_camera_motion(self: Blink2Mqtt, device_id: str) -> Any | None:
@@ -213,36 +265,28 @@ class BlinkAPIMixin(object):
 
     async def set_motion_detection(self: Blink2Mqtt, device_id: str, switch: bool) -> bool | None:
         max_retries = 5
-        base_delay = 2
-        response: dict[str, Any]
 
         for attempt in range(1, max_retries + 1):
             try:
                 if device_id in self.blink_cameras:
-                    dev = self.blink_cameras[device_id]
-                    cam = self.blink.cameras[dev["config"]["name"]]
-                    response = await cam.async_arm(switch)
-
-                    if response and response.get("code") == 307:
-                        wait = base_delay * attempt
-                        self.logger.warning(f"Blink busy for camera {dev['config']['name']}, retrying in {wait}s...")
-                        await asyncio.sleep(wait)
+                    device = self.blink_cameras[device_id]
+                    camera = self.blink.cameras[device["config"]["name"]]
+                    self.logger.info(f"calling async_arm({switch}) to camera {device_id}: {inspect.iscoroutinefunction(camera.async_arm)}")
+                    blink_response = await camera.async_arm(switch)
+                    result = await self.handle_blink_response(blink_response)
+                    if result is None:
                         continue
-
-                    return response.get("state_stage") in {"completed", "rest"}
+                    return result
 
                 elif device_id in self.blink_sync_modules:
-                    sync = self.blink_sync_modules[device_id]
-                    sync_obj = self.blink.sync[sync["device_name"]]
-                    response = await sync_obj.async_arm(switch)
-
-                    if response and response.get("code") == 307:
-                        wait = base_delay * attempt
-                        self.logger.warning(f"Blink busy for sync {sync['device_name']}, retrying in {wait}s...")
-                        await asyncio.sleep(wait)
+                    device = self.blink_sync_modules[device_id]
+                    sync_module = self.blink.sync[device["device_name"]]
+                    self.logger.info(f"calling async_arm({switch}) to sync_module {device_id}: {inspect.iscoroutinefunction(camera.async_arm)}")
+                    blink_response = await sync_module.async_arm(switch)
+                    result = await self.handle_blink_response(blink_response)
+                    if result is None:
                         continue
-
-                    return response.get("state_stage") in {"completed", "rest"}
+                    return result
 
                 else:
                     self.logger.error(f"[set_motion] Unknown device id: {device_id}")
@@ -250,10 +294,10 @@ class BlinkAPIMixin(object):
 
             except Exception as e:
                 self.logger.error(
-                    f"[set_motion] Exception on attempt {attempt} for {device_id}: {e}",
+                    f"[set_motion_detection] Exception on attempt {attempt} for {device_id}: {e}",
                     exc_info=True,
                 )
-                await asyncio.sleep(base_delay * attempt)
+                await asyncio.sleep(2 * attempt)
 
         self.logger.error(f"[set_motion] Failed for {device_id} after {max_retries} retries")
         return None

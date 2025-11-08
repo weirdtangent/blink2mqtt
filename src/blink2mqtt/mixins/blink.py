@@ -79,39 +79,39 @@ class BlinkMixin:
         modes = {}
 
         component = {
-            "component_type": "switch",
-            "name": f"{sync_module["device_name"]} Armed",
+            "platform": "mqtt",
+            "stat_t": self.mqtt_helper.stat_t(device_id, "state"),
+            "cmd_t": self.mqtt_helper.cmd_t(device_id, "switch", "armed"),
+            "avty_t": self.mqtt_helper.avty_t(device_id),
+            "device": self.mqtt_helper.device_block(
+                sync_module["device_name"],
+                self.mqtt_helper.device_slug(device_id),
+                sync_module["vendor"],
+                sync_module["software_version"],
+            ),
+            "origin": {"name": self.service_name, "sw": self.config["version"], "support_url": "https://github.com/weirdTangent/blink2mqtt"},
+            "qos": self.qos,
+            "cmps": {},
+        }
+
+        modes["armed"] = {
+            "platform": "switch",
+            "name": "Armed",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "armed"),
             "stat_t": self.mqtt_helper.stat_t(device_id, "switch", "armed"),
             "cmd_t": self.mqtt_helper.cmd_t(device_id, "switch", "armed"),
-            "avty_t": self.mqtt_helper.avty_t(device_id),
             "icon": "mdi:alarm-light",
-            "via_device": self.mqtt_helper.service_slug,
-            "device": self.mqtt_helper.device_block(
-                sync_module["device_name"],
-                self.mqtt_helper.device_slug(device_id),
-                sync_module["vendor"],
-                sync_module["software_version"],
-            ),
         }
 
         modes["local_storage"] = {
-            "component_type": "sensor",
+            "platform": "sensor",
             "name": "Local storage",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "local_storage"),
             "stat_t": self.mqtt_helper.stat_t(device_id, "switch", "local_storage"),
-            "avty_t": self.mqtt_helper.avty_t(device_id),
             "icon": "mdi:usb-flash-drive",
-            "via_device": self.mqtt_helper.service_slug,
-            "device": self.mqtt_helper.device_block(
-                sync_module["device_name"],
-                self.mqtt_helper.device_slug(device_id),
-                sync_module["vendor"],
-                sync_module["software_version"],
-            ),
         }
 
-        self.upsert_state(device_id, internal={"raw_id": device_id})
+        self.upsert_state(device_id, internal={"raw_id": device_id}, mqtt={}, state={})
         self.upsert_device(device_id, component=component, modes=modes)
         await self.build_sync_module_states(device_id, sync_module)
 
@@ -129,173 +129,121 @@ class BlinkMixin:
         device_id = raw_id
 
         component = {
-            "component_type": "camera",
+            "platform": "mqtt",
+            "stat_t": self.mqtt_helper.stat_t(device_id, ""),
+            "avty_t": self.mqtt_helper.avty_t(device_id),
+            "device": self.mqtt_helper.device_block(
+                camera["device_name"],
+                self.mqtt_helper.device_slug(device_id),
+                camera["vendor"],
+                camera["software_version"],
+            ),
+            "origin": {"name": self.service_name, "sw": self.config["version"], "support_url": "https://github.com/weirdTangent/blink2mqtt"},
+            "qos": self.qos,
+            "cmps": {},
+        }
+        modes = {}
+
+        modes["snapshot"] = {
+            "platform": "camera",
             "name": "Snapshot",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "snapshot"),
             "topic": self.mqtt_helper.stat_t(device_id, "snapshot"),
-            "avty_t": self.mqtt_helper.avty_t(device_id),
             "image_encoding": "b64",
             "icon": "mdi:camera",
-            "via_device": self.mqtt_helper.service_slug,
-            "device": self.mqtt_helper.device_block(
-                camera["device_name"],
-                self.mqtt_helper.device_slug(device_id),
-                camera["software_version"],
-                camera["vendor"],
-            ),
         }
-        self.upsert_state(device_id, internal={"raw_id": raw_id}, camera="online", snapshot=None)
-        modes = {}
 
         modes["eventshot"] = {
-            "component_type": "camera",
+            "platform": "camera",
             "name": "Event Snapshot",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "eventshot"),
             "topic": self.mqtt_helper.stat_t(device_id, "eventshot"),
-            "avty_t": self.mqtt_helper.avty_t(device_id),
             "image_encoding": "b64",
             "icon": "mdi:camera",
-            "via_device": self.mqtt_helper.service_slug,
-            "device": self.mqtt_helper.device_block(
-                camera["device_name"],
-                self.mqtt_helper.device_slug(device_id),
-                camera["software_version"],
-                camera["vendor"],
-            ),
         }
 
         modes["motion"] = {
-            "component_type": "binary_sensor",
+            "platform": "binary_sensor",
             "name": "Motion",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "motion"),
             "stat_t": self.mqtt_helper.stat_t(device_id, "binary_sensor", "motion"),
-            "avty_t": self.mqtt_helper.avty_t(device_id),
             "pl_on": True,
             "pl_off": False,
             "icon": "mdi:motion-sensor-alert",
-            "via_device": self.mqtt_helper.service_slug,
-            "device": self.mqtt_helper.device_block(
-                camera["device_name"],
-                self.mqtt_helper.device_slug(device_id),
-                camera["software_version"],
-                camera["vendor"],
-            ),
         }
 
         modes["motion_detection"] = {
-            "component_type": "switch",
+            "platform": "switch",
             "name": "Motion Detection",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "motion_detection"),
             "stat_t": self.mqtt_helper.stat_t(device_id, "switch", "motion_detection"),
             "cmd_t": self.mqtt_helper.cmd_t(device_id, "switch", "motion_detection"),
-            "avty_t": self.mqtt_helper.avty_t(device_id),
             "pl_on": "ON",
             "pl_off": "OFF",
             "icon": "mdi:motion-sensor",
-            "via_device": self.mqtt_helper.service_slug,
-            "device": self.mqtt_helper.device_block(
-                camera["device_name"],
-                self.mqtt_helper.device_slug(device_id),
-                camera["software_version"],
-                camera["vendor"],
-            ),
+        }
+
+        modes["night_vision"] = {
+            "platform": "select",
+            "name": "Night Vision",
+            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "night_vision"),
+            "stat_t": self.mqtt_helper.stat_t(device_id, "switch", "night_vision"),
+            "cmd_t": self.mqtt_helper.cmd_t(device_id, "switch", "night_vision"),
+            "options": ["auto", "on", "off"],
+            "icon": "mdi:light-flood-down",
         }
 
         modes["temperature"] = {
-            "component_type": "sensor",
+            "platform": "sensor",
             "name": "Temperature",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "temperature"),
             "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "temperature"),
-            "avty_t": self.mqtt_helper.avty_t(device_id),
             "device_class": "temperature",
             "state_class": "measurement",
             "unit_of_measurement": "°F",
             "icon": "mdi:thermometer",
             "entity_category": "diagnostic",
-            "via_device": self.mqtt_helper.service_slug,
-            "device": self.mqtt_helper.device_block(
-                camera["device_name"],
-                self.mqtt_helper.device_slug(device_id),
-                camera["software_version"],
-                camera["vendor"],
-            ),
         }
 
         modes["battery_status"] = {
-            "component_type": "sensor",
+            "platform": "sensor",
             "name": "Battery Status",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "battery_status"),
             "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "battery_status"),
-            "avty_t": self.mqtt_helper.avty_t(device_id),
             "entity_category": "diagnostic",
             "icon": "mdi:battery-alert",
-            "via_device": self.mqtt_helper.service_slug,
-            "device": self.mqtt_helper.device_block(
-                camera["device_name"],
-                self.mqtt_helper.device_slug(device_id),
-                camera["software_version"],
-                camera["vendor"],
-            ),
         }
 
         modes["wifi_signal"] = {
-            "component_type": "sensor",
+            "platform": "sensor",
             "name": "Wifi Signal",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "wifi_signal"),
             "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "wifi_signal"),
-            "avty_t": self.mqtt_helper.avty_t(device_id),
             "device_class": "signal_strength",
             "unit_of_measurement": "dBm",
             "icon": "mdi:wifi",
             "entity_category": "diagnostic",
-            "via_device": self.mqtt_helper.service_slug,
-            "device": self.mqtt_helper.device_block(
-                camera["device_name"],
-                self.mqtt_helper.device_slug(device_id),
-                camera["software_version"],
-                camera["vendor"],
-            ),
         }
 
         modes["last_event"] = {
-            "component_type": "sensor",
+            "platform": "sensor",
             "name": "Last Event",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "last_event"),
             "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "last_event"),
-            "avty_t": self.mqtt_helper.avty_t(device_id),
             "icon": "mdi:message-text-outline",
-            "via_device": self.mqtt_helper.service_slug,
-            "device": self.mqtt_helper.device_block(
-                camera["device_name"],
-                self.mqtt_helper.device_slug(device_id),
-                camera["software_version"],
-                camera["vendor"],
-            ),
         }
 
         modes["last_event_time"] = {
-            "component_type": "sensor",
+            "platform": "sensor",
             "name": "Last Event Time",
             "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "last_event_time"),
             "stat_t": self.mqtt_helper.stat_t(device_id, "sensor", "last_event_time"),
-            "avty_t": self.mqtt_helper.avty_t(device_id),
             "device_class": "timestamp",
             "icon": "mdi:clock-outline",
-            "via_device": self.mqtt_helper.service_slug,
-            "device": self.mqtt_helper.device_block(
-                camera["device_name"],
-                self.mqtt_helper.device_slug(device_id),
-                camera["software_version"],
-                camera["vendor"],
-            ),
         }
 
-        # [INFO] blink_mqtt.mixins.base: Checking blink_device: {"name": "Great Room", "device_name": "Great Room", "device_type": "catalina",
-        #                                                        "serial_number": "G8T1GH0121330NSG", "software_version": "10.71", "vendor": "Amazon",
-        #                                                        "sync_module": "2nd Floor", "arm_mode": false, "motion": false, "temperature": 73,
-        #                                                        "battery": "ok", "battery_voltage": 169, "wifi_strength": -46, "sync_strength": null}
-
         self.upsert_device(device_id, component=component, modes=modes)
+        self.upsert_state(device_id, internal={"raw_id": raw_id})
         await self.build_camera_states(device_id, camera)
 
         if not self.is_discovered(device_id):

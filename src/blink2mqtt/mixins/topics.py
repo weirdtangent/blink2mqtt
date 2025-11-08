@@ -16,8 +16,8 @@ class TopicsMixin:
     def get_component(self: Blink2Mqtt, device_id: str) -> dict[str, Any]:
         return cast(dict[str, Any], self.devices[device_id]["component"])
 
-    def get_component_type(self: Blink2Mqtt, device_id: str) -> str:
-        return cast(str, self.devices[device_id]["component"].get("component_type", "unknown"))
+    def get_platform(self: Blink2Mqtt, device_id: str) -> str:
+        return cast(str, self.devices[device_id]["component"].get("platform", "unknown"))
 
     def get_modes(self: Blink2Mqtt, device_id: str) -> dict[str, Any]:
         return cast(dict[str, Any], self.devices[device_id]["modes"])
@@ -31,7 +31,7 @@ class TopicsMixin:
     def get_device_state_topic(self: Blink2Mqtt, device_id: str, mode_name: str = "") -> str:
         component = self.get_mode(device_id, mode_name) if mode_name else self.get_component(device_id)
 
-        match component["component_type"]:
+        match component["platform"]:
             case "camera":
                 return cast(str, component["topic"])
             case "image":
