@@ -78,7 +78,7 @@ jobs:
 
       - name: Run semantic-release
         id: semrel
-        uses: cycjimmy/semantic-release-action@v4
+        uses: cycjimmy/semantic-release-action@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
