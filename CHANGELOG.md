@@ -1,3 +1,10 @@
+# [2.2.0](https://github.com/weirdtangent/blink2mqtt/compare/v2.1.0...v2.2.0) (2025-11-08)
+
+
+### Features
+
+* **mqtt:** migrate Blink devices and service discovery to new 2024 “device” schema ([b72d25e](https://github.com/weirdtangent/blink2mqtt/commit/b72d25e8f9994172906627fc72114ecf745c1458))
+
 # [2.1.0](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.8...v2.1.0) (2025-11-08)
 
 
