@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
+import asyncio
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -11,7 +12,7 @@ class PublishMixin:
 
     # Service -------------------------------------------------------------------------------------
 
-    def publish_service_discovery(self: Blink2Mqtt) -> None:
+    async def publish_service_discovery(self: Blink2Mqtt) -> None:
         device_block = self.mqtt_helper.device_block(
             self.service_name,
             self.mqtt_helper.service_slug,
@@ -19,7 +20,8 @@ class PublishMixin:
             self.config["version"],
         )
 
-        self.mqtt_helper.safe_publish(
+        await asyncio.to_thread(
+            self.mqtt_helper.safe_publish,
             topic=self.mqtt_helper.disc_t("binary_sensor", "service"),
             payload=json.dumps(
                 {
@@ -43,7 +45,8 @@ class PublishMixin:
             retain=True,
         )
 
-        self.mqtt_helper.safe_publish(
+        await asyncio.to_thread(
+            self.mqtt_helper.safe_publish,
             topic=self.mqtt_helper.disc_t("sensor", "api_calls"),
             payload=json.dumps(
                 {
@@ -60,7 +63,8 @@ class PublishMixin:
             qos=self.mqtt_config["qos"],
             retain=True,
         )
-        self.mqtt_helper.safe_publish(
+        await asyncio.to_thread(
+            self.mqtt_helper.safe_publish,
             topic=self.mqtt_helper.disc_t("binary_sensor", "rate_limited"),
             payload=json.dumps(
                 {
@@ -79,7 +83,8 @@ class PublishMixin:
             qos=self.mqtt_config["qos"],
             retain=True,
         )
-        self.mqtt_helper.safe_publish(
+        await asyncio.to_thread(
+            self.mqtt_helper.safe_publish,
             topic=self.mqtt_helper.disc_t("number", "device_update_interval"),
             payload=json.dumps(
                 {
@@ -100,7 +105,8 @@ class PublishMixin:
             qos=self.mqtt_config["qos"],
             retain=True,
         )
-        self.mqtt_helper.safe_publish(
+        await asyncio.to_thread(
+            self.mqtt_helper.safe_publish,
             topic=self.mqtt_helper.disc_t("number", "device_rescan_interval"),
             payload=json.dumps(
                 {
@@ -121,7 +127,8 @@ class PublishMixin:
             qos=self.mqtt_config["qos"],
             retain=True,
         )
-        self.mqtt_helper.safe_publish(
+        await asyncio.to_thread(
+            self.mqtt_helper.safe_publish,
             topic=self.mqtt_helper.disc_t("number", "snapshot_update_interval"),
             payload=json.dumps(
                 {
@@ -142,7 +149,8 @@ class PublishMixin:
             qos=self.mqtt_config["qos"],
             retain=True,
         )
-        self.mqtt_helper.safe_publish(
+        await asyncio.to_thread(
+            self.mqtt_helper.safe_publish,
             topic=self.mqtt_helper.disc_t("button", "refresh_device_list"),
             payload=json.dumps(
                 {
@@ -160,10 +168,10 @@ class PublishMixin:
         )
         self.logger.debug(f"[HA] Discovery published for {self.service} ({self.mqtt_helper.service_slug})")
 
-    def publish_service_availability(self: Blink2Mqtt, status: str = "online") -> None:
-        self.mqtt_helper.safe_publish(self.mqtt_helper.avty_t("service"), status, qos=self.qos, retain=True)
+    async def publish_service_availability(self: Blink2Mqtt, status: str = "online") -> None:
+        await asyncio.to_thread(self.mqtt_helper.safe_publish, self.mqtt_helper.avty_t("service"), status, qos=self.qos, retain=True)
 
-    def publish_service_state(self: Blink2Mqtt) -> None:
+    async def publish_service_state(self: Blink2Mqtt) -> None:
         service = {
             "api_calls": self.get_api_calls(),
             "last_api_call": self.get_last_call_date(),
@@ -174,7 +182,8 @@ class PublishMixin:
         }
 
         for key, value in service.items():
-            self.mqtt_helper.safe_publish(
+            await asyncio.to_thread(
+                self.mqtt_helper.safe_publish,
                 self.mqtt_helper.stat_t("service", "service", key),
                 json.dumps(value) if isinstance(value, dict) else str(value),
                 qos=self.mqtt_config["qos"],
@@ -183,45 +192,45 @@ class PublishMixin:
 
     # Devices -------------------------------------------------------------------------------------
 
-    def publish_device_discovery(self: Blink2Mqtt, device_id: str) -> None:
-        def _publish_one(dev_id: str, defn: dict, suffix: str = "") -> None:
+    async def publish_device_discovery(self: Blink2Mqtt, device_id: str) -> None:
+        async def _publish_one(dev_id: str, defn: dict, suffix: str = "") -> None:
             eff_device_id = dev_id if not suffix else f"{dev_id}_{suffix}"
             topic = self.mqtt_helper.disc_t(defn["component_type"], f"{dev_id}_{suffix}" if suffix else dev_id)
             payload = {k: v for k, v in defn.items() if k != "component_type"}
-            self.mqtt_helper.safe_publish(topic, json.dumps(payload), retain=True)
+            await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(payload), retain=True)
             self.upsert_state(eff_device_id, internal={"discovered": True})
 
         component = self.get_component(device_id)
-        _publish_one(device_id, component, suffix="")
+        await _publish_one(device_id, component, suffix="")
 
         modes = self.get_modes(device_id)
         for slug, mode in modes.items():
-            _publish_one(device_id, mode, suffix=slug)
+            await _publish_one(device_id, mode, suffix=slug)
 
-    def publish_device_availability(self: Blink2Mqtt, device_id: str, online: bool = True) -> None:
+    async def publish_device_availability(self: Blink2Mqtt, device_id: str, online: bool = True) -> None:
         payload = "online" if online else "offline"
 
         avty_t = self.get_device_availability_topic(device_id)
-        self.mqtt_helper.safe_publish(avty_t, payload, retain=True)
+        await asyncio.to_thread(self.mqtt_helper.safe_publish, avty_t, payload, retain=True)
 
-    def publish_device_state(self: Blink2Mqtt, device_id: str) -> None:
-        def _publish_one(dev_id: str, defn: str | dict[str, Any], suffix: str = "") -> None:
+    async def publish_device_state(self: Blink2Mqtt, device_id: str) -> None:
+        async def _publish_one(dev_id: str, defn: str | dict[str, Any], suffix: str = "") -> None:
             topic = self.get_device_state_topic(dev_id, suffix)
             if isinstance(defn, dict):
                 flat: dict[str, Any] = {k: v for k, v in defn.items() if k != "component_type"}
                 meta = self.states[dev_id].get("meta")
                 if isinstance(meta, dict) and "last_update" in meta:
                     flat["last_update"] = meta["last_update"]
-                self.mqtt_helper.safe_publish(topic, json.dumps(flat), retain=True)
+                await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(flat), retain=True)
             else:
-                self.mqtt_helper.safe_publish(topic, defn, retain=True)
+                await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, defn, retain=True)
 
         if not self.is_discovered(device_id):
             self.logger.debug(f"[device state] Discovery not complete for {device_id} yet, holding off on sending state")
             return
 
         states = self.states[device_id]
-        _publish_one(device_id, states[self.get_component_type(device_id)])
+        await _publish_one(device_id, states[self.get_component_type(device_id)])
 
         modes = self.get_modes(device_id)
         for name, mode in modes.items():
@@ -232,11 +241,11 @@ class PublishMixin:
                 continue
 
             type_states = states[component_type][name] if isinstance(states[component_type], dict) else states[component_type]
-            _publish_one(device_id, type_states, name)
+            await _publish_one(device_id, type_states, name)
 
-    def publish_device_image(self: Blink2Mqtt, device_id: str, type: str) -> None:
+    async def publish_device_image(self: Blink2Mqtt, device_id: str, type: str) -> None:
         payload = self.states[device_id][type]
         if payload and isinstance(payload, str):
             self.logger.info(f"Updating {self.get_device_name(device_id)} with latest snapshot")
             topic = self.get_device_image_topic(device_id)
-            self.mqtt_helper.safe_publish(topic, payload, retain=True)
+            await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, payload, retain=True)

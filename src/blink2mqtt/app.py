@@ -4,7 +4,6 @@
 # permission notice in all copies or substantial portions of the software.
 #
 # The software is provided 'as is', without any warranty.
-
 import asyncio
 import argparse
 from json_logging import setup_logging, get_logger
@@ -23,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def main() -> int:
+async def async_main() -> int:
     setup_logging()
     logger = get_logger(__name__)
 
@@ -31,21 +30,13 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
-        with Blink2Mqtt(args=args) as blink2mqtt:
-            try:
-                asyncio.run(blink2mqtt.main_loop())
-            except RuntimeError as e:
-                if "asyncio.run() cannot be called from a running event loop" in str(e):
-                    # Nested event loop (common in tests or Jupyter) — fall back gracefully
-                    loop = asyncio.get_event_loop()
-                    loop.run_until_complete(blink2mqtt.main_loop())
-                else:
-                    raise
-    except ConfigError as e:
-        logger.error(f"Fatal config error was found: {e}")
+        async with Blink2Mqtt(args=args) as blink2mqtt:
+            await blink2mqtt.main_loop()
+    except ConfigError as err:
+        logger.error(f"Fatal config error was found: {err}")
         return 1
-    except MqttError as e:
-        logger.error(f"MQTT service problems: {e}")
+    except MqttError as err:
+        logger.error(f"MQTT service problems: {err}")
         return 1
     except KeyboardInterrupt:
         logger.warning("Shutdown requested (Ctrl+C). Exiting gracefully...")
@@ -53,9 +44,21 @@ def main() -> int:
     except asyncio.CancelledError:
         logger.warning("Main loop cancelled.")
         return 1
-    except Exception as e:
-        logger.error(f"unhandled exception: {e}", exc_info=True)
+    except Exception as err:
+        logger.error(f"Unhandled exception: {err}", exc_info=True)
         return 1
     finally:
-        logger.info("blink2mqtt stopped.")
+        logger.info("amcrest2mqtt stopped.")
+
     return 0
+
+
+def main() -> int:
+    try:
+        return asyncio.run(async_main())
+    except RuntimeError as err:
+        # Fallback for nested loops (Jupyter, tests, etc.)
+        if "asyncio.run() cannot be called from a running event loop" in str(err):
+            loop = asyncio.get_event_loop()
+            return loop.run_until_complete(async_main())
+        raise

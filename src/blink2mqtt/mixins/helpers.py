@@ -23,7 +23,7 @@ class ConfigError(ValueError):
 
 
 class HelpersMixin:
-    def build_camera_states(self: Blink2Mqtt, device_id: str, camera: dict[str, str]) -> None:
+    async def build_camera_states(self: Blink2Mqtt, device_id: str, camera: dict[str, str]) -> None:
         self.upsert_state(
             device_id,
             switch={
@@ -41,7 +41,7 @@ class HelpersMixin:
             },
         )
 
-    def build_sync_module_states(self: Blink2Mqtt, device_id: str, sync_module: dict[str, str]) -> None:
+    async def build_sync_module_states(self: Blink2Mqtt, device_id: str, sync_module: dict[str, str]) -> None:
         self.upsert_state(
             device_id,
             switch={"armed": "ON" if sync_module["arm_mode"] else "OFF"},
@@ -53,19 +53,16 @@ class HelpersMixin:
     async def handle_device_command(self: Blink2Mqtt, device_id: str, handler: str, message: str) -> None:
         match handler:
             case "motion_detection":
-                was = self.states[device_id]["sensor"][handler]
-                self.upsert_state(device_id, switch={"motion_detection": message})
                 self.logger.info(f"sending {device_id} motion_detection to {message} command to Blink")
-                self.publish_device_state(device_id)
+                await self.publish_device_state(device_id)
                 success = await self.set_motion_detection(device_id, message == "ON")
-                if not success:
-                    self.logger.error(f"setting {device_id} motion_detection to {message} failed")
-                    self.upsert_state(device_id, switch={"motion_detection": was})
-                    self.publish_device_state(device_id)
+                if success:
+                    self.upsert_state(device_id, switch={"motion_detection": message})
+                    await self.publish_device_state(device_id)
             case _:
                 self.logger.error(f"Received command for unknown: {handler} with payload {message}")
 
-    def handle_service_command(self: Blink2Mqtt, handler: str, message: str) -> None:
+    async def handle_service_command(self: Blink2Mqtt, handler: str, message: str) -> None:
         match handler:
             case "device_update_interval":
                 self.device_interval = int(message)
@@ -78,23 +75,21 @@ class HelpersMixin:
                 self.logger.debug(f"snapshot_update_interval updated to be {message}")
             case "refresh_device_list":
                 if message == "refresh":
-                    self.rediscover_all()
+                    await self.rediscover_all()
                 else:
                     self.logger.error("[handler] unknown [message]")
                     return
             case _:
                 self.logger.error(f"Unrecognized message to {handler} -> {message}")
                 return
-        self.publish_service_state()
+        await self.publish_service_state()
 
-    def rediscover_all(self: Blink2Mqtt) -> None:
-        self.publish_service_state()
-        self.publish_service_discovery()
+    async def rediscover_all(self: Blink2Mqtt) -> None:
+        await self.publish_service_state()
+        await self.publish_service_discovery()
         for device_id in self.devices:
-            if device_id == "service":
-                continue
-            self.publish_device_state(device_id)
-            self.publish_device_discovery(device_id)
+            await self.publish_device_state(device_id)
+            await self.publish_device_discovery(device_id)
 
     # utilities -----------------------------------------------------------------------------------
 
@@ -124,6 +119,10 @@ class HelpersMixin:
 
     def load_config(self: Blink2Mqtt, config_arg: Any | None = None) -> dict[str, Any]:
         version = os.getenv("BLINK2MQTT_VERSION", self.read_file("VERSION"))
+        tier = os.getenv("AMCREST2MQTT_TIER", "prod")
+        if tier == "dev":
+            version += ":DEV"
+
         config_from = "env"
         config: dict[str, str | bool | int | dict] = {}
 

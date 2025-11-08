@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
 import asyncio
+import concurrent.futures
 from datetime import datetime, timedelta
 import json
 import paho.mqtt.client as mqtt
@@ -11,10 +12,12 @@ from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.reasoncodes import ReasonCode
 from paho.mqtt.enums import CallbackAPIVersion
 import ssl
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, TypeVar
 
 if TYPE_CHECKING:
     from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
+
+_T = TypeVar("_T")
 
 
 class MqttError(ValueError):
@@ -24,7 +27,7 @@ class MqttError(ValueError):
 
 
 class MqttMixin:
-    def mqttc_create(self: Blink2Mqtt) -> None:
+    async def mqttc_create(self: Blink2Mqtt) -> None:
         self.mqttc = mqtt.Client(
             client_id=self.client_id,
             callback_api_version=CallbackAPIVersion.VERSION2,
@@ -46,11 +49,11 @@ class MqttMixin:
                 password=self.mqtt_config.get("password") or None,
             )
 
-        self.mqttc.on_connect = self.mqtt_on_connect
-        self.mqttc.on_disconnect = self.mqtt_on_disconnect
-        self.mqttc.on_message = self.mqtt_on_message
-        self.mqttc.on_subscribe = self.mqtt_on_subscribe
-        self.mqttc.on_log = self.mqtt_on_log
+        self.mqttc.on_connect = self._wrap_async(self.mqtt_on_connect)
+        self.mqttc.on_disconnect = self._wrap_async(self.mqtt_on_disconnect)
+        self.mqttc.on_message = self._wrap_async(self.mqtt_on_message)
+        self.mqttc.on_subscribe = self._wrap_async(self.mqtt_on_subscribe)
+        self.mqttc.on_log = self._wrap_async(self.mqtt_on_log)
 
         # Define a "last will" message (LWT):
         self.mqttc.will_set(self.mqtt_helper.avty_t("service"), "offline", qos=1, retain=True)
@@ -77,7 +80,16 @@ class MqttMixin:
             self.running = False
             raise SystemExit(1)
 
-    def mqtt_on_connect(
+    def _wrap_async(
+        self: Blink2Mqtt,
+        coro_func: Callable[..., Coroutine[Any, Any, _T]],
+    ) -> Callable[..., None]:
+        def wrapper(*args: Any, **kwargs: Any) -> None:
+            self.loop.call_soon_threadsafe(lambda: asyncio.create_task(coro_func(*args, **kwargs)))
+
+        return wrapper
+
+    async def mqtt_on_connect(
         self: Blink2Mqtt, client: Client, userdata: dict[str, Any], flags: ConnectFlags, reason_code: ReasonCode, properties: Properties | None
     ) -> None:
         if reason_code.value != 0:
@@ -86,17 +98,17 @@ class MqttMixin:
         # send our helper the client
         self.mqtt_helper.set_client(self.mqttc)
 
-        self.publish_service_discovery()
-        self.publish_service_availability()
-        self.publish_service_state()
+        await self.publish_service_discovery()
+        await self.publish_service_availability()
+        await self.publish_service_state()
 
         self.logger.info("Subscribing to topics on MQTT")
         client.subscribe("homeassistant/status")
         client.subscribe(f"{self.mqtt_helper.service_slug}/service/+/set")
         client.subscribe(f"{self.mqtt_helper.service_slug}/service/+/command")
-        client.subscribe(f"{self.mqtt_helper.service_slug}/switch/#")
+        client.subscribe(f"{self.mqtt_helper.service_slug}/+/switch/+/set")
 
-    def mqtt_on_disconnect(
+    async def mqtt_on_disconnect(
         self: Blink2Mqtt, client: Client, userdata: Any, flags: DisconnectFlags, reason_code: ReasonCode, properties: Properties | None
     ) -> None:
         # clear the client on our helper
@@ -110,58 +122,47 @@ class MqttMixin:
         if self.running and (self.mqtt_connect_time is None or datetime.now() > self.mqtt_connect_time + timedelta(seconds=10)):
             # lets use a new client_id for a reconnect attempt
             self.client_id = self.mqtt_helper.client_id()
-            self.mqttc_create()
+            await self.mqttc_create()
         else:
             self.logger.info("MQTT disconnect — stopping service loop")
             self.running = False
 
-    def mqtt_on_log(self: Blink2Mqtt, client: Client, userdata: Any, paho_log_level: int, msg: str) -> None:
+    async def mqtt_on_log(self: Blink2Mqtt, client: Client, userdata: Any, paho_log_level: int, msg: str) -> None:
         if paho_log_level == LogLevel.MQTT_LOG_ERR:
             self.logger.error(f"MQTT logged: {msg}")
         if paho_log_level == LogLevel.MQTT_LOG_WARNING:
             self.logger.warning(f"MQTT logged: {msg}")
 
-    def mqtt_on_message(self: Blink2Mqtt, client: Client, userdata: Any, msg: MQTTMessage) -> None:
+    async def mqtt_on_message(self: Blink2Mqtt, client: Client, userdata: Any, msg: MQTTMessage) -> None:
         topic = msg.topic
-        payload = self._decode_payload(msg.payload)
         components = topic.split("/")
 
-        if not topic or not payload:
-            self.logger.error(f"Got invalid message on topic: {topic or "undef"} with {payload or "undef"}")
-            return
+        try:
+            payload = json.loads(msg.payload)
+        except (json.JSONDecodeError, UnicodeDecodeError, TypeError, ValueError):
+            try:
+                payload = msg.payload.decode("utf-8")
+            except Exception:
+                self.logger.warning("failed to decode MQTT payload: {err}")
+                return None
 
-        self.logger.debug(f"Got message on topic: {topic} with {payload}")
-
-        # Dispatch based on type of message
         if components[0] == self.mqtt_config["discovery_prefix"] and payload:
-            return self._handle_homeassistant_message(payload)
+            return await self.handle_homeassistant_message(payload)
 
         if components[0] == self.mqtt_helper.service_slug and components[1] == "service" and payload:
-            return self.handle_service_command(components[2], payload)
+            return await self.handle_service_command(components[2], payload)
 
         if components[0] == self.mqtt_helper.service_slug:
-            return self._handle_device_topic(components, payload)
+            return await self.handle_device_topic(components, payload)
 
         self.logger.debug(f"Ignoring unrelated MQTT topic: {topic}")
 
-    def _decode_payload(self: Blink2Mqtt, raw: bytes) -> Any:
-        """Try to decode MQTT payload as JSON, fallback to UTF-8 string, else None."""
-        try:
-            return json.loads(raw)
-        except (json.JSONDecodeError, UnicodeDecodeError, TypeError, ValueError):
-            # Fallback: try to decode as UTF-8 string
-            try:
-                return raw.decode("utf-8")
-            except Exception:
-                self.logger.warning("Failed to decode MQTT payload")
-                return None
-
-    def _handle_homeassistant_message(self: Blink2Mqtt, payload: str) -> None:
+    async def handle_homeassistant_message(self: Blink2Mqtt, payload: str) -> None:
         if payload == "online":
-            self.rediscover_all()
+            await self.rediscover_all()
             self.logger.info("Home Assistant came online — rediscovering devices")
 
-    def _handle_device_topic(self: Blink2Mqtt, components: list[str], payload: str) -> None:
+    async def handle_device_topic(self: Blink2Mqtt, components: list[str], payload: str) -> None:
         parsed = self._parse_device_topic(components)
         if not parsed:
             return
@@ -178,7 +179,7 @@ class MqttMixin:
             return
 
         self.logger.info(f"Got message for {self.get_device_name(device_id)}: set {components[-2]} to {payload}")
-        asyncio.run_coroutine_threadsafe(self.handle_device_command(device_id, attribute, payload), self.loop)
+        asyncio.run_coroutine_threadsafe(self.handle_device_command(device_id, attribute, payload), self.loop).add_done_callback(self.log_future_result)
 
     def _parse_device_topic(self: Blink2Mqtt, components: list[str]) -> list[str | None] | None:
         """Extract (vendor, device_id, attribute) from an MQTT topic components list (underscore-delimited)."""
@@ -187,20 +188,11 @@ class MqttMixin:
                 return None
 
             # Example topics:
-            # blink2mqtt/switch/blink2mqtt_G8xxxxxxxxxxxx/motion_detection/set
+            # blink2mqtt/blink2mqtt_G8xxxxxxxxxxxx/switch/motion_detection/set
 
-            # Case 1: .../<device>/<attribute>/set
-            if len(components) >= 5 and "_" in components[-3]:
-                vendor, device_id = components[-3].split("_", 1)
-                attribute = components[-2]
+            vendor, device_id = components[1].split("_", 1)
+            attribute = components[-2]
 
-            # Case 2: .../<device>/set
-            elif len(components) >= 4 and "_" in components[-2]:
-                vendor, device_id = components[-2].split("_", 1)
-                attribute = None
-
-            else:
-                raise ValueError(f"Malformed topic (expected underscore): {'/'.join(components)}")
             return [vendor, device_id, attribute]
 
         except Exception as e:
@@ -218,7 +210,13 @@ class MqttMixin:
     def set_discovered(self: Blink2Mqtt, device_id: str) -> None:
         self.upsert_state(device_id, internal={"discovered": True})
 
-    def mqtt_on_subscribe(self: Blink2Mqtt, client: Client, userdata: Any, mid: int, reason_code_list: list[ReasonCode], properties: Properties) -> None:
+    async def mqtt_on_subscribe(self: Blink2Mqtt, client: Client, userdata: Any, mid: int, reason_code_list: list[ReasonCode], properties: Properties) -> None:
         reason_names = [rc.getName() for rc in reason_code_list]
         joined = "; ".join(reason_names) if reason_names else "none"
         self.logger.debug(f"MQTT subscribed (mid={mid}): {joined}")
+
+    def log_future_result(self: Blink2Mqtt, fut: concurrent.futures.Future) -> None:
+        try:
+            fut.result()
+        except Exception as e:
+            self.logger.exception(f"Device command task failed: {e}")

@@ -47,13 +47,14 @@ class BlinkAPIMixin(object):
         cred_path = os.path.join(self.config["config_path"], "blink.cred")
         key_path = os.path.join(self.config["config_path"], "key.txt")
 
-        # if cred file exists, lets try it
-        auth = None
+        # --- Choose credential source ---
+        auth: Auth | None = None
         if os.path.exists(cred_path):
-            self.logger.info("Prior credential file found, trying those credentials")
-            auth = Auth(await json_load(cred_path), no_prompt=True)
-        elif self.blink_config["username"] and self.blink_config["password"]:
-            self.logger.info("Prior credential file not found, trying simple name/password")
+            self.logger.info("Using existing Blink credentials")
+            creds = await json_load(cred_path)
+            auth = Auth(creds, no_prompt=True)
+        elif self.blink_config.get("username") and self.blink_config.get("password"):
+            self.logger.info("Using username/password from config")
             auth = Auth(
                 {
                     "username": self.blink_config["username"],
@@ -62,45 +63,48 @@ class BlinkAPIMixin(object):
                 no_prompt=True,
             )
         else:
-            self.logger.info("Prior credential file not found, and no username and/or password found in config. Cannot auth")
+            self.logger.error("No credentials found (no cred file, username, or password). Cannot authenticate.")
             raise SystemExit(1)
 
         self.blink.auth = auth
 
+        # --- Attempt to start Blink connection ---
         try:
             await self.blink.start()
         except UnauthorizedError:
-            self.logger.error("Prior credential file is no longer valid. Removing file, please try again.")
-            os.remove(cred_path)
+            self.logger.error("Stored credentials invalid — deleting and exiting")
+            await asyncio.to_thread(os.remove, cred_path)
             raise SystemExit(1)
 
         except BlinkTwoFARequiredError:
-            self.logger.warning(
-                "The 2fa key that Blink sends you will be needed. Save the key as filename key.txt in your config directory and I will wait up to 10 minutes for you to do this."
-            )
-            for _ in range(1200):
-                if os.path.exists(key_path):
-                    self.logger.info("I see the key.txt file, sending the key to Blink and deleting that file")
-                    key = self.read_file(key_path)
-                    try:
-                        os.remove(key_path)
-                        await self.blink.send_2fa_code(key)
-                        await self.blink.setup_post_verify()
-                        await self.blink.save(cred_path)
-                        await self.blink.refresh()
-                    except Exception as err:
-                        raise SystemError(f"Failed auth using key.txt file: {err}")
-                    return
-                await asyncio.sleep(1)
+            self.logger.warning("2FA required — place the Blink key in key.txt in your config directory. Waiting up to 10 minutes...")
 
-            self.logger.error("I did not see the key.txt file in time. Please try again")
-            if os.path.exists(cred_path):
-                os.remove(cred_path)
-            key_path = os.path.join(self.config["config_path"], "key.txt")
-            if os.path.exists(key_path):
-                os.remove(key_path)
+            async def wait_for_key_file(timeout: int = 600) -> str | None:
+                """Poll for the presence of key.txt asynchronously."""
+                for _ in range(timeout):
+                    if os.path.exists(key_path):
+                        return await asyncio.to_thread(self.read_file, key_path)
+                    await asyncio.sleep(1)
+                return None
+
+            key = await wait_for_key_file()
+            if not key:
+                self.logger.error("2FA key file not found in time. Cleaning up and aborting.")
+                await asyncio.gather(*[asyncio.to_thread(os.remove, p) for p in (cred_path, key_path) if os.path.exists(p)])
                 raise SystemExit(1)
 
+            self.logger.info("Found key.txt, completing 2FA process")
+            try:
+                await asyncio.to_thread(os.remove, key_path)
+                await self.blink.send_2fa_code(key)
+                await self.blink.setup_post_verify()
+                await self.blink.save(cred_path)
+                await self.blink.refresh()
+                return
+            except Exception as err:
+                raise SystemError(f"Failed to complete 2FA auth: {err}")
+
+        # --- Normal successful auth path ---
         await self.blink.refresh()
         await self.blink.save(cred_path)
 
@@ -218,7 +222,6 @@ class BlinkAPIMixin(object):
                     dev = self.blink_cameras[device_id]
                     cam = self.blink.cameras[dev["config"]["name"]]
                     response = await cam.async_arm(switch)
-                    self.logger.debug(f"[set_motion] Camera response ({attempt}/{max_retries}): {json.dumps(response)}")
 
                     if response and response.get("code") == 307:
                         wait = base_delay * attempt
@@ -226,14 +229,12 @@ class BlinkAPIMixin(object):
                         await asyncio.sleep(wait)
                         continue
 
-                    await self.blink.refresh()
-                    return cam.arm is switch
+                    return response.get("state_stage") in {"completed", "rest"}
 
                 elif device_id in self.blink_sync_modules:
                     sync = self.blink_sync_modules[device_id]
                     sync_obj = self.blink.sync[sync["device_name"]]
                     response = await sync_obj.async_arm(switch)
-                    self.logger.debug(f"[set_motion] Sync response ({attempt}/{max_retries}): {json.dumps(response)}")
 
                     if response and response.get("code") == 307:
                         wait = base_delay * attempt
@@ -241,8 +242,7 @@ class BlinkAPIMixin(object):
                         await asyncio.sleep(wait)
                         continue
 
-                    await self.blink.refresh()
-                    return sync_obj.arm is switch
+                    return response.get("state_stage") in {"completed", "rest"}
 
                 else:
                     self.logger.error(f"[set_motion] Unknown device id: {device_id}")
@@ -410,7 +410,7 @@ class BlinkAPIMixin(object):
                         # only store and send to MQTT if we got an image AND the image has changed
                         if image and (states["eventshot"] is None or states["eventshot"] != image):
                             states["eventshot"] = image
-                            self.publish_device_image(device_id, "eventshot")
+                            await self.publish_device_image(device_id, "eventshot")
                     else:
                         # only log details if not a recording
                         if event != "recording":
@@ -424,6 +424,6 @@ class BlinkAPIMixin(object):
                     self.logger.debug(f'Got {{{event}: {payload}}} for "{self.get_device_name(device_id)}"')
                     self.upsert_state(device_id, last_event=f"{event}: {json.dumps(payload)}", last_event_time=str(datetime.now()))
 
-                self.publish_device_state(device_id)
+                await self.publish_device_state(device_id)
         except Exception as err:
             self.logger.error(f"[process_events] Failed trying to process event: {err}", exc_info=True)

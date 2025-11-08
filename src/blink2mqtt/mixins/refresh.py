@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
 import asyncio
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
@@ -15,15 +15,22 @@ class RefreshMixin:
         blink_devices = await self.get_cameras()
         sync_modules = await self.get_sync_modules()
 
-        for device_id in sync_modules:
-            sync_module = sync_modules[device_id]["config"]
-            self.build_sync_module_states(device_id, sync_module)
-            self.publish_device_state(device_id)
+        async def handle_sync_module(device_id: str, cfg: dict[str, Any]) -> None:
+            await self.build_sync_module_states(device_id, cfg)
+            await self.publish_device_state(device_id)
 
-        for device_id in blink_devices:
-            camera = blink_devices[device_id]["config"]
-            self.build_camera_states(device_id, camera)
-            self.publish_device_state(device_id)
+        async def handle_camera(device_id: str, cfg: dict[str, Any]) -> None:
+            await self.build_camera_states(device_id, cfg)
+            await self.publish_device_state(device_id)
+
+        # Build task lists
+        tasks = [
+            *(handle_sync_module(device_id, sync["config"]) for device_id, sync in sync_modules.items()),
+            *(handle_camera(device_id, cam["config"]) for device_id, cam in blink_devices.items()),
+        ]
+
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def refresh_snapshot_all_devices(self: "Blink2Mqtt") -> None:
         self.logger.info(f"Requesting snapshots on devices (every {self.snapshot_update_interval} sec)")
@@ -47,4 +54,4 @@ class RefreshMixin:
         # only store and send to MQTT if we got an image AND the image has changed
         if image and (states[type] is None or states[type] != image):
             states[type] = image
-            self.publish_device_image(device_id, type)
+            await self.publish_device_image(device_id, type)

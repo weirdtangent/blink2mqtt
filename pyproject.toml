@@ -155,7 +155,7 @@ dev = [
 ]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 ignore_missing_imports = true
 check_untyped_defs = true
 disallow_incomplete_defs = true
@@ -167,6 +167,8 @@ warn_unreachable = true
 strict_equality = true
 allow_untyped_globals = false
 allow_redefinition = false
+no_implicit_optional = true
+warn_unused_configs = true
 
 # Temporarily quiet noisy files or folders
 [[tool.mypy.overrides]]

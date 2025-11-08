@@ -65,7 +65,6 @@ class LoopsMixin:
 
     # main loop
     async def main_loop(self: Blink2Mqtt) -> None:
-        self.loop = asyncio.get_running_loop()
 
         # connect, get sync modules and cameras, and get first snapshots
         await self.connect()
@@ -80,9 +79,6 @@ class LoopsMixin:
 
         self.running = True
         self.mark_ready()
-        self.logger.info(
-            f"starting refresh loops: devices at {self.device_interval}, list at {self.device_list_interval}, snapshots at {self.snapshot_update_interval}"
-        )
 
         tasks = [
             asyncio.create_task(self.device_list_loop(), name="device_list_loop"),
