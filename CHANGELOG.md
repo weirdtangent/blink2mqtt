@@ -1,3 +1,10 @@
+# [2.1.0](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.8...v2.1.0) (2025-11-08)
+
+
+### Features
+
+* refactor discovery for HA mqtt device type ([19e2665](https://github.com/weirdtangent/blink2mqtt/commit/19e2665efb763d13dd4d50878450b9d024dfa0ed))
+
 ## [2.0.8](https://github.com/weirdtangent/blink2mqtt/compare/v2.0.7...v2.0.8) (2025-10-29)
 
 
