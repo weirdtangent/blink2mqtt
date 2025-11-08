@@ -15,7 +15,7 @@ class PublishMixin:
     async def publish_service_discovery(self: Blink2Mqtt) -> None:
         device_id = "service"
 
-        component = {
+        device = {
             "platform": "mqtt",
             "stat_t": self.mqtt_helper.stat_t(device_id, "state"),
             "cmd_t": self.mqtt_helper.cmd_t(device_id),
@@ -28,81 +28,77 @@ class PublishMixin:
             ),
             "origin": {"name": self.service_name, "sw": self.config["version"], "support_url": "https://github.com/weirdTangent/blink2mqtt"},
             "qos": self.qos,
-            "cmps": {},
+            "cmps": {
+                "server": {
+                    "platform": "binary_sensor",
+                    "name": self.service_name,
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "server"),
+                    "stat_t": self.mqtt_helper.stat_t(device_id, "service", "server"),
+                    "cmd_t": self.mqtt_helper.cmd_t(device_id),
+                    "payload_on": "online",
+                    "payload_off": "offline",
+                    "icon": "mdi:server",
+                },
+                "api_calls": {
+                    "platform": "sensor",
+                    "name": "API calls today",
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "api_calls"),
+                    "stat_t": self.mqtt_helper.stat_t(device_id, "service", "api_calls"),
+                    "unit_of_measurement": "calls",
+                    "state_class": "total_increasing",
+                    "icon": "mdi:api",
+                },
+                "rate_limited": {
+                    "platform": "binary_sensor",
+                    "name": "Rate limited",
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "rate_limited"),
+                    "stat_t": self.mqtt_helper.stat_t(device_id, "service", "rate_limited"),
+                    "payload_on": "YES",
+                    "payload_off": "NO",
+                    "device_class": "problem",
+                    "icon": "mdi:speedometer-slow",
+                },
+                "update_interval": {
+                    "platform": "number",
+                    "name": "Update interval",
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "update_interval"),
+                    "stat_t": self.mqtt_helper.stat_t(device_id, "service", "update_interval"),
+                    "unit_of_measurement": "s",
+                    "min": 1,
+                    "max": 900,
+                    "step": 1,
+                    "mode": "box",
+                    "icon": "mdi:timer-refresh",
+                },
+                "rescan_interval": {
+                    "platform": "number",
+                    "name": "Rescan interval",
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "rescan_interval"),
+                    "stat_t": self.mqtt_helper.stat_t(device_id, "service", "rescan_interval"),
+                    "unit_of_measurement": "s",
+                    "min": 1,
+                    "max": 3600,
+                    "step": 1,
+                    "mode": "box",
+                    "icon": "mdi:format-list_bulleted",
+                },
+                "snapshot_interval": {
+                    "platform": "number",
+                    "name": "Snapshot interval",
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "snapshot_interval"),
+                    "stat_t": self.mqtt_helper.stat_t(device_id, "service", "snapshot_interval"),
+                    "unit_of_measurement": "m",
+                    "min": 1,
+                    "max": 60,
+                    "step": 1,
+                    "mode": "box",
+                    "icon": "mdi:lightning-bolt",
+                },
+            },
         }
-        modes = {}
-
-        modes["server"] = {
-            "platform": "binary_sensor",
-            "name": self.service_name,
-            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "server"),
-            "stat_t": self.mqtt_helper.stat_t(device_id, "service", "server"),
-            "cmd_t": self.mqtt_helper.cmd_t(device_id),
-            "payload_on": "online",
-            "payload_off": "offline",
-            "icon": "mdi:server",
-        }
-        modes["api_calls"] = {
-            "platform": "sensor",
-            "name": "API calls today",
-            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "api_calls"),
-            "stat_t": self.mqtt_helper.stat_t(device_id, "service", "api_calls"),
-            "unit_of_measurement": "calls",
-            "state_class": "total_increasing",
-            "icon": "mdi:api",
-        }
-        modes["rate_limited"] = {
-            "platform": "binary_sensor",
-            "name": "Rate limited",
-            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "rate_limited"),
-            "stat_t": self.mqtt_helper.stat_t(device_id, "service", "rate_limited"),
-            "payload_on": "YES",
-            "payload_off": "NO",
-            "device_class": "problem",
-            "icon": "mdi:speedometer-slow",
-        }
-        modes["update_interval"] = {
-            "platform": "number",
-            "name": "Update interval",
-            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "update_interval"),
-            "stat_t": self.mqtt_helper.stat_t(device_id, "service", "update_interval"),
-            "unit_of_measurement": "s",
-            "min": 1,
-            "max": 900,
-            "step": 1,
-            "mode": "box",
-            "icon": "mdi:timer-refresh",
-        }
-        modes["rescan_interval"] = {
-            "platform": "number",
-            "name": "Rescan interval",
-            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "rescan_interval"),
-            "stat_t": self.mqtt_helper.stat_t(device_id, "service", "rescan_interval"),
-            "unit_of_measurement": "s",
-            "min": 1,
-            "max": 3600,
-            "step": 1,
-            "mode": "box",
-            "icon": "mdi:format-list_bulleted",
-        }
-        modes["snapshot_interval"] = {
-            "platform": "number",
-            "name": "Snapshot interval",
-            "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "snapshot_interval"),
-            "stat_t": self.mqtt_helper.stat_t(device_id, "service", "snapshot_interval"),
-            "unit_of_measurement": "m",
-            "min": 1,
-            "max": 60,
-            "step": 1,
-            "mode": "box",
-            "icon": "mdi:lightning-bolt",
-        }
-
-        for slug, mode in modes.items():
-            component["cmps"][f"{device_id}_{slug}"] = mode
 
         topic = self.mqtt_helper.disc_t("device", device_id)
-        payload = {k: v for k, v in component.items() if k != "platform"}
+        payload = {k: v for k, v in device.items() if k != "platform"}
         await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(payload), retain=True)
         self.upsert_state(device_id, internal={"discovered": True})
 

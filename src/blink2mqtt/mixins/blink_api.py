@@ -129,13 +129,14 @@ class BlinkAPIMixin(object):
                 "config": {
                     "name": name,
                     "serial_number": attributes["serial"],
-                    "camera_id": attributes["camera_id"],
+                    "camera_id": int(attributes["camera_id"]),
                     "device_name": attributes["name"],
                     "device_type": attributes["type"],
                     "vendor": "Amazon",
                     "software_version": attributes["version"],
                     "motion": attributes["motion_detected"],
                     "motion_detection": attributes["motion_enabled"],
+                    "supports_get_config": attributes["type"] in {"owl", "catalina"},
                     "temperature": attributes["temperature"],
                     "battery": attributes["battery"],
                     "wifi_strength": attributes["wifi_strength"],
@@ -148,7 +149,6 @@ class BlinkAPIMixin(object):
                     "recent_clips": attributes["recent_clips"],
                 }
             }
-
         return self.blink_cameras
 
     async def get_sync_modules(self: Blink2Mqtt) -> dict[str, Any]:

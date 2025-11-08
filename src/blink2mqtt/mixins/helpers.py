@@ -24,7 +24,7 @@ class ConfigError(ValueError):
 
 class HelpersMixin:
     async def build_camera_states(self: Blink2Mqtt, device_id: str, camera: dict[str, str]) -> None:
-        night_vision = await self.get_night_vision(device_id)
+        night_vision = await self.get_night_vision(device_id) if self.blink_cameras[device_id]["config"]["supports_get_config"] else False
 
         self.upsert_state(
             device_id,
