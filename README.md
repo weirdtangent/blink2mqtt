@@ -105,6 +105,15 @@ useful to myself and others, not for any financial gain - but any token of appre
 
 <a href="https://buymeacoffee.com/weirdtangent">Buy Me A Coffee</a>
 
-### How Happy am I?
+---
 
-<img src="https://github.com/weirdtangent/blink2mqtt/actions/workflows/deploy.yaml/badge.svg" />
+### Build & Quality Status
+
+![Build & Release](https://img.shields.io/github/actions/workflow/status/weirdtangent/blink2mqtt/deploy.yaml?branch=main&label=build%20%26%20release&logo=githubactions)
+![Lint](https://img.shields.io/github/actions/workflow/status/weirdtangent/blink2mqtt/deploy.yaml?branch=main&label=lint%20(ruff%2Fblack%2Fmypy)&logo=python)
+![Docker Build](https://img.shields.io/github/actions/workflow/status/weirdtangent/blink2mqtt/deploy.yaml?branch=main&label=docker%20build&logo=docker)
+![Python](https://img.shields.io/badge/python-3.12%20|%203.13%20|%203.14-blue?logo=python)
+![Release](https://img.shields.io/github/v/release/weirdtangent/blink2mqtt?sort=semver)
+![Docker Image Version](https://img.shields.io/docker/v/graystorm/blink2mqtt?sort=semver&logo=docker)
+![Docker Pulls](https://img.shields.io/docker/pulls/graystorm/blink2mqtt?logo=docker)
+![License](https://img.shields.io/github/license/weirdtangent/blink2mqtt)
