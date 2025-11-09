@@ -162,6 +162,8 @@ class PublishMixin:
                     if sub and k != sub:
                         continue
                     topic = self.mqtt_helper.stat_t(device_id, state, k)
+                    if isinstance(v, list):
+                        v = json.dumps(v)
                     await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, v, retain=True)
             else:
                 topic = self.mqtt_helper.stat_t(device_id, state)
