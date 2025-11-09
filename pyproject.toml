@@ -7,7 +7,7 @@ name = "blink2mqtt"
 dynamic = ["version"]
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "blinkpy>=0.24.0",
     "deepmerge==2.0",
@@ -155,7 +155,7 @@ dev = [
 ]
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.13"
 ignore_missing_imports = true
 check_untyped_defs = true
 disallow_incomplete_defs = true

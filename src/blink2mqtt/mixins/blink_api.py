@@ -154,6 +154,7 @@ class BlinkAPIMixin(object):
     async def get_sync_modules(self: Blink2Mqtt) -> dict[str, Any]:
         for _, sync_module in self.blink.sync.items():
             await sync_module.get_network_info()
+            self.logger.info(f"SYNC MOD NETWORK INFO: {json.dumps(sync_module.network_info)}")
             attributes = sync_module.attributes
             self.blink_sync_modules[attributes["serial"]] = {
                 "config": {
