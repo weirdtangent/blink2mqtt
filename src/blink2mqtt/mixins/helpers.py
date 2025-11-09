@@ -75,19 +75,13 @@ class HelpersMixin:
         match handler:
             case "refresh_interval":
                 self.device_interval = int(message)
-                self.logger.info(f"device_interval updated to be {message}")
+                self.logger.info(f"refresh_interval updated to be {message}")
             case "rescan_interval":
                 self.device_list_interval = int(message)
-                self.logger.info(f"device_list_interval updated to be {message}")
+                self.logger.info(f"rescan_interval updated to be {message}")
             case "snapshot_interval":
                 self.snapshot_update_interval = int(message)
-                self.logger.info(f"snapshot_update_interval updated to be {message}")
-            case "refresh_device_list":
-                if message == "refresh":
-                    await self.rediscover_all()
-                else:
-                    self.logger.error("[handler] unknown [message]")
-                    return
+                self.logger.info(f"snapshot_interval updated to be {message}")
             case _:
                 self.logger.error(f"Unrecognized message to {handler} -> {message}")
                 return
