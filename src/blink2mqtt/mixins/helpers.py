@@ -53,7 +53,7 @@ class HelpersMixin:
 
     # send command to Blink -----------------------------------------------------------------------
 
-    async def handle_device_command(self: Blink2Mqtt, device_id: str, handler: str, message: str) -> None:
+    async def handle_device_command(self: Blink2Mqtt, device_id: str, handler: str, message: Any) -> None:
         match handler:
             case "motion_detection":
                 self.logger.debug(f"sending {device_id} motion_detection to {message} command to Blink")
@@ -71,17 +71,17 @@ class HelpersMixin:
             case _:
                 self.logger.error(f"Received command for unknown: {handler} with payload {message}")
 
-    async def handle_service_command(self: Blink2Mqtt, handler: str, message: str) -> None:
+    async def handle_service_command(self: Blink2Mqtt, handler: str, message: Any) -> None:
         match handler:
-            case "device_update_interval":
+            case "refresh_interval":
                 self.device_interval = int(message)
-                self.logger.debug(f"device_interval updated to be {message}")
-            case "device_rescan_interval":
+                self.logger.info(f"device_interval updated to be {message}")
+            case "rescan_interval":
                 self.device_list_interval = int(message)
-                self.logger.debug(f"device_list_interval updated to be {message}")
-            case "snapshot_update_interval":
+                self.logger.info(f"device_list_interval updated to be {message}")
+            case "snapshot_interval":
                 self.snapshot_update_interval = int(message)
-                self.logger.debug(f"snapshot_update_interval updated to be {message}")
+                self.logger.info(f"snapshot_update_interval updated to be {message}")
             case "refresh_device_list":
                 if message == "refresh":
                     await self.rediscover_all()

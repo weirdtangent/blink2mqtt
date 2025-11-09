@@ -149,7 +149,7 @@ class MqttMixin:
         if components[0] == self.mqtt_config["discovery_prefix"] and payload:
             return await self.handle_homeassistant_message(payload)
 
-        if components[0] == self.mqtt_helper.service_slug and components[1] == "service" and payload:
+        if components[0] == self.mqtt_helper.service_slug and components[1] == "service":
             return await self.handle_service_command(components[2], payload)
 
         if components[0] == self.mqtt_helper.service_slug:
@@ -162,7 +162,7 @@ class MqttMixin:
             await self.rediscover_all()
             self.logger.info("Home Assistant came online — rediscovering devices")
 
-    async def handle_device_topic(self: Blink2Mqtt, components: list[str], payload: str) -> None:
+    async def handle_device_topic(self: Blink2Mqtt, components: list[str], payload: Any) -> None:
         parsed = self._parse_device_topic(components)
         if not parsed:
             return
