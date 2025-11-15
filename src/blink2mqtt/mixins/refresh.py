@@ -41,7 +41,7 @@ class RefreshMixin:
         tasks2 = []
         for device_id, device in self.devices.items():
             if self.is_discovered(device_id):
-                for mode in device["modes"].values():
+                for mode in device["cmps"].values():
                     if mode["platform"] == "camera":
                         tasks1.append(asyncio.create_task(self.take_snapshot_from_device(device_id)))
                         tasks2.append(asyncio.create_task(self.refresh_snapshot(device_id, "snapshot")))

@@ -27,7 +27,7 @@ npm-debug.log
 NOTES
 coverage/
 dist/
-old/
+tools/
 
 # Apple
 .DS_Store

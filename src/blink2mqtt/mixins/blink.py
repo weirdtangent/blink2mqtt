@@ -76,7 +76,6 @@ class BlinkMixin:
         device_id = sync_module["serial_number"]
 
         device = {
-            "platform": "mqtt",
             "stat_t": self.mqtt_helper.stat_t(device_id, "state"),
             "cmd_t": self.mqtt_helper.cmd_t(device_id, "switch", "armed"),
             "avty_t": self.mqtt_helper.avty_t(device_id),
@@ -84,7 +83,6 @@ class BlinkMixin:
                 "name": sync_module["device_name"],
                 "identifiers": [
                     self.mqtt_helper.device_slug(device_id),
-                    sync_module["sync_id"],
                 ],
                 "manufacturer": sync_module["vendor"],
                 "model": sync_module["device_type"],
@@ -114,7 +112,7 @@ class BlinkMixin:
         }
 
         self.upsert_state(device_id, internal={"raw_id": device_id}, mqtt={}, state={})
-        self.upsert_device(device_id, component=device, modes={k: v for k, v in device["cmps"].items()})
+        self.upsert_device(device_id, component=device, cmps={k: v for k, v in device["cmps"].items()})
         await self.build_sync_module_states(device_id, sync_module)
 
         if not self.is_discovered(device_id):
@@ -130,14 +128,12 @@ class BlinkMixin:
         device_id = camera["serial_number"]
 
         device = {
-            "platform": "mqtt",
             "stat_t": self.mqtt_helper.stat_t(device_id),
             "avty_t": self.mqtt_helper.avty_t(device_id),
             "device": {
                 "name": camera["device_name"],
                 "identifiers": [
                     self.mqtt_helper.device_slug(device_id),
-                    camera["camera_id"],
                 ],
                 "manufacturer": camera["vendor"],
                 "model": camera["device_type"],
@@ -240,7 +236,7 @@ class BlinkMixin:
             },
         }
 
-        self.upsert_device(device_id, component=device, modes={k: v for k, v in device["cmps"].items()})
+        self.upsert_device(device_id, component=device, cmps={k: v for k, v in device["cmps"].items()})
         self.upsert_state(device_id, internal={"raw_id": device_id})
         await self.build_camera_states(device_id, camera)
 

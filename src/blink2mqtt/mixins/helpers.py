@@ -216,17 +216,13 @@ class HelpersMixin:
     def get_platform(self: Blink2Mqtt, device_id: str) -> str:
         return cast(str, self.devices[device_id]["component"].get("platform", "unknown"))
 
-    def get_modes(self: Blink2Mqtt, device_id: str) -> dict[str, Any]:
-        return cast(dict[str, Any], self.devices[device_id]["modes"])
-
-    def get_mode(self: Blink2Mqtt, device_id: str, mode_name: str) -> dict[str, Any]:
-        return cast(dict[str, Any], self.devices[device_id]["modes"][mode_name])
-
     def is_discovered(self: Blink2Mqtt, device_id: str) -> bool:
+        if "internal" not in self.states[device_id]:
+            return False
         return cast(bool, self.states[device_id]["internal"].get("discovered", False))
 
     def get_device_state_topic(self: Blink2Mqtt, device_id: str, mode_name: str = "") -> str:
-        component = self.get_mode(device_id, mode_name) if mode_name else self.get_component(device_id)
+        component = self.get_component(device_id)["cmps"][f"{device_id}_{mode_name}"] if mode_name else self.get_component(device_id)
 
         match component["platform"]:
             case "camera":
