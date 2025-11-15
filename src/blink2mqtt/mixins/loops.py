@@ -65,7 +65,6 @@ class LoopsMixin:
 
     # main loop
     async def main_loop(self: Blink2Mqtt) -> None:
-
         # connect, get sync modules and cameras, and get first snapshots
         await self.connect()
         await self.refresh_device_list()

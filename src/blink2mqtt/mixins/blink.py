@@ -69,8 +69,7 @@ class BlinkMixin:
         device_name = device.get("device_name", "Unknown Device")
         device_id = device.get("serial_number", "Unknown ID")
 
-        self.logger.debug(f'Unrecognized Blink device type: "{device_name}" [{type}] ({device_id})')
-
+        self.logger.warning(f'Unhandled Blink device type: "{device_name}" [{type}] ({device_id})')
         return None
 
     async def build_switch(self: Blink2Mqtt, sync_module: dict[str, str]) -> str:
@@ -128,12 +127,11 @@ class BlinkMixin:
         return device_id
 
     async def build_camera(self: Blink2Mqtt, camera: dict[str, str]) -> str:
-        raw_id = camera["serial_number"]
-        device_id = raw_id
+        device_id = camera["serial_number"]
 
         device = {
             "platform": "mqtt",
-            "stat_t": self.mqtt_helper.stat_t(device_id, ""),
+            "stat_t": self.mqtt_helper.stat_t(device_id),
             "avty_t": self.mqtt_helper.avty_t(device_id),
             "device": {
                 "name": camera["device_name"],
@@ -243,7 +241,7 @@ class BlinkMixin:
         }
 
         self.upsert_device(device_id, component=device, modes={k: v for k, v in device["cmps"].items()})
-        self.upsert_state(device_id, internal={"raw_id": raw_id})
+        self.upsert_state(device_id, internal={"raw_id": device_id})
         await self.build_camera_states(device_id, camera)
 
         if not self.is_discovered(device_id):

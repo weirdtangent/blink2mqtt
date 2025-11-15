@@ -117,12 +117,12 @@ class PublishMixin:
     async def publish_service_state(self: Blink2Mqtt) -> None:
         service = {
             "server": "online",
-            "api_calls": self.get_api_calls(),
-            "last_api_call": self.get_last_call_date(),
+            "api_calls": self.api_calls,
+            "last_api_call": self.last_call_date,
             "refresh_interval": self.device_interval,
             "rescan_interval": self.device_list_interval,
             "snapshot_interval": self.snapshot_update_interval,
-            "rate_limited": "YES" if self.is_rate_limited() else "NO",
+            "rate_limited": "YES" if self.rate_limited else "NO",
         }
 
         for key, value in service.items():

@@ -27,16 +27,6 @@ class BlinkAPIMixin(object):
     def reset_api_call_count(self: Blink2Mqtt) -> None:
         self.api_calls = 0
         self.last_call_date = str(datetime.now())
-        self.logger.debug("Reset api call count for new day")
-
-    def get_api_calls(self: Blink2Mqtt) -> int:
-        return self.api_calls
-
-    def get_last_call_date(self: Blink2Mqtt) -> str:
-        return self.last_call_date
-
-    def is_rate_limited(self: Blink2Mqtt) -> bool:
-        return self.rate_limited
 
     async def connect(self: Blink2Mqtt) -> None:
         if self.session and not self.session.closed:
@@ -118,8 +108,8 @@ class BlinkAPIMixin(object):
     async def blink_refresh(self: Blink2Mqtt) -> None:
         try:
             await self.blink.refresh()
-        except AttributeError as e:
-            self.logger.error(f"Blink failed a 'refresh' command: {e}")
+        except AttributeError as err:
+            self.logger.error(f"Blink failed a 'refresh' command: {err}")
             pass
 
     async def get_cameras(self: Blink2Mqtt) -> dict[str, Any]:
@@ -154,7 +144,6 @@ class BlinkAPIMixin(object):
     async def get_sync_modules(self: Blink2Mqtt) -> dict[str, Any]:
         for _, sync_module in self.blink.sync.items():
             await sync_module.get_network_info()
-            self.logger.info(f"SYNC MOD NETWORK INFO: {json.dumps(sync_module.network_info)}")
             attributes = sync_module.attributes
             self.blink_sync_modules[attributes["serial"]] = {
                 "config": {
@@ -175,7 +164,6 @@ class BlinkAPIMixin(object):
                     "local_storage": attributes["local_storage"],
                 }
             }
-
         return self.blink_sync_modules
 
     async def handle_blink_response(self: Blink2Mqtt, response: str | dict[str, Any]) -> bool | None:
@@ -207,8 +195,8 @@ class BlinkAPIMixin(object):
         except asyncio.TimeoutError:
             self.logger.error(f"[set_arm_mode] Request time out for {device_id}")
             return None
-        except Exception as e:
-            self.logger.error(f"[set_arm_mode] Failed for {device_id}: {e}")
+        except Exception as err:
+            self.logger.error(f"[set_arm_mode] Failed for {device_id}: {err}")
             return None
 
     # Nightvision ---------------------------------------------------------------------------------
@@ -224,8 +212,8 @@ class BlinkAPIMixin(object):
         except asyncio.TimeoutError:
             self.logger.error(f"[get_night_vision] Request time out for {device_id}")
             return ""
-        except Exception as e:
-            self.logger.error(f"[get_night_vision] Failed for {device_id}: {e}")
+        except Exception as err:
+            self.logger.error(f"[get_night_vision] Failed for {device_id}: {err}")
             return ""
 
     async def set_night_vision(self: Blink2Mqtt, device_id: str, switch: str) -> bool | None:
@@ -241,9 +229,9 @@ class BlinkAPIMixin(object):
                 if result is None:
                     continue
                 return result
-            except Exception as e:
+            except Exception as err:
                 self.logger.error(
-                    f"[set_night_vision] Exception on attempt {attempt} for {device_id}: {e}",
+                    f"[set_night_vision] Exception on attempt {attempt} for {device_id}: {err}",
                     exc_info=True,
                 )
                 await asyncio.sleep(base_delay * attempt)
@@ -293,9 +281,9 @@ class BlinkAPIMixin(object):
                     self.logger.error(f"[set_motion] Unknown device id: {device_id}")
                     return None
 
-            except Exception as e:
+            except Exception as err:
                 self.logger.error(
-                    f"[set_motion_detection] Exception on attempt {attempt} for {device_id}: {e}",
+                    f"[set_motion_detection] Exception on attempt {attempt} for {device_id}: {err}",
                     exc_info=True,
                 )
                 await asyncio.sleep(2 * attempt)
@@ -312,8 +300,8 @@ class BlinkAPIMixin(object):
             camera = self.blink.cameras[device["config"]["name"]]
             await camera.snap_picture()
             await asyncio.sleep(3)  # Blink says to give them 2-5 seconds
-        except Exception as e:
-            self.logger.error(f"[take_snapshot] Failed to take snapshot for {device_id}: {e}")
+        except Exception as err:
+            self.logger.error(f"[take_snapshot] Failed to take snapshot for {device_id}: {err}")
 
     async def get_snapshot_from_device(self: Blink2Mqtt, device_id: str) -> str | None:
 
@@ -326,8 +314,8 @@ class BlinkAPIMixin(object):
                 return None
             encoded = base64.b64encode(image).decode("utf-8")
             return encoded
-        except Exception as e:
-            self.logger.error(f"[get_snapshot_from_device] Failed to take snapshot for {device_id}: {e}")
+        except Exception as err:
+            self.logger.error(f"[get_snapshot_from_device] Failed to take snapshot for {device_id}: {err}")
             return None
 
     # Recorded file -------------------------------------------------------------------------------

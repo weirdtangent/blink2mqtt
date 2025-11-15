@@ -195,8 +195,8 @@ class MqttMixin:
 
             return [vendor, device_id, attribute]
 
-        except Exception as e:
-            self.logger.warning(f"Malformed device topic: {components} ({e})")
+        except Exception as err:
+            self.logger.warning(f"Malformed device topic: {components} ({err})")
             return None
 
     def safe_split_device(self: Blink2Mqtt, topic: str, segment: str) -> list[str]:
@@ -218,5 +218,5 @@ class MqttMixin:
     def log_future_result(self: Blink2Mqtt, fut: concurrent.futures.Future) -> None:
         try:
             fut.result()
-        except Exception as e:
-            self.logger.exception(f"Device command task failed: {e}")
+        except Exception as err:
+            self.logger.exception(f"Device command task failed: {err}")
