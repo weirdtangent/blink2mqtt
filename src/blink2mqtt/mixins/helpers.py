@@ -23,26 +23,34 @@ class ConfigError(ValueError):
 
 
 class HelpersMixin:
-    async def build_camera_states(self: Blink2Mqtt, device_id: str, camera: dict[str, str]) -> None:
-        night_vision = await self.get_night_vision(device_id) if self.blink_cameras[device_id]["config"]["supports_get_config"] else False
+    async def build_camera_states(self: Blink2Mqtt, device_id: str, device: dict[str, str]) -> None:
+        await self.blink.refresh()
 
-        self.upsert_state(
-            device_id,
-            switch={
-                "motion_detection": "ON" if camera["motion_detection"] else "OFF",
-            },
-            sensor={
-                "battery_status": camera["battery"],
-                "temperature": camera["temperature"],
-                "wifi_signal": camera["wifi_strength"],
-            },
-            select={
-                "night_vision": night_vision,
-            },
-            binary_sensor={
-                "motion": camera["motion"],
-            },
-        )
+        # update states for cameras
+        if device_id in self.blink_cameras:
+            device = self.blink_cameras[device_id]
+            nightvision = await self.get_nightvision(device_id) if self.blink_cameras[device_id]["supports_get_config"] else ""
+            self.upsert_state(
+                device_id,
+                sensor={
+                    "battery_status": device["battery"],
+                    "temperature": device["temperature"],
+                    "wifi_signal": device["wifi_strength"],
+                },
+                binary_sensor={
+                    "motion": device["motion"],
+                },
+                switch={"motion_detection": "ON" if device["motion_detection"] else "OFF"},
+                select={"nightvision": nightvision},
+            )
+        # update states for sync modules
+        elif device_id in self.blink_sync_modules:
+            device = self.blink_sync_modules[device_id]
+            self.upsert_state(
+                device_id,
+                switch={"motion_detection": "ON" if device["motion_detection"] else "OFF"},
+                sensor={"local_storage": device["local_storage"]},
+            )
 
     async def build_sync_module_states(self: Blink2Mqtt, device_id: str, sync_module: dict[str, str]) -> None:
         self.upsert_state(
@@ -61,11 +69,11 @@ class HelpersMixin:
                 if success:
                     self.upsert_state(device_id, switch={"motion_detection": message})
                     await self.publish_device_state(device_id, "switch", "motion_detection")
-            case "night_vision":
-                self.logger.debug(f"sending {device_id} night_vision to {message} command to Blink")
-                success = await self.set_night_vision(device_id, message)
+            case "nightvision":
+                self.logger.debug(f"sending {device_id} nightvision to {message} command to Blink")
+                success = await self.set_nightvision(device_id, message)
                 if success:
-                    self.upsert_state(device_id, select={"night_vision": message})
+                    self.upsert_state(device_id, select={"nightvision": message})
                     await self.publish_device_state(device_id)
 
             case _:

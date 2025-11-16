@@ -23,17 +23,16 @@ class BlinkMixin:
 
         seen_devices: set[str] = set()
 
-        # Build both camera and sync devices in parallel (CPU-bound but cheap)
         async def build_and_track(device: dict[str, Any]) -> None:
-            created = await self.build_component(device["config"])
-            seen_devices.add(created)
+            created = await self.build_component(device)
+            if created:
+                seen_devices.add(created)
 
         tasks = [
             *(build_and_track(d) for d in sync_modules.values()),
             *(build_and_track(d) for d in blink_devices.values()),
         ]
-        if tasks:
-            await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks)
 
         # Mark missing devices offline
         missing_devices = set(self.devices.keys()) - seen_devices
@@ -41,11 +40,9 @@ class BlinkMixin:
             await self.publish_device_availability(device_id, online=False)
             self.logger.warning(f"device {device_id} not seen in Blink API list — marked offline")
 
-        # Handle first discovery completion
-        if not self.discovery_complete:
-            await asyncio.sleep(1)
-            self.logger.info("first-time device setup and discovery is done")
-            self.discovery_complete = True
+        # Handle discovery completion
+        self.logger.info("first-time device setup and discovery is done")
+        self.discovery_complete = True
 
     # convert Blink device capabilities into MQTT components
     async def build_component(self: Blink2Mqtt, device: dict[str, str]) -> str:
@@ -65,11 +62,9 @@ class BlinkMixin:
         if type == "sedona" or type == "catalina":
             return "camera"
 
-        # If we reach here, it's unsupported — log details for future handling
-        device_name = device.get("device_name", "Unknown Device")
-        device_id = device.get("serial_number", "Unknown ID")
-
-        self.logger.warning(f'unhandled Blink device type: "{device_name}" [{type}] ({device_id})')
+        # so, unsupported — log details for future handling
+        device_name = device.get("device_name", "no_name")
+        self.logger.warning(f"unhandled Blink device type: '{type}' ({device_name})")
         return None
 
     async def build_switch(self: Blink2Mqtt, sync_module: dict[str, str]) -> str:
@@ -111,12 +106,11 @@ class BlinkMixin:
             },
         }
 
-        self.upsert_state(device_id, internal={"raw_id": device_id}, mqtt={}, state={})
-        self.upsert_device(device_id, component=device, cmps={k: v for k, v in device["cmps"].items()})
+        self.upsert_device(device_id, component=device)
         await self.build_sync_module_states(device_id, sync_module)
 
         if not self.is_discovered(device_id):
-            self.logger.info(f'added new switch: "{sync_module["device_name"]}" [Blink {sync_module["device_type"]}] ({device_id})')
+            self.logger.info(f'added sync module: "{sync_module["device_name"]}" [Blink {sync_module["device_type"]}] ({device_id})')
 
         await self.publish_device_discovery(device_id)
         await self.publish_device_availability(device_id, online=True)
@@ -180,12 +174,12 @@ class BlinkMixin:
                     "pl_off": "OFF",
                     "icon": "mdi:motion-sensor",
                 },
-                "night_vision": {
+                "nightvision": {
                     "platform": "select",
                     "name": "Night Vision",
-                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "night_vision"),
-                    "stat_t": self.mqtt_helper.stat_t(device_id, "switch", "night_vision"),
-                    "cmd_t": self.mqtt_helper.cmd_t(device_id, "switch", "night_vision"),
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "nightvision"),
+                    "stat_t": self.mqtt_helper.stat_t(device_id, "select", "nightvision"),
+                    "cmd_t": self.mqtt_helper.cmd_t(device_id, "select", "nightvision"),
                     "options": ["auto", "on", "off"],
                     "icon": "mdi:light-flood-down",
                     "enabled_by_default": camera["supports_get_config"],
@@ -237,14 +231,13 @@ class BlinkMixin:
             },
         }
 
-        self.upsert_device(device_id, component=device, cmps={k: v for k, v in device["cmps"].items()})
-        self.upsert_state(device_id, internal={"raw_id": device_id})
+        self.upsert_device(device_id, component=device)
         await self.build_camera_states(device_id, camera)
 
         if not self.is_discovered(device_id):
-            self.logger.info(f'added new camera: "{camera["device_name"]}" [Blink {camera["device_type"]}] ({device_id})')
+            self.logger.info(f'added camera: "{camera["device_name"]}" [Blink {camera["device_type"]}] ({device_id})')
+            await self.publish_device_discovery(device_id)
 
-        await self.publish_device_discovery(device_id)
         await self.publish_device_availability(device_id, online=True)
         await self.publish_device_state(device_id)
 
@@ -288,17 +281,16 @@ class BlinkMixin:
         if not candidate_values:
             return None
 
-        for sync_serial, sync_data in self.blink_sync_modules.items():
-            cfg = sync_data.get("config", {})
+        for device_id, device in self.blink_sync_modules.items():
             sync_candidates = {
-                normalize(sync_serial),
-                normalize(cfg.get("serial_number")),
-                normalize(cfg.get("device_name")),
-                normalize(cfg.get("sync_id")),
-                normalize(cfg.get("network_id")),
+                normalize(device_id),
+                normalize(device.get("serial_number")),
+                normalize(device.get("device_name")),
+                normalize(device.get("sync_id")),
+                normalize(device.get("network_id")),
             }
             if candidate_values & {value for value in sync_candidates if value}:
-                slug = cast(str, self.mqtt_helper.device_slug(sync_serial))
+                slug = cast(str, self.mqtt_helper.device_slug(device_id))
                 return slug
 
         return None

@@ -8,7 +8,6 @@ from blinkpy.auth import Auth, BlinkTwoFARequiredError, UnauthorizedError
 from blinkpy.blinkpy import Blink
 from blinkpy.helpers.util import json_load
 from datetime import datetime
-import inspect
 import json
 import os
 
@@ -28,6 +27,8 @@ class BlinkAPIMixin(object):
         self.api_calls = 0
         self.last_call_date = str(datetime.now())
 
+    # connect/disconnect to blink  ----------------------------------------------------------------
+
     async def connect(self: Blink2Mqtt) -> None:
         if self.session and not self.session.closed:
             await self.session.close()
@@ -38,7 +39,7 @@ class BlinkAPIMixin(object):
         cred_path = os.path.join(self.config["config_path"], "blink.cred")
         key_path = os.path.join(self.config["config_path"], "key.txt")
 
-        # --- Choose credential source ---
+        # choose credential source
         auth: Auth | None = None
         if os.path.exists(cred_path):
             self.logger.info("using existing Blink credentials")
@@ -59,7 +60,7 @@ class BlinkAPIMixin(object):
 
         self.blink.auth = auth
 
-        # --- Attempt to start Blink connection ---
+        # attempt to start Blink connection
         try:
             await self.blink.start()
         except UnauthorizedError:
@@ -95,7 +96,7 @@ class BlinkAPIMixin(object):
             except Exception as err:
                 raise SystemError(f"Failed to complete 2FA auth: {err}")
 
-        # --- Normal successful auth path ---
+        # normal successful auth path
         await self.blink.refresh()
         await self.blink.save(cred_path)
 
@@ -105,39 +106,41 @@ class BlinkAPIMixin(object):
         if self.session:
             await self.session.close()
 
+    # blink api commands -------------------------------------------------------------------------
+
+    # The most recent images and videos can be accessed as a bytes-object via internal variables.
+    # These can be updated with calls to Blink.refresh() but will only make a request if motion has
+    # been detected or other changes have been found.
     async def blink_refresh(self: Blink2Mqtt) -> None:
         try:
             await self.blink.refresh()
         except AttributeError as err:
             self.logger.error(f"blink failed a 'refresh' command: {err}")
-            pass
 
     async def get_cameras(self: Blink2Mqtt) -> dict[str, Any]:
         for name, camera in self.blink.cameras.items():
             attributes = camera.attributes
             self.blink_cameras[attributes["serial"]] = {
-                "config": {
-                    "name": name,
-                    "serial_number": attributes["serial"],
-                    "camera_id": int(attributes["camera_id"]),
-                    "device_name": attributes["name"],
-                    "device_type": attributes["type"],
-                    "vendor": "Amazon",
-                    "software_version": attributes["version"],
-                    "motion": attributes["motion_detected"],
-                    "motion_detection": attributes["motion_enabled"],
-                    "supports_get_config": attributes["type"] in {"owl", "catalina"},
-                    "temperature": attributes["temperature"],
-                    "battery": attributes["battery"],
-                    "wifi_strength": attributes["wifi_strength"],
-                    "battery_level": attributes["battery_level"],
-                    "battery_voltage": attributes["battery_voltage"],
-                    "sync_module": attributes["sync_module"],
-                    "sync_signal_strength": attributes["sync_signal_strength"],
-                    "thumbnail": attributes["thumbnail"],
-                    "video": attributes["video"],
-                    "recent_clips": attributes["recent_clips"],
-                }
+                "name": name,
+                "serial_number": attributes["serial"],
+                "camera_id": int(attributes["camera_id"]),
+                "device_name": attributes["name"],
+                "device_type": attributes["type"],
+                "vendor": "Amazon",
+                "software_version": attributes["version"],
+                "motion": attributes["motion_detected"],
+                "motion_detection": attributes["motion_enabled"],
+                "supports_get_config": attributes["type"] in {"owl", "catalina"},
+                "temperature": attributes["temperature"],
+                "wifi_strength": attributes["wifi_strength"],
+                "battery": attributes["battery"],
+                "battery_level": attributes["battery_level"],
+                "battery_voltage": attributes["battery_voltage"],
+                "sync_module": attributes["sync_module"],
+                "sync_signal_strength": attributes["sync_signal_strength"],
+                "thumbnail": attributes["thumbnail"],
+                "video": attributes["video"],
+                "recent_clips": attributes["recent_clips"],
             }
         return self.blink_cameras
 
@@ -146,23 +149,21 @@ class BlinkAPIMixin(object):
             await sync_module.get_network_info()
             attributes = sync_module.attributes
             self.blink_sync_modules[attributes["serial"]] = {
-                "config": {
-                    "device_name": attributes["name"],
-                    "device_type": "sync_module",
-                    "serial_number": attributes["serial"],
-                    "software_version": attributes["version"],
-                    "vendor": "Amazon",
-                    "arm_mode": sync_module.arm,
-                    "region_id": attributes["region_id"],
-                    "network_id": attributes["network_id"],
-                    "host": sync_module.host,
-                    "status": attributes["status"],
-                    "sync_id": sync_module.sync_id,
-                    "summary": sync_module.summary,
-                    "motion_interval": sync_module.motion_interval,
-                    "last_records": sync_module.last_records,
-                    "local_storage": attributes["local_storage"],
-                }
+                "device_name": attributes["name"],
+                "device_type": "sync_module",
+                "serial_number": attributes["serial"],
+                "software_version": attributes["version"],
+                "vendor": "Amazon",
+                "arm_mode": sync_module.arm,
+                "region_id": attributes["region_id"],
+                "network_id": attributes["network_id"],
+                "host": sync_module.host,
+                "status": attributes["status"],
+                "sync_id": sync_module.sync_id,
+                "summary": sync_module.summary,
+                "motion_interval": sync_module.motion_interval,
+                "last_records": sync_module.last_records,
+                "local_storage": attributes["local_storage"],
             }
         return self.blink_sync_modules
 
@@ -177,206 +178,208 @@ class BlinkAPIMixin(object):
         self.logger.warning(f"failed command to blink device, response: {json.dumps(response)}")
         return False
 
-    # Arm mode  -----------------------------------------------------------------------------------
+    # Arm / Motion Detection ---------------------------------------------------------------------
 
     async def set_arm_mode(self: Blink2Mqtt, device_id: str, switch: bool) -> Any | None:
         if device_id in self.blink_cameras:
-            name = self.blink_cameras[device_id]["config"]["device_name"]
+            name = self.blink_cameras[device_id]["device_name"]
             device = self.blink.cameras[name]
         else:
-            name = self.blink_sync_modules[device_id]["config"]["device_name"]
+            name = self.blink_sync_modules[device_id]["device_name"]
             device = self.blink.sync[name]
 
         try:
             async with timeout(5):
                 response = await device.async_arm(switch)
-                self.logger.info(f"set arm mode for {device_id}: {response}")
+                self.logger.debug(f"set arm mode/motion detection for {self.get_device_name(device_id)}: {response}")
                 return response
         except asyncio.TimeoutError:
-            self.logger.error(f"[set_arm_mode] Request time out for {device_id}")
+            self.logger.error(f"[set_arm_mode/motion detection] timed out for {self.get_device_name(device_id)}")
             return None
         except Exception as err:
-            self.logger.error(f"[set_arm_mode] Failed for {device_id}: {err}")
+            self.logger.error(f"[set_arm_mode/motion detection] failed for {self.get_device_name(device_id)}: {err}")
             return None
 
     # Nightvision ---------------------------------------------------------------------------------
 
-    async def get_night_vision(self: Blink2Mqtt, device_id: str) -> str:
-        device = self.blink_cameras[device_id]
-        camera = self.blink.cameras[device["config"]["name"]]
+    async def get_nightvision(self: Blink2Mqtt, device_id: str) -> str:
+        if device_id in self.blink_cameras:
+            name = self.blink_cameras[device_id]["name"]
+            camera = self.blink.cameras[name]
+        else:
+            self.logger.error(f"[get_nightvision] unknown device id: {device_id}")
+            return ""
 
         try:
             response = await camera.night_vision
+            self.logger.debug(f"[get_nightvision] response for {self.get_device_name(device_id)}: {json.dumps(response)}")
             return response and str(response.get("illuminator_enable", ""))
-            # {'night_vision_control': None, 'illuminator_enable': 'auto', 'illuminator_enable_v2': None}
+            # {'nightvision_control': None, 'illuminator_enable': 'auto', 'illuminator_enable_v2': None}
         except asyncio.TimeoutError:
-            self.logger.error(f"[get_night_vision] Request time out for {device_id}")
+            self.logger.error(f"[get_nightvision] timed out for {self.get_device_name(device_id)}")
             return ""
         except Exception as err:
-            self.logger.error(f"[get_night_vision] Failed for {device_id}: {err}")
+            self.logger.error(f"[get_nightvision] failed for {self.get_device_name(device_id)}: {err}")
             return ""
 
-    async def set_night_vision(self: Blink2Mqtt, device_id: str, switch: str) -> bool | None:
+    async def set_nightvision(self: Blink2Mqtt, device_id: str, switch: str) -> bool | None:
+        device = self.blink_cameras[device_id]
+        camera = self.blink.cameras[device["name"]]
         max_retries = 5
         base_delay = 2
-        device = self.blink_cameras[device_id]
-        camera = self.blink.cameras[device["config"]["name"]]
 
         for attempt in range(1, max_retries + 1):
             try:
-                blink_response = await camera.async_set_night_vision(switch)
-                result = await self.handle_blink_response(blink_response)
-                if result is None:
-                    continue
-                return result
+                async with timeout(5):
+                    response = await camera.async_set_night_vision(switch)
+                    self.logger.debug(f"set nightvision for {self.get_device_name(device_id)}: {response}")
+                    result = await self.handle_blink_response(response)
+                    if result is None:
+                        continue
+                    return result
             except Exception as err:
-                self.logger.error(
-                    f"[set_night_vision] Exception on attempt {attempt} for {device_id}: {err}",
+                self.logger.debug(
+                    f"[set_nightvision] failed for attempt {attempt} for {self.get_device_name(device_id)}: {err}",
                     exc_info=True,
                 )
                 await asyncio.sleep(base_delay * attempt)
 
-        self.logger.error(f"[set_night_vision] Failed for {device_id} after {max_retries} retries")
+        self.logger.error(f"[set_nightvision] failed for {self.get_device_name(device_id)} after {max_retries} retries")
         return None
 
     # Motion --------------------------------------------------------------------------------------
 
-    def get_camera_motion(self: Blink2Mqtt, device_id: str) -> Any | None:
-        try:
-            name = self.blink_cameras[device_id]["config"]["device_name"]
-            device = self.blink.cameras[name]
-            motion = device.sync.motion[name]
-            device["config"]["motion"] = motion
-        except Exception:
-            self.logger.error(f"[get_motion] Failed for {device_id}", exc_info=True)
-
-        return motion
-
     async def set_motion_detection(self: Blink2Mqtt, device_id: str, switch: bool) -> bool | None:
+        if device_id in self.blink_cameras:
+            camera = self.blink_cameras[device_id]
+            device = self.blink.cameras[camera["name"]]
+        elif device_id in self.blink_sync_modules:
+            sync_module = self.blink_sync_modules[device_id]
+            device = self.blink.sync[sync_module["device_name"]]
+        else:
+            self.logger.error(f"[set_motion_detection] unknown device id: {device_id}")
+            return None
         max_retries = 5
+        base_delay = 2
 
         for attempt in range(1, max_retries + 1):
             try:
-                if device_id in self.blink_cameras:
-                    device = self.blink_cameras[device_id]
-                    camera = self.blink.cameras[device["config"]["name"]]
-                    self.logger.info(f"calling async_arm({switch}) to camera {device_id}: {inspect.iscoroutinefunction(camera.async_arm)}")
-                    blink_response = await camera.async_arm(switch)
-                    result = await self.handle_blink_response(blink_response)
-                    if result is None:
-                        continue
-                    return result
-
-                elif device_id in self.blink_sync_modules:
-                    device = self.blink_sync_modules[device_id]
-                    sync_module = self.blink.sync[device["device_name"]]
-                    self.logger.info(f"calling async_arm({switch}) to sync_module {device_id}: {inspect.iscoroutinefunction(camera.async_arm)}")
-                    blink_response = await sync_module.async_arm(switch)
-                    result = await self.handle_blink_response(blink_response)
-                    if result is None:
-                        continue
-                    return result
-
-                else:
-                    self.logger.error(f"[set_motion] Unknown device id: {device_id}")
-                    return None
-
+                response = await device.async_arm(switch)
+                self.logger.debug(f"set motion detection for {self.get_device_name(device_id)}: {response}")
+                result = await self.handle_blink_response(response)
+                if result is None:
+                    continue
+                return result
             except Exception as err:
-                self.logger.error(
-                    f"[set_motion_detection] Exception on attempt {attempt} for {device_id}: {err}",
+                self.logger.debug(
+                    f"[set_motion_detection] failed for attempt {attempt} for {self.get_device_name(device_id)}: {err}",
                     exc_info=True,
                 )
-                await asyncio.sleep(2 * attempt)
+                await asyncio.sleep(base_delay * attempt)
 
-        self.logger.error(f"[set_motion] Failed for {device_id} after {max_retries} retries")
+        self.logger.error(f"[set_motion_detection] failed for {self.get_device_name(device_id)} after {max_retries} retries")
         return None
 
     # Snapshots -----------------------------------------------------------------------------------
 
     async def take_snapshot_from_device(self: Blink2Mqtt, device_id: str) -> None:
+        if device_id in self.blink_cameras:
+            name = self.blink_cameras[device_id]["name"]
+            camera = self.blink.cameras[name]
+        else:
+            self.logger.error(f"[take_snapshot_from_device] unknown device id: {device_id}")
+            return None
 
         try:
-            device = self.blink_cameras[device_id]
-            camera = self.blink.cameras[device["config"]["name"]]
             await camera.snap_picture()
-            await asyncio.sleep(3)  # Blink says to give them 2-5 seconds
         except Exception as err:
-            self.logger.error(f"[take_snapshot] Failed to take snapshot for {device_id}: {err}")
+            self.logger.error(f"[take_snapshot_from_device] failed for {self.get_device_name(device_id)}: {err}")
 
     async def get_snapshot_from_device(self: Blink2Mqtt, device_id: str) -> str | None:
+        if device_id in self.blink_cameras:
+            name = self.blink_cameras[device_id]["name"]
+            camera = self.blink.cameras[name]
+        else:
+            self.logger.error(f"[get_snapshot_from_device] unknown device id: {device_id}")
+            return None
 
         try:
-            device = self.blink_cameras[device_id]
-            camera = self.blink.cameras[device["config"]["name"]]
             image = camera.image_from_cache
             if not image:
-                self.logger.info(f"[get_snapshot] Empty cache for {device_id}, skipping.")
+                self.logger.info(f"[get_snapshot_from_device] Empty cache for {self.get_device_name(device_id)}, skipping.")
                 return None
             encoded = base64.b64encode(image).decode("utf-8")
             return encoded
         except Exception as err:
-            self.logger.error(f"[get_snapshot_from_device] Failed to take snapshot for {device_id}: {err}")
+            self.logger.error(f"[get_snapshot_from_device] failed for {self.get_device_name(device_id)}: {err}")
             return None
 
     # Recorded file -------------------------------------------------------------------------------
-    def get_recorded_file(self: Blink2Mqtt, device_id: str, file: str) -> str | None:
-        device = self.blink_cameras[device_id]
-        camera = self.blink.cameras[device["config"]["name"]]
+    async def get_recorded_file(self: Blink2Mqtt, device_id: str, file: str) -> str | None:
+        if device_id in self.blink_cameras:
+            name = self.blink_cameras[device_id]["name"]
+            camera = self.blink.cameras[name]
+        else:
+            self.logger.error(f"[get_recorded_file] unknown device id: {device_id}")
+            return None
 
-        tries = 0
-        while tries < 3:
+        max_retries = 5
+        base_delay = 2
+
+        for attempt in range(1, max_retries + 1):
             try:
                 data_raw = camera.download_file(file)
                 if data_raw:
                     data_base64 = base64.b64encode(data_raw).decode("utf-8")
-                    self.logger.info(f"[recording] Processed recording from ({device_id}) {len(data_raw)} bytes raw, and {len(data_base64)} bytes base64")
+                    self.logger.info(
+                        f"[get_recorded_file] processed recording from ({self.get_device_name(device_id)}) {len(data_raw)} bytes raw, and {len(data_base64)} bytes base64"
+                    )
                     if len(data_base64) >= 100 * 1024 * 1024:
-                        self.logger.error("[recording] Skipping oversized recording (>100 MB)")
+                        self.logger.error("[get_recorded_file] skipping oversized recording (>100 MB) for {self.get_device_name(device_id)}")
                         return None
                     return data_base64
             except Exception as err:
-                tries += 1
-                self.logger.warning(f"[recording] Retry {tries}/3 downloading recording from {device_id}: {err}")
+                self.logger.warning(f"[get_recorded_file] failed for attempt {attempt} for {self.get_device_name(device_id)}: {err}")
+                await asyncio.sleep(base_delay * attempt)
 
-        if tries == 3:
-            self.logger.error(f"[recording] Failed after 3 attempts for {device_id}", exc_info=True)
+        self.logger.error(f"[get_recorded_file] failed for {self.get_device_name(device_id)} after {max_retries} retries")
         return None
 
     # collect/process blink events ----------------------------------------------------------------
 
     async def collect_all_blink_events(self: Blink2Mqtt) -> None:
         tasks = [self.get_events_from_device(device_id) for device_id in self.blink_sync_modules]
-
         await asyncio.gather(*tasks)
 
     async def get_events_from_device(self: Blink2Mqtt, device_id: str) -> None:
-        blink_device = self.blink_sync_modules[device_id]
-        sync_module = self.blink.sync.get(blink_device["config"]["device_name"], None)
-        if not sync_module:
-            self.logger.error(f"tried to get events from unknown sync_module {device_id}")
-            return
+        if device_id in self.blink_sync_modules:
+            sync_module = self.blink_sync_modules[device_id]
+            device = self.blink.sync[sync_module["device_name"]]
+        else:
+            self.logger.error(f"[set_motion_detection] unknown device id: {device_id}")
+            return None
+        max_retries = 5
+        base_delay = 2
 
-        tries = 0
-        while tries < 3:
+        for attempt in range(1, max_retries + 1):
             try:
-                event = await sync_module.get_events()
+                event = await device.get_events()
                 if not event:
                     self.logger.info("no more events waiting...")
                     break
-                self.logger.info(f"got event: {json.dumps(event)}")
+                self.logger.info(f"[get_events_from_device] got event: {json.dumps(event)}")
                 # await self.queue_device_event(device_id, code, payload)
             except Exception as err:
-                tries += 1
-                self.logger.warning(f"[events] Retry {tries}/3 checking for events from {device_id}: {err}")
-        if tries == 3:
-            self.logger.error(f"[events] Failed to communicate for events for device ({device_id})")
+                self.logger.warning(f"[get_events_from_device] failed for attempt {attempt} for {self.get_device_name(device_id)}: {err}")
+                await asyncio.sleep(base_delay * attempt)
+
+        self.logger.error(f"[get_events_from_device] failed for {self.get_device_name(device_id)} after {max_retries} retries")
 
     async def queue_device_event(self: Blink2Mqtt, device_id: str, code: str, payload: Any) -> None:
-        self.logger.info(f"queue_device_event for {device_id}, code {code}, payload {json.dumps(payload)}")
+        self.logger.info(f"[queue_device_event] event on {self.get_device_name(device_id)} - {code}: {json.dumps(payload)}")
         device = self.blink_cameras[device_id]
-        config = device["config"]
         try:
-            if (code == "ProfileAlarmTransmit" and config["is_ad110"]) or (code == "VideoMotion" and not config["is_ad110"]):
+            if (code == "ProfileAlarmTransmit" and device["is_ad110"]) or (code == "VideoMotion" and not device["is_ad110"]):
                 motion_payload = {"state": "on" if payload["action"] == "Start" else "off", "region": ", ".join(payload["data"]["RegionName"])}
                 self.events.append({"device_id": device_id, "event": "motion", "payload": motion_payload})
             elif code == "CrossRegionDetection" and payload["data"]["ObjectType"] == "Human":
@@ -439,7 +442,10 @@ class BlinkAPIMixin(object):
                 # if one of our known sensors
                 if event in ["motion", "human", "doorbell", "recording", "privacy_mode"]:
                     if event == "recording" and payload["file"].endswith(".jpg"):
-                        image = self.get_recorded_file(device_id, payload["file"])
+                        image = await self.get_recorded_file(device_id, payload["file"])
+                        if not image:
+                            self.logger.error(f"[process_events] failed to get recorded file for {self.get_device_name(device_id)}: {payload["file"]}")
+                            continue
                         # only store and send to MQTT if we got an image AND the image has changed
                         if image and (states["eventshot"] is None or states["eventshot"] != image):
                             states["eventshot"] = image
