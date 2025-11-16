@@ -144,9 +144,7 @@ class PublishMixin:
 
         topic = self.mqtt_helper.disc_t("device", device_id)
         component = self.get_component(device_id)
-        payload = {k: v for k, v in component.items() if k != "platform"}
-        self.logger.info(f"publishing to {topic} : {json.dumps(payload)}")
-        await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(payload), retain=True)
+        await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(component), retain=True)
         self.upsert_state(device_id, internal={"discovered": True})
 
     async def publish_device_availability(self: Blink2Mqtt, device_id: str, online: bool = True) -> None:
