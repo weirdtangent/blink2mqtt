@@ -28,6 +28,8 @@ class MqttError(ValueError):
 
 class MqttMixin:
     async def mqttc_create(self: Blink2Mqtt) -> None:
+        # lets use a new client_id for each connection attempt
+        self.client_id = self.mqtt_helper.client_id()
         self.mqttc = mqtt.Client(
             client_id=self.client_id,
             callback_api_version=CallbackAPIVersion.VERSION2,
@@ -120,8 +122,6 @@ class MqttMixin:
             self.logger.info("Closed MQTT connection")
 
         if self.running and (self.mqtt_connect_time is None or datetime.now() > self.mqtt_connect_time + timedelta(seconds=10)):
-            # lets use a new client_id for a reconnect attempt
-            self.client_id = self.mqtt_helper.client_id()
             await self.mqttc_create()
         else:
             self.logger.info("MQTT disconnect — stopping service loop")
@@ -179,7 +179,7 @@ class MqttMixin:
             return
 
         self.logger.info(f"Got message for {self.get_device_name(device_id)}: set {components[-2]} to {payload}")
-        asyncio.run_coroutine_threadsafe(self.handle_device_command(device_id, attribute, payload), self.loop).add_done_callback(self.log_future_result)
+        await self.handle_device_command(device_id, attribute, payload)
 
     def _parse_device_topic(self: Blink2Mqtt, components: list[str]) -> list[str | None] | None:
         """Extract (vendor, device_id, attribute) from an MQTT topic components list (underscore-delimited)."""
