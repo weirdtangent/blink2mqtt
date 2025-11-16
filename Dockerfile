@@ -22,26 +22,28 @@ ENV APP_PRETEND_VERSION=${VERSION}
 # ===== System Dependencies =====
 RUN apt-get update && \
     apt-get install -y --no-install-recommends git && \
-    apt-get upgrade -y && \
     pip install --no-cache-dir uv && \
     rm -rf /var/lib/apt/lists/*
 
-# ===== Copy Source and Metadata =====
+# ===== Copy Project Metadata =====
 COPY pyproject.toml uv.lock ./
-COPY . .
 
 # ===== Build & Install =====
 # 1. Create isolated virtual environment
 RUN uv venv
+ENV PATH="/app/.venv/bin:${PATH}"
 
 # 2. Export locked dependencies (with pretend version active)
 RUN SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION} uv export --no-dev --format=requirements-txt > /tmp/reqs.all.txt
 
 # 3. Strip the local project from deps list so setuptools-scm isn’t triggered during deps install
-RUN grep -v -E "(^-e\s+file://|^file://|/app)" /tmp/reqs.all.txt > /tmp/reqs.deps.txt || true
+RUN grep -v -E "(^-e\s+(\.|file://)|@\s+file://|^file://|/app)" /tmp/reqs.all.txt > /tmp/reqs.deps.txt || true
 
 # 4. Install dependencies
 RUN uv pip install --no-cache-dir -r /tmp/reqs.deps.txt
+
+# ===== Copy Application Source =====
+COPY . .
 
 # 5. Install the app itself (pretend version visible, no deps)
 RUN SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION} uv pip install --no-cache-dir . --no-deps
@@ -62,5 +64,5 @@ LABEL org.opencontainers.image.title=${APP_NAME} \
       org.opencontainers.image.description=${SERVICE_DESC} \
       org.opencontainers.image.version=${VERSION}
 
-ENTRYPOINT ["/bin/sh", "-c", "/app/.venv/bin/python -m $APP_NAME \"$@\"", "sh"]
+ENTRYPOINT ["python", "-m", "blink2mqtt"]
 CMD ["-c", "/config"]

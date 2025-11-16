@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
 import asyncio
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
@@ -39,7 +39,7 @@ class BlinkMixin:
         missing_devices = set(self.devices.keys()) - seen_devices
         for device_id in missing_devices:
             await self.publish_device_availability(device_id, online=False)
-        self.logger.warning(f"device {device_id} not seen in Blink API list — marked offline")
+            self.logger.warning(f"device {device_id} not seen in Blink API list — marked offline")
 
         # Handle first discovery completion
         if not self.discovery_complete:
@@ -126,6 +126,7 @@ class BlinkMixin:
 
     async def build_camera(self: Blink2Mqtt, camera: dict[str, str]) -> str:
         device_id = camera["serial_number"]
+        via_device = self.resolve_camera_via_device(camera)
 
         device = {
             "stat_t": self.mqtt_helper.stat_t(device_id),
@@ -139,7 +140,7 @@ class BlinkMixin:
                 "model": camera["device_type"],
                 "serial_number": camera["serial_number"],
                 "sw_version": camera["software_version"],
-                "via_device": self.service,
+                "via_device": via_device or self.service,
             },
             "origin": {"name": self.service_name, "sw": self.config["version"], "support_url": "https://github.com/weirdTangent/blink2mqtt"},
             "qos": self.qos,
@@ -248,3 +249,56 @@ class BlinkMixin:
         await self.publish_device_state(device_id)
 
         return device_id
+
+    def resolve_camera_via_device(self: Blink2Mqtt, camera: dict[str, Any]) -> str | None:
+        """Return the MQTT device slug for the sync module a camera reports."""
+
+        def normalize(value: Any) -> str | None:
+            if value is None:
+                return None
+            if isinstance(value, bool):
+                return str(int(value))
+            if isinstance(value, (int, float)):
+                return str(int(value))
+            value = str(value).strip()
+            return value or None
+
+        sync_ref = camera.get("sync_module")
+        if not sync_ref:
+            return None
+
+        candidate_values: set[str] = set()
+
+        def add_candidate(value: Any) -> None:
+            normalized = normalize(value)
+            if normalized:
+                candidate_values.add(normalized)
+
+        if isinstance(sync_ref, dict):
+            for key in ("serial", "serial_number", "device_id", "id", "network_id", "name"):
+                add_candidate(sync_ref.get(key))
+        elif isinstance(sync_ref, (list, tuple, set)):
+            for item in sync_ref:
+                add_candidate(item)
+        else:
+            for attr in ("serial", "serial_number", "device_id", "id", "network_id", "name"):
+                add_candidate(getattr(sync_ref, attr, None))
+            add_candidate(sync_ref)
+
+        if not candidate_values:
+            return None
+
+        for sync_serial, sync_data in self.blink_sync_modules.items():
+            cfg = sync_data.get("config", {})
+            sync_candidates = {
+                normalize(sync_serial),
+                normalize(cfg.get("serial_number")),
+                normalize(cfg.get("device_name")),
+                normalize(cfg.get("sync_id")),
+                normalize(cfg.get("network_id")),
+            }
+            if candidate_values & {value for value in sync_candidates if value}:
+                slug = cast(str, self.mqtt_helper.device_slug(sync_serial))
+                return slug
+
+        return None
