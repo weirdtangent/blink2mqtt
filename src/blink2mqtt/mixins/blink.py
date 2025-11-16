@@ -10,9 +10,9 @@ if TYPE_CHECKING:
 class BlinkMixin:
     async def refresh_device_list(self: Blink2Mqtt) -> None:
         if self.discovery_complete:
-            self.logger.info(f"Refreshing device list from Blink (every {self.device_list_interval} sec)")
+            self.logger.info(f"refreshing device list from Blink (every {self.device_list_interval} sec)")
         else:
-            self.logger.info("Grabbing device list from Blink")
+            self.logger.info("grabbing device list from Blink")
 
         blink_devices, sync_modules = await asyncio.gather(
             self.get_cameras(),
@@ -39,12 +39,12 @@ class BlinkMixin:
         missing_devices = set(self.devices.keys()) - seen_devices
         for device_id in missing_devices:
             await self.publish_device_availability(device_id, online=False)
-            self.logger.warning(f"Device {device_id} not seen in Blink API list — marked offline")
+        self.logger.warning(f"device {device_id} not seen in Blink API list — marked offline")
 
         # Handle first discovery completion
         if not self.discovery_complete:
             await asyncio.sleep(1)
-            self.logger.info("First-time device setup and discovery is done")
+            self.logger.info("first-time device setup and discovery is done")
             self.discovery_complete = True
 
     # convert Blink device capabilities into MQTT components
@@ -69,7 +69,7 @@ class BlinkMixin:
         device_name = device.get("device_name", "Unknown Device")
         device_id = device.get("serial_number", "Unknown ID")
 
-        self.logger.warning(f'Unhandled Blink device type: "{device_name}" [{type}] ({device_id})')
+        self.logger.warning(f'unhandled Blink device type: "{device_name}" [{type}] ({device_id})')
         return None
 
     async def build_switch(self: Blink2Mqtt, sync_module: dict[str, str]) -> str:
@@ -116,7 +116,7 @@ class BlinkMixin:
         await self.build_sync_module_states(device_id, sync_module)
 
         if not self.is_discovered(device_id):
-            self.logger.info(f'Added new switch: "{sync_module["device_name"]}" [Blink {sync_module["device_type"]}] ({device_id})')
+            self.logger.info(f'added new switch: "{sync_module["device_name"]}" [Blink {sync_module["device_type"]}] ({device_id})')
 
         await self.publish_device_discovery(device_id)
         await self.publish_device_availability(device_id, online=True)
@@ -241,7 +241,7 @@ class BlinkMixin:
         await self.build_camera_states(device_id, camera)
 
         if not self.is_discovered(device_id):
-            self.logger.info(f'Added new camera: "{camera["device_name"]}" [Blink {camera["device_type"]}] ({device_id})')
+            self.logger.info(f'added new camera: "{camera["device_name"]}" [Blink {camera["device_type"]}] ({device_id})')
 
         await self.publish_device_discovery(device_id)
         await self.publish_device_availability(device_id, online=True)

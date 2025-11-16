@@ -174,6 +174,6 @@ class PublishMixin:
     async def publish_device_image(self: Blink2Mqtt, device_id: str, type: str) -> None:
         payload = self.states[device_id][type]
         if payload and isinstance(payload, str):
-            self.logger.info(f"Updating {self.get_device_name(device_id)} with latest snapshot")
+            self.logger.info(f"updating {self.get_device_name(device_id)} with latest snapshot")
             topic = self.mqtt_helper.stat_t(device_id, type)
             await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, payload)

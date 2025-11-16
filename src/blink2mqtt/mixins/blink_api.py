@@ -41,11 +41,11 @@ class BlinkAPIMixin(object):
         # --- Choose credential source ---
         auth: Auth | None = None
         if os.path.exists(cred_path):
-            self.logger.info("Using existing Blink credentials")
+            self.logger.info("using existing Blink credentials")
             creds = await json_load(cred_path)
             auth = Auth(creds, no_prompt=True)
         elif self.blink_config.get("username") and self.blink_config.get("password"):
-            self.logger.info("Using username/password from config")
+            self.logger.info("using username/password from config")
             auth = Auth(
                 {
                     "username": self.blink_config["username"],
@@ -54,7 +54,7 @@ class BlinkAPIMixin(object):
                 no_prompt=True,
             )
         else:
-            self.logger.error("No credentials found (no cred file, username, or password). Cannot authenticate.")
+            self.logger.error("no credentials found (no cred file, username, or password). cannot authenticate.")
             raise SystemExit(1)
 
         self.blink.auth = auth
@@ -63,7 +63,7 @@ class BlinkAPIMixin(object):
         try:
             await self.blink.start()
         except UnauthorizedError:
-            self.logger.error("Stored credentials invalid — deleting and exiting")
+            self.logger.error("stored credentials invalid — deleting and exiting")
             await asyncio.to_thread(os.remove, cred_path)
             raise SystemExit(1)
 
@@ -84,7 +84,7 @@ class BlinkAPIMixin(object):
                 await asyncio.gather(*[asyncio.to_thread(os.remove, p) for p in (cred_path, key_path) if os.path.exists(p)])
                 raise SystemExit(1)
 
-            self.logger.info("Found key.txt, completing 2FA process")
+            self.logger.info("found key.txt, completing 2FA process")
             try:
                 await asyncio.to_thread(os.remove, key_path)
                 await self.blink.send_2fa_code(key)
@@ -109,7 +109,7 @@ class BlinkAPIMixin(object):
         try:
             await self.blink.refresh()
         except AttributeError as err:
-            self.logger.error(f"Blink failed a 'refresh' command: {err}")
+            self.logger.error(f"blink failed a 'refresh' command: {err}")
             pass
 
     async def get_cameras(self: Blink2Mqtt) -> dict[str, Any]:
@@ -169,7 +169,7 @@ class BlinkAPIMixin(object):
     async def handle_blink_response(self: Blink2Mqtt, response: str | dict[str, Any]) -> bool | None:
         if response and isinstance(response, dict):
             if response.get("code", 200) == 307:
-                self.logger.warning("Blink busy for device, retrying in 2s...")
+                self.logger.warning("blink busy for device, retrying in 2s...")
                 await asyncio.sleep(2)
                 return None
             if response.get("state_stage") in {"completed", "rest"}:
@@ -190,7 +190,7 @@ class BlinkAPIMixin(object):
         try:
             async with timeout(5):
                 response = await device.async_arm(switch)
-                self.logger.info(f"Set arm mode for {device_id}: {response}")
+                self.logger.info(f"set arm mode for {device_id}: {response}")
                 return response
         except asyncio.TimeoutError:
             self.logger.error(f"[set_arm_mode] Request time out for {device_id}")
@@ -353,7 +353,7 @@ class BlinkAPIMixin(object):
         blink_device = self.blink_sync_modules[device_id]
         sync_module = self.blink.sync.get(blink_device["config"]["device_name"], None)
         if not sync_module:
-            self.logger.error(f"Tried to get events from unknown sync_module {device_id}")
+            self.logger.error(f"tried to get events from unknown sync_module {device_id}")
             return
 
         tries = 0
@@ -361,9 +361,9 @@ class BlinkAPIMixin(object):
             try:
                 event = await sync_module.get_events()
                 if not event:
-                    self.logger.info("No more events waiting...")
+                    self.logger.info("no more events waiting...")
                     break
-                self.logger.info(f"Got event: {json.dumps(event)}")
+                self.logger.info(f"got event: {json.dumps(event)}")
                 # await self.queue_device_event(device_id, code, payload)
             except Exception as err:
                 tries += 1
@@ -413,7 +413,7 @@ class BlinkAPIMixin(object):
                 pass
             # save everything else as a 'generic' event
             else:
-                self.logger.debug(f"Event on {device_id} - {code}: {payload}")
+                self.logger.debug(f"event on {device_id} - {code}: {payload}")
                 self.events.append({"device_id": device_id, "event": code, "payload": payload})
         except Exception as err:
             self.logger.error(f"[queue_device_event] Failed to understand event from {device_id}: {err}", exc_info=True)
@@ -447,14 +447,14 @@ class BlinkAPIMixin(object):
                     else:
                         # only log details if not a recording
                         if event != "recording":
-                            self.logger.debug(f"Got event for {self.get_device_name(device_id)}: {event} - {payload}")
+                            self.logger.debug(f"got event for {self.get_device_name(device_id)}: {event} - {payload}")
                         self.upsert_state(device_id, last_event=f"{event}: {json.dumps(payload)}", last_event_time=str(datetime.now()))
 
                     # other ways to infer "privacy mode" is off and needs updating
                     # if event in ['motion','human','doorbell'] and states['privacy_mode'] == 'on':
                     # states['privacy_mode'] = 'off'
                 else:
-                    self.logger.debug(f'Got {{{event}: {payload}}} for "{self.get_device_name(device_id)}"')
+                    self.logger.debug(f'got {{{event}: {payload}}} for "{self.get_device_name(device_id)}"')
                     self.upsert_state(device_id, last_event=f"{event}: {json.dumps(payload)}", last_event_time=str(datetime.now()))
 
                 await self.publish_device_state(device_id)

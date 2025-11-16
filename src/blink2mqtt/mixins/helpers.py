@@ -69,7 +69,7 @@ class HelpersMixin:
                     await self.publish_device_state(device_id)
 
             case _:
-                self.logger.error(f"Received command for unknown: {handler} with payload {message}")
+                self.logger.error(f"received command for unknown: {handler} with payload {message}")
 
     async def handle_service_command(self: Blink2Mqtt, handler: str, message: Any) -> None:
         match handler:
@@ -83,7 +83,7 @@ class HelpersMixin:
                 self.snapshot_update_interval = int(message)
                 self.logger.info(f"snapshot_interval updated to be {message}")
             case _:
-                self.logger.error(f"Unrecognized message to {handler} -> {message}")
+                self.logger.error(f"unrecognized message to {handler} -> {message}")
                 return
         await self.publish_service_state()
 
@@ -102,7 +102,7 @@ class HelpersMixin:
         self.running = False
 
         def _force_exit() -> None:
-            self.logger.warning("Force-exiting process after signal")
+            self.logger.warning("force-exiting process after signal")
             os._exit(0)
 
         threading.Timer(5.0, _force_exit).start()

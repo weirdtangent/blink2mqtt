@@ -42,12 +42,12 @@ class MqttMixin(BaseMqttMixin):
         if components[0] == self.mqtt_helper.service_slug:
             return await self.handle_device_topic(components, payload)
 
-        self.logger.debug(f"Ignoring unrelated MQTT topic: {topic}")
+        self.logger.debug(f"ignoring unrelated MQTT topic: {topic}")
 
     async def handle_homeassistant_message(self: Blink2Mqtt, payload: str) -> None:
         if payload == "online":
             await self.rediscover_all()
-            self.logger.info("Home Assistant came online — rediscovering devices")
+            self.logger.info("home assistant came online — rediscovering devices")
 
     async def handle_device_topic(self: Blink2Mqtt, components: list[str], payload: Any) -> None:
         parsed = self._parse_device_topic(components)
@@ -56,16 +56,16 @@ class MqttMixin(BaseMqttMixin):
 
         (vendor, device_id, attribute) = parsed
         if not vendor or not vendor.startswith(self.mqtt_helper.service_slug):
-            self.logger.error(f"Ignoring non-Blink device command, got vendor {vendor}")
+            self.logger.error(f"ignoring non-Blink device command, got vendor {vendor}")
             return
         if not device_id or not attribute:
-            self.logger.error(f"Failed to parse device_id and/or payload from mqtt topic components: {components}")
+            self.logger.error(f"failed to parse device_id and/or payload from mqtt topic components: {components}")
             return
         if not self.devices.get(device_id, None):
-            self.logger.warning(f"Got MQTT message for unknown device: {device_id}")
+            self.logger.warning(f"got MQTT message for unknown device: {device_id}")
             return
 
-        self.logger.info(f"Got message for {self.get_device_name(device_id)}: set {components[-2]} to {payload}")
+        self.logger.info(f"got message for {self.get_device_name(device_id)}: set {components[-2]} to {payload}")
         await self.handle_device_command(device_id, attribute, payload)
 
     def _parse_device_topic(self: Blink2Mqtt, components: list[str]) -> list[str | None] | None:
@@ -83,7 +83,7 @@ class MqttMixin(BaseMqttMixin):
             return [vendor, device_id, attribute]
 
         except Exception as err:
-            self.logger.warning(f"Malformed device topic: {components} ({err})")
+            self.logger.warning(f"malformed device topic: {components} ({err})")
             return None
 
     def safe_split_device(self: Blink2Mqtt, topic: str, segment: str) -> list[str]:
@@ -91,7 +91,7 @@ class MqttMixin(BaseMqttMixin):
         try:
             return segment.split("-", 1)
         except ValueError:
-            self.logger.warning(f"Ignoring malformed topic: {topic}")
+            self.logger.warning(f"ignoring malformed topic: {topic}")
             return []
 
     def set_discovered(self: Blink2Mqtt, device_id: str) -> None:
@@ -101,4 +101,4 @@ class MqttMixin(BaseMqttMixin):
         try:
             fut.result()
         except Exception as err:
-            self.logger.exception(f"Device command task failed: {err}")
+            self.logger.exception(f"device command task failed: {err}")

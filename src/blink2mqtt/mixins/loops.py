@@ -74,7 +74,7 @@ class LoopsMixin:
             try:
                 signal.signal(sig, self.handle_signal)
             except Exception:
-                self.logger.debug(f"Cannot install handler for {sig}")
+                self.logger.debug(f"cannot install handler for {sig}")
 
         self.running = True
         self.mark_ready()
@@ -92,9 +92,9 @@ class LoopsMixin:
         try:
             await asyncio.gather(*tasks)
         except asyncio.CancelledError:
-            self.logger.warning("Main loop cancelled — shutting down...")
+            self.logger.warning("main loop cancelled — shutting down...")
         except Exception as err:
-            self.logger.exception(f"Unhandled exception in main loop: {err}")
+            self.logger.exception(f"unhandled exception in main loop: {err}")
             self.running = False
         finally:
-            self.logger.info("All loops terminated — cleanup complete.")
+            self.logger.info("all loops terminated — cleanup complete.")

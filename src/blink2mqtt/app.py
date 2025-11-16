@@ -33,19 +33,19 @@ async def async_main() -> int:
         async with Blink2Mqtt(args=args) as blink2mqtt:
             await blink2mqtt.main_loop()
     except ConfigError as err:
-        logger.error(f"Fatal config error was found: {err}")
+        logger.error(f"fatal config error was found: {err}")
         return 1
     except MqttError as err:
-        logger.error(f"MQTT service problems: {err}")
+        logger.error(f"mqtt service problems: {err}")
         return 1
     except KeyboardInterrupt:
-        logger.warning("Shutdown requested (Ctrl+C). Exiting gracefully...")
+        logger.warning("shutdown requested (Ctrl+C). exiting gracefully...")
         return 1
     except asyncio.CancelledError:
-        logger.warning("Main loop cancelled.")
+        logger.warning("main loop cancelled.")
         return 1
     except Exception as err:
-        logger.error(f"Unhandled exception: {err}", exc_info=True)
+        logger.error(f"unhandled exception: {err}", exc_info=True)
         return 1
     finally:
         logger.info("blink2mqtt stopped.")

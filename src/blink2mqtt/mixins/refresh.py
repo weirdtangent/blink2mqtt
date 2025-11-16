@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 class RefreshMixin:
     async def refresh_all_devices(self: "Blink2Mqtt") -> None:
-        self.logger.info(f"Refreshing all devices from Blink (every {self.device_interval} sec)")
+        self.logger.info(f"refreshing all devices from Blink (every {self.device_interval} sec)")
         await self.blink_refresh()
 
         blink_devices = await self.get_cameras()
@@ -34,7 +34,7 @@ class RefreshMixin:
             await asyncio.gather(*tasks)
 
     async def refresh_snapshot_all_devices(self: "Blink2Mqtt") -> None:
-        self.logger.info(f"Requesting snapshots on devices (every {self.snapshot_update_interval} sec)")
+        self.logger.info(f"requesting snapshots on devices (every {self.snapshot_update_interval} sec)")
         await self.blink_refresh()
 
         tasks1 = []
