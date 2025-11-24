@@ -207,7 +207,7 @@ class BlinkAPIMixin(object):
             name = self.blink_cameras[device_id]["name"]
             camera = self.blink.cameras[name]
         else:
-            self.logger.error(f"[get_nightvision] unknown device id: {device_id}")
+            self.logger.error(f"[get_nightvision] unknown device id: {self.get_device_name(device_id)}")
             return ""
 
         try:
@@ -257,7 +257,7 @@ class BlinkAPIMixin(object):
             sync_module = self.blink_sync_modules[device_id]
             device = self.blink.sync[sync_module["device_name"]]
         else:
-            self.logger.error(f"[set_motion_detection] unknown device id: {device_id}")
+            self.logger.error(f"[set_motion_detection] unknown device id: {self.get_device_name(device_id)}")
             return None
         max_retries = 5
         base_delay = 2
@@ -287,7 +287,7 @@ class BlinkAPIMixin(object):
             name = self.blink_cameras[device_id]["name"]
             camera = self.blink.cameras[name]
         else:
-            self.logger.error(f"[take_snapshot_from_device] unknown device id: {device_id}")
+            self.logger.error(f"[take_snapshot_from_device] unknown device id: {self.get_device_name(device_id)}")
             return None
 
         try:
@@ -300,7 +300,7 @@ class BlinkAPIMixin(object):
             name = self.blink_cameras[device_id]["name"]
             camera = self.blink.cameras[name]
         else:
-            self.logger.error(f"[get_snapshot_from_device] unknown device id: {device_id}")
+            self.logger.error(f"[get_snapshot_from_device] unknown device id: {self.get_device_name(device_id)}")
             return None
 
         try:
@@ -320,7 +320,7 @@ class BlinkAPIMixin(object):
             name = self.blink_cameras[device_id]["name"]
             camera = self.blink.cameras[name]
         else:
-            self.logger.error(f"[get_recorded_file] unknown device id: {device_id}")
+            self.logger.error(f"[get_recorded_file] unknown device id: {self.get_device_name(device_id)}")
             return None
 
         max_retries = 5
@@ -335,7 +335,7 @@ class BlinkAPIMixin(object):
                         f"[get_recorded_file] processed recording from ({self.get_device_name(device_id)}) {len(data_raw)} bytes raw, and {len(data_base64)} bytes base64"
                     )
                     if len(data_base64) >= 100 * 1024 * 1024:
-                        self.logger.error("[get_recorded_file] skipping oversized recording (>100 MB) for {self.get_device_name(device_id)}")
+                        self.logger.error(f"[get_recorded_file] skipping oversized recording (>100 MB) for {self.get_device_name(device_id)}")
                         return None
                     return data_base64
             except Exception as err:
@@ -356,7 +356,7 @@ class BlinkAPIMixin(object):
             sync_module = self.blink_sync_modules[device_id]
             device = self.blink.sync[sync_module["device_name"]]
         else:
-            self.logger.error(f"[set_motion_detection] unknown device id: {device_id}")
+            self.logger.error(f"[set_motion_detection] unknown device id: {self.get_device_name(device_id)}")
             return None
         max_retries = 5
         base_delay = 2
@@ -416,10 +416,10 @@ class BlinkAPIMixin(object):
                 pass
             # save everything else as a 'generic' event
             else:
-                self.logger.debug(f"event on {device_id} - {code}: {payload}")
+                self.logger.debug(f"event on {self.get_device_name(device_id)} - {code}: {payload}")
                 self.events.append({"device_id": device_id, "event": code, "payload": payload})
         except Exception as err:
-            self.logger.error(f"[queue_device_event] Failed to understand event from {device_id}: {err}", exc_info=True)
+            self.logger.error(f"[queue_device_event] Failed to understand event from {self.get_device_name(device_id)}: {err}", exc_info=True)
 
     def get_next_event(self: Blink2Mqtt) -> dict[str, Any] | None:
         return self.events.pop(0) if len(self.events) > 0 else None

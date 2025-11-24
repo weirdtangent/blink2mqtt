@@ -62,7 +62,7 @@ class MqttMixin(BaseMqttMixin):
             self.logger.error(f"failed to parse device_id and/or payload from mqtt topic components: {components}")
             return
         if not self.devices.get(device_id, None):
-            self.logger.warning(f"got MQTT message for unknown device: {device_id}")
+            self.logger.warning(f"got MQTT message for unknown device: {self.get_device_name(device_id)}")
             return
 
         self.logger.info(f"got message for {self.get_device_name(device_id)}: set {components[-2]} to {payload}")

@@ -153,7 +153,7 @@ class PublishMixin:
 
     async def publish_device_state(self: Blink2Mqtt, device_id: str, subject: str = "", sub: str = "") -> None:
         if not self.is_discovered(device_id):
-            self.logger.debug(f"discovery not complete for {device_id} yet, holding off on sending state")
+            self.logger.debug(f"discovery not complete for {self.get_device_name(device_id)} yet, holding off on sending state")
             return
 
         for state, value in self.states[device_id].items():
