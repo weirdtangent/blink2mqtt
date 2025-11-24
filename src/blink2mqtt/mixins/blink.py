@@ -38,7 +38,7 @@ class BlinkMixin:
         missing_devices = set(self.devices.keys()) - seen_devices
         for device_id in missing_devices:
             await self.publish_device_availability(device_id, online=False)
-            self.logger.warning(f"device {self.get_device_name(device_id)} not seen in Blink API list — marked offline")
+            self.logger.warning(f"device '{self.get_device_name(device_id)}' not seen in Blink API list — marked offline")
 
         # Handle discovery completion
         self.logger.info("first-time device setup and discovery is done")
@@ -110,7 +110,7 @@ class BlinkMixin:
         await self.build_sync_module_states(device_id, sync_module)
 
         if not self.is_discovered(device_id):
-            self.logger.info(f'added sync module: "{sync_module["device_name"]}" [Blink {sync_module["device_type"]}] ({self.get_device_name(device_id)})')
+            self.logger.info(f'added sync module: "{sync_module["device_name"]}" [Blink {sync_module["device_type"]}] (\'{self.get_device_name(device_id)}\')')
 
         await self.publish_device_discovery(device_id)
         await self.publish_device_availability(device_id, online=True)
@@ -235,7 +235,7 @@ class BlinkMixin:
         await self.build_camera_states(device_id, camera)
 
         if not self.is_discovered(device_id):
-            self.logger.info(f'added camera: "{camera["device_name"]}" [Blink {camera["device_type"]}] ({self.get_device_name(device_id)})')
+            self.logger.info(f'added camera: "{camera["device_name"]}" [Blink {camera["device_type"]}] (\'{self.get_device_name(device_id)}\')')
             await self.publish_device_discovery(device_id)
 
         await self.publish_device_availability(device_id, online=True)

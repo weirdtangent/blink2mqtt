@@ -64,13 +64,13 @@ class HelpersMixin:
     async def handle_device_command(self: Blink2Mqtt, device_id: str, handler: str, message: Any) -> None:
         match handler:
             case "motion_detection":
-                self.logger.debug(f"sending {self.get_device_name(device_id)} motion_detection to {message} command to Blink")
+                self.logger.debug(f"sending '{self.get_device_name(device_id)}' motion_detection to {message} command to Blink")
                 success = await self.set_motion_detection(device_id, message == "ON")
                 if success:
                     self.upsert_state(device_id, switch={"motion_detection": message})
                     await self.publish_device_state(device_id, "switch", "motion_detection")
             case "nightvision":
-                self.logger.debug(f"sending {self.get_device_name(device_id)} nightvision to {message} command to Blink")
+                self.logger.debug(f"sending '{self.get_device_name(device_id)}' nightvision to {message} command to Blink")
                 success = await self.set_nightvision(device_id, message)
                 if success:
                     self.upsert_state(device_id, select={"nightvision": message})

@@ -153,7 +153,7 @@ class PublishMixin:
 
     async def publish_device_state(self: Blink2Mqtt, device_id: str, subject: str = "", sub: str = "") -> None:
         if not self.is_discovered(device_id):
-            self.logger.debug(f"discovery not complete for {self.get_device_name(device_id)} yet, holding off on sending state")
+            self.logger.debug(f"discovery not complete for '{self.get_device_name(device_id)}' yet, holding off on sending state")
             return
 
         for state, value in self.states[device_id].items():
@@ -174,6 +174,6 @@ class PublishMixin:
     async def publish_device_image(self: Blink2Mqtt, device_id: str, type: str) -> None:
         payload = self.states[device_id][type]
         if payload and isinstance(payload, str):
-            self.logger.info(f"updating {self.get_device_name(device_id)} with latest snapshot")
+            self.logger.info(f"updating '{self.get_device_name(device_id)}' with latest snapshot")
             topic = self.mqtt_helper.stat_t(device_id, type)
             await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, payload)

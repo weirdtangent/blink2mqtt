@@ -62,10 +62,10 @@ class MqttMixin(BaseMqttMixin):
             self.logger.error(f"failed to parse device_id and/or payload from mqtt topic components: {components}")
             return
         if not self.devices.get(device_id, None):
-            self.logger.warning(f"got MQTT message for unknown device: {self.get_device_name(device_id)}")
+            self.logger.warning(f"got MQTT message for unknown device: '{self.get_device_name(device_id)}'")
             return
 
-        self.logger.info(f"got message for {self.get_device_name(device_id)}: set {components[-2]} to {payload}")
+        self.logger.info(f"got message for '{self.get_device_name(device_id)}': set {components[-2]} to {payload}")
         await self.handle_device_command(device_id, attribute, payload)
 
     def _parse_device_topic(self: Blink2Mqtt, components: list[str]) -> list[str | None] | None:
