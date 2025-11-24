@@ -1,3 +1,10 @@
+## [2.2.3](https://github.com/weirdtangent/blink2mqtt/compare/v2.2.2...v2.2.3) (2025-11-24)
+
+
+### Bug Fixes
+
+* make sure all device_names logged are in quotes ([b23367e](https://github.com/weirdtangent/blink2mqtt/commit/b23367e3d232095ca7922f96e1c31cbd67151fc1))
+
 ## [2.2.2](https://github.com/weirdtangent/blink2mqtt/compare/v2.2.1...v2.2.2) (2025-11-24)
 
 
