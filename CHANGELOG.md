@@ -1,3 +1,10 @@
+## [2.2.2](https://github.com/weirdtangent/blink2mqtt/compare/v2.2.1...v2.2.2) (2025-11-24)
+
+
+### Bug Fixes
+
+* always try to log device_name in preference to device_id ([9aa22d2](https://github.com/weirdtangent/blink2mqtt/commit/9aa22d2bad815b75e4a24797fea6bae302f059d7))
+
 ## [2.2.1](https://github.com/weirdtangent/blink2mqtt/compare/v2.2.0...v2.2.1) (2025-11-09)
 
 
