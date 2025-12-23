@@ -1,3 +1,10 @@
+# [2.3.0](https://github.com/weirdtangent/blink2mqtt/compare/v2.2.3...v2.3.0) (2025-12-23)
+
+
+### Features
+
+* add security workflow features ([2bda58e](https://github.com/weirdtangent/blink2mqtt/commit/2bda58e92c51776fe607429ad4fc203e0864dfb4))
+
 ## [2.2.3](https://github.com/weirdtangent/blink2mqtt/compare/v2.2.2...v2.2.3) (2025-11-24)
 
 
