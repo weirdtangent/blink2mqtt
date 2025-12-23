@@ -117,3 +117,10 @@ useful to myself and others, not for any financial gain - but any token of appre
 ![Docker Image Version](https://img.shields.io/docker/v/graystorm/blink2mqtt?sort=semver&logo=docker)
 ![Docker Pulls](https://img.shields.io/docker/pulls/graystorm/blink2mqtt?logo=docker)
 ![License](https://img.shields.io/github/license/weirdtangent/blink2mqtt)
+
+### Security
+
+![Trivy Scan](https://img.shields.io/badge/trivy-scanned-success?logo=aquasecurity)
+![Cosign](https://img.shields.io/badge/cosign-signed-success?logo=sigstore)
+![SBOM](https://img.shields.io/badge/SBOM-included-blue?logo=docker)
+![Provenance](https://img.shields.io/badge/provenance-attested-blue?logo=docker)
