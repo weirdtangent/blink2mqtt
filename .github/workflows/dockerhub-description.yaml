@@ -6,9 +6,9 @@ on:
     paths:
       - README.md
       - .github/workflows/dockerhub-description.yaml
+  workflow_dispatch:
 permissions:
   contents: read
-  workflow_dispatch:
 
 jobs:
   dockerHubDescription:
