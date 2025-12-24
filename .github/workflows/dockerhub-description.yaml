@@ -6,6 +6,8 @@ on:
     paths:
       - README.md
       - .github/workflows/dockerhub-description.yaml
+permissions:
+  contents: read
   workflow_dispatch:
 
 jobs:
