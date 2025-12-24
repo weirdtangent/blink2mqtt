@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7-labs
-FROM python:3.13-slim-bookworm
+FROM python:3.14-slim
 
 # ===== Project Variables =====
 ARG APP_NAME=blink2mqtt
