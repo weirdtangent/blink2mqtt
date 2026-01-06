@@ -1,3 +1,15 @@
+# [2.4.0](https://github.com/weirdtangent/blink2mqtt/compare/v2.3.0...v2.4.0) (2026-01-06)
+
+
+### Bug Fixes
+
+* ensure protocol_version is always string type ([a9fc2d4](https://github.com/weirdtangent/blink2mqtt/commit/a9fc2d4237caf2dc981ae46673c168281dfe6df3))
+
+
+### Features
+
+* add configurable MQTT protocol version support ([9e22bb5](https://github.com/weirdtangent/blink2mqtt/commit/9e22bb55f3407fb42d8c5f83b675b8d5fdd136e3)), closes [#13](https://github.com/weirdtangent/blink2mqtt/issues/13)
+
 # [2.3.0](https://github.com/weirdtangent/blink2mqtt/compare/v2.2.3...v2.3.0) (2025-12-23)
 
 
