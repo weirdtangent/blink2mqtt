@@ -44,6 +44,7 @@ A docker image is available at `graystorm/blink2mqtt:latest`. You can mount your
 | `MQTT_PASSWORD` | No | *(empty)* | MQTT password |
 | `MQTT_HOST` | No | `localhost` | MQTT broker hostname or IP |
 | `MQTT_PORT` | No | `1883` | MQTT broker port |
+| `MQTT_PROTOCOL_VERSION` | No | `5` | MQTT protocol version (`3.1.1` or `5`) |
 | `MQTT_QOS` | No | `0` | Quality of Service (0–2) |
 | `MQTT_RECONNECT_DELAY` | No | `30` | Seconds to wait before reconnecting after failure |
 | `MQTT_TLS_ENABLED` | Conditional | `false` | Enable TLS for MQTT (set to `true`) |
