@@ -171,18 +171,18 @@ class HelpersMixin:
 
         # fmt: off
         mqtt = {
-            "host":              cast(str, mqtt.get("host"))            or os.getenv("MQTT_HOST", "localhost"),
-            "port":          int(cast(str, mqtt.get("port")             or os.getenv("MQTT_PORT", 1883))),
-            "protocol_version":  str(cast(str, mqtt.get("protocol_version")  or os.getenv("MQTT_PROTOCOL_VERSION", "5"))),
-            "qos":           int(cast(str, mqtt.get("qos")              or os.getenv("MQTT_QOS", 0))),
-            "username":                   mqtt.get("username")          or os.getenv("MQTT_USERNAME", ""),
-            "password":                   mqtt.get("password")          or os.getenv("MQTT_PASSWORD", ""),
-            "tls_enabled":                mqtt.get("tls_enabled")       or (os.getenv("MQTT_TLS_ENABLED", "false").lower() == "true"),
-            "tls_ca_cert":                mqtt.get("tls_ca_cert")       or os.getenv("MQTT_TLS_CA_CERT"),
-            "tls_cert":                   mqtt.get("tls_cert")          or os.getenv("MQTT_TLS_CERT"),
-            "tls_key":                    mqtt.get("tls_key")           or os.getenv("MQTT_TLS_KEY"),
-            "prefix":                     mqtt.get("prefix")            or os.getenv("MQTT_PREFIX", "blink2mqtt"),
-            "discovery_prefix":           mqtt.get("discovery_prefix")  or os.getenv("MQTT_DISCOVERY_PREFIX", "homeassistant"),
+            "host":                   cast(str, mqtt.get("host"))                       or os.getenv("MQTT_HOST", "localhost"),
+            "port":               int(cast(str, mqtt.get("port")                        or os.getenv("MQTT_PORT", 1883))),
+            "protocol_version":   str(cast(str, mqtt.get("protocol_version")            or os.getenv("MQTT_PROTOCOL_VERSION", "5"))),
+            "qos":                int(cast(str, mqtt.get("qos")                         or os.getenv("MQTT_QOS", 0))),
+            "username":                        mqtt.get("username")                     or os.getenv("MQTT_USERNAME", ""),
+            "password":                        mqtt.get("password")                     or os.getenv("MQTT_PASSWORD", ""),
+            "tls_enabled":                     mqtt.get("tls_enabled")                  or (os.getenv("MQTT_TLS_ENABLED", "false").lower() == "true"),
+            "tls_ca_cert":                     mqtt.get("tls_ca_cert")                  or os.getenv("MQTT_TLS_CA_CERT"),
+            "tls_cert":                        mqtt.get("tls_cert")                     or os.getenv("MQTT_TLS_CERT"),
+            "tls_key":                         mqtt.get("tls_key")                      or os.getenv("MQTT_TLS_KEY"),
+            "prefix":                          mqtt.get("prefix")                       or os.getenv("MQTT_PREFIX", "blink2mqtt"),
+            "discovery_prefix":                mqtt.get("discovery_prefix")             or os.getenv("MQTT_DISCOVERY_PREFIX", "homeassistant"),
         }
 
         blink = {
