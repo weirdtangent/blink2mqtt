@@ -173,7 +173,7 @@ class HelpersMixin:
         mqtt = {
             "host":              cast(str, mqtt.get("host"))            or os.getenv("MQTT_HOST", "localhost"),
             "port":          int(cast(str, mqtt.get("port")             or os.getenv("MQTT_PORT", 1883))),
-            "protocol_version":           mqtt.get("protocol_version")  or os.getenv("MQTT_PROTOCOL_VERSION", "5"),
+            "protocol_version":  str(cast(str, mqtt.get("protocol_version")  or os.getenv("MQTT_PROTOCOL_VERSION", "5"))),
             "qos":           int(cast(str, mqtt.get("qos")              or os.getenv("MQTT_QOS", 0))),
             "username":                   mqtt.get("username")          or os.getenv("MQTT_USERNAME", ""),
             "password":                   mqtt.get("password")          or os.getenv("MQTT_PASSWORD", ""),
