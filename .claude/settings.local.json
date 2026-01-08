@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run black:*)",
+      "Bash(uv run ruff:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(uv pip list:*)",
+      "Bash(uv pip show:*)",
+      "Bash(git remote get-url:*)",
+      "Bash(uv sync:*)",
+      "Bash(git branch:*)"
+    ]
+  }
+}
