@@ -1,3 +1,10 @@
+## [2.4.1](https://github.com/weirdtangent/blink2mqtt/compare/v2.4.0...v2.4.1) (2026-01-19)
+
+
+### Bug Fixes
+
+* remove duplicate CVE-2024-52005 entry in .trivyignore ([9a2aaf0](https://github.com/weirdtangent/blink2mqtt/commit/9a2aaf0e89dc4a66ff404bdd8a684732cc6492f0))
+
 # [2.4.0](https://github.com/weirdtangent/blink2mqtt/compare/v2.3.0...v2.4.0) (2026-01-06)
 
 
