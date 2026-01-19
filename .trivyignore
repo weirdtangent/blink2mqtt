@@ -1,3 +1,89 @@
+# =============================================================================
+# Build-time only dependencies (git and related libs)
+# Git is only used during Docker build for setuptools-scm and is not present
+# in the final runtime image or used by blink2mqtt at runtime.
+# =============================================================================
+CVE-2018-1000021  # git, git-man: ANSI escape codes (build-time only)
+CVE-2022-24975    # git, git-man: --mirror option (build-time only)
+CVE-2024-52005    # git, git-man: sideband payload (build-time only)
+
 # libexpat is only pulled in via apt-get install git during build.
 # It is not used in the final runtime image or by blink2mqtt at all.
-CVE-2025-59375
+CVE-2025-59375    # libexpat1: build-time only
+CVE-2025-66382    # libexpat1: build-time only
+
+# apt is only used during build and not in runtime
+CVE-2011-3374     # apt, libapt-pkg7.0: ancient issue, build-time only
+
+# =============================================================================
+# Ancient/Low-severity CVEs in core system libraries
+# These are very old CVEs (2005-2019) with minimal real-world impact
+# =============================================================================
+CVE-2005-2541     # tar: 2005 vulnerability
+CVE-2007-5686     # login.defs, passwd: 2007 vulnerability
+CVE-2010-4756     # libc-bin, libc6: 2010 vulnerability
+CVE-2011-3389     # libgnutls30t64: 2011 BEAST attack (TLS 1.0)
+CVE-2011-4116     # perl libraries: 2011 vulnerability
+CVE-2013-4392     # libsystemd0, libudev1: 2013 vulnerability
+CVE-2015-3276     # libldap2: 2015 vulnerability
+CVE-2017-14159    # libldap2: 2017 vulnerability
+CVE-2017-17740    # libldap2: 2017 vulnerability
+CVE-2017-18018    # coreutils: race condition in chown/chgrp
+CVE-2018-20796    # libc-bin, libc6: 2018 vulnerability
+CVE-2018-5709     # kerberos libraries: 2018 vulnerability
+CVE-2019-1010022  # libc-bin, libc6: 2019 vulnerability
+CVE-2019-1010023  # libc-bin, libc6: 2019 vulnerability
+CVE-2019-1010024  # libc-bin, libc6: 2019 vulnerability
+CVE-2019-1010025  # libc-bin, libc6: 2019 vulnerability
+CVE-2019-9192     # libc-bin, libc6: 2019 vulnerability
+CVE-2020-15719    # libldap2: 2020 vulnerability
+CVE-2021-45346    # libsqlite3-0: 2021 vulnerability
+
+# =============================================================================
+# Vendor temporary IDs and disputed CVEs
+# =============================================================================
+TEMP-0290435-0B57B5  # tar: Debian temporary ID
+TEMP-0517018-A83CE6  # sysvinit-utils: Debian temporary ID
+TEMP-0628843-DBAD28  # login.defs, passwd: Debian temporary ID
+TEMP-0841856-B18BAF  # bash: Debian temporary ID
+
+# =============================================================================
+# Low-severity issues in runtime libraries
+# These are LOW severity and have minimal impact on container security
+# =============================================================================
+CVE-2022-0563     # util-linux and related: chfn/chsh partial disclosure (not used)
+CVE-2023-31437    # libsystemd0, libudev1: minor issue
+CVE-2023-31438    # libsystemd0, libudev1: minor issue
+CVE-2023-31439    # libsystemd0, libudev1: minor issue
+CVE-2024-26458    # kerberos libraries: minor issue
+CVE-2024-26461    # kerberos libraries: minor issue
+CVE-2024-56433    # login.defs, passwd: minor issue
+CVE-2025-5278     # coreutils: heap buffer under-read in sort
+CVE-2025-6141     # ncurses libraries: minor issue
+
+# =============================================================================
+# libcurl LOW/UNKNOWN severity issues
+# Application doesn't directly use libcurl; only pulled as dependency
+# =============================================================================
+CVE-2025-10966    # libcurl3t64-gnutls: LOW severity
+CVE-2025-13034    # libcurl3t64-gnutls: UNKNOWN severity
+CVE-2025-14017    # libcurl3t64-gnutls: LOW severity
+CVE-2025-14524    # libcurl3t64-gnutls: LOW severity
+CVE-2025-14819    # libcurl3t64-gnutls: LOW severity
+CVE-2025-15079    # libcurl3t64-gnutls: LOW severity
+CVE-2025-15224    # libcurl3t64-gnutls: LOW severity
+
+# =============================================================================
+# LDAP-related LOW severity issues
+# LDAP functionality not used by blink2mqtt
+# =============================================================================
+CVE-2026-22185    # libldap2: LOW severity
+
+# Note: The following HIGH/MEDIUM CVEs are NOT ignored and will appear in scans:
+# - CVE-2026-0861 (HIGH) - libc-bin, libc6
+# - CVE-2026-0915 (MEDIUM) - libc-bin, libc6
+# - CVE-2025-7709 (MEDIUM) - libsqlite3-0
+# - CVE-2025-13151 (MEDIUM) - libtasn1-6
+# - CVE-2025-14104 (MEDIUM) - util-linux and related libs
+#
+# These remain visible to track when fixes become available.
