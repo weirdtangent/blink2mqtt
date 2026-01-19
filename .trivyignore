@@ -57,7 +57,6 @@ CVE-2023-31438    # libsystemd0, libudev1: minor issue
 CVE-2023-31439    # libsystemd0, libudev1: minor issue
 CVE-2024-26458    # kerberos libraries: minor issue
 CVE-2024-26461    # kerberos libraries: minor issue
-CVE-2024-52005    # git: sideband payload (already listed above)
 CVE-2024-56433    # login.defs, passwd: minor issue
 CVE-2025-5278     # coreutils: heap buffer under-read in sort
 CVE-2025-6141     # ncurses libraries: minor issue
