@@ -10,54 +10,60 @@ Built on [`blinkpy`](https://github.com/fronzbot/blinkpy).
 Based on my forked versions of [amcrest2mqtt](https://github.com/weirdtangent/amcrest2mqtt)
 and [govee2mqtt](https://github.com/weirdtangent/govee2mqtt).
 
-UPDATE: I've reworked this app almost entirely, as I learn Python (and MQTT and their ingestion by HomeAssistant). v2 completely changes what I was sending for discovery messages and everything is MUCH closer to what HA wants and expects. But also, v2 has had several breaking changes which are cleaned up if you can remove the v1 service and devices from your HomeAssistant AND from your MQTT server (clear them specifically with something like MQTT Explorer; or restart your MQTT service so it loses those old, retained messages. Also, a couple of config/ENV vars have been removed as they were really not necessary (MQTT_HOMEASSISTANT and HIDE_TS). I have many fixes left to do and many features to add (or add back) in. Thanks for being patient for a bit - or I understand you not wanting an app going through so many updates.
-
 A few notes:
 * "Rediscover" button added to service - when pressed, device discovery is re-run so HA will rediscover deleted devices
 
 ## Docker
 
-docker run -d \
-  --name blink2mqtt \
-  -v /path/to/config:/config \
-  -e MQTT_HOST=mqtt.graystorm.com \
-  -e MQTT_USERNAME=hauser \
-  -e MQTT_PASSWORD=secret \
-  -e BLINK_USERNAME=email@example.com \
-  -e BLINK_PASSWORD=blinkpass \
-  graystorm/blink2mqtt:latest
-
 For `docker-compose`, use the [configuration included](https://github.com/weirdtangent/blink2mqtt/blob/master/docker-compose.yaml) in this repository.
 
-A docker image is available at `graystorm/blink2mqtt:latest`. You can mount your configuration volume at `/config` (and see the included `config.yaml.sample` file) or use the ENV variables:
+Using the [docker image](https://hub.docker.com/repository/docker/graystorm/blink2mqtt/general), mount your configuration volume at `/config` and include a `config.yaml` file (see the included [config.yaml.sample](config.yaml.sample) file as a template).
+
+## Configuration
+
+The recommended way to configure blink2mqtt is via the `config.yaml` file. See [config.yaml.sample](config.yaml.sample) for a complete example with all available options.
+
+### MQTT Settings
+
+```yaml
+mqtt:
+  host: 10.10.10.1
+  port: 1883
+  username: mqtt
+  password: password
+  qos: 0
+  protocol_version: "5"  # MQTT protocol version: 3.1.1/3 or 5
+  prefix: blink2mqtt
+  reconnect_delay: 30
+  home_assistant: true
+  discovery_prefix: homeassistant
+  # TLS settings (optional)
+  tls_enabled: false
+  tls_ca_cert: /config/ca.crt
+  tls_cert: /config/client.crt
+  tls_key: /config/client.key
+```
+
+### Blink Account Settings
+
+```yaml
+blink:
+  username: email@example.com
+  password: password
+  device_update_interval: 30     # seconds between device updates
+  device_rescan_interval: 3600   # seconds between device list rescans
+  snapshot_update_interval: 5    # minutes between camera snapshot refreshes
+```
+
+### Other Settings
+
+```yaml
+timezone: America/New_York       # Timezone (see TZ database list)
+```
 
 ### Environment Variables
 
-| Variable | Required | Default | Description |
-|-----------|-----------|----------|-------------|
-| `BLINK_HOSTS` | ✅ Yes | — | 1+ space-separated list of hostnames/IPs |
-| `BLINK_NAMES` | ✅ Yes | — | 1+ space-separated list of device names (must match count of `BLINK_HOSTS`) |
-| `BLINK_PORT` | No | `80` | Port for Blink devices |
-| `BLINK_USERNAME` | No | `admin` | Username for Blink connection |
-| `BLINK_PASSWORD` | ✅ Yes | — | Password for Blink account |
-| `MQTT_USERNAME` | ✅ Yes | — | MQTT username |
-| `MQTT_PASSWORD` | No | *(empty)* | MQTT password |
-| `MQTT_HOST` | No | `localhost` | MQTT broker hostname or IP |
-| `MQTT_PORT` | No | `1883` | MQTT broker port |
-| `MQTT_PROTOCOL_VERSION` | No | `5` | MQTT protocol version (`3.1.1` or `5`) |
-| `MQTT_QOS` | No | `0` | Quality of Service (0–2) |
-| `MQTT_RECONNECT_DELAY` | No | `30` | Seconds to wait before reconnecting after failure |
-| `MQTT_TLS_ENABLED` | Conditional | `false` | Enable TLS for MQTT (set to `true`) |
-| `MQTT_TLS_CA_CERT` | If TLS | — | Path to CA certificate |
-| `MQTT_TLS_CERT` | If TLS | — | Path to client certificate |
-| `MQTT_TLS_KEY` | If TLS | — | Path to client private key |
-| `MQTT_PREFIX` | No | `blink2mqtt` | MQTT topic prefix |
-| `MQTT_HOMEASSISTANT` | No | `true` | Enable Home Assistant discovery |
-| `MQTT_DISCOVERY_PREFIX` | No | `homeassistant` | MQTT discovery topic prefix |
-| `TZ` | ✅ Yes | — | Timezone (see [TZ database list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List)) |
-| `DEVICE_UPDATE_INTERVAL` | No | `30` | Seconds between device updates |
-| `DEVICE_RESCAN_INTERVAL` | No | `3600` | Seconds between device rescans |
-| `SNAPSHOT_UPDATE_INTERVAL` | No | `5` | Minutes between snapshot fetches |
+While the config file is recommended, environment variables are also supported. See [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) for the full list of available environment variables.
 
 ## Snapshots/Eventshots plus Home Assistant Area Cards
 
@@ -71,13 +77,14 @@ The app supports events for any Blink device supported by the [`blinkpy`](https:
 
 ## Home Assistant
 
-The app has built-in support for Home Assistant discovery. Set the `MQTT_HOMEASSISTANT` environment variable to `true` to enable support.
-If you are using a different MQTT prefix to the default, you will need to set the `MQTT_DISCOVERY_PREFIX` environment variable.
+The app has built-in support for Home Assistant discovery. Set `home_assistant: true` in the mqtt section of your config.yaml (or the `MQTT_HOMEASSISTANT` environment variable to `true`) to enable support.
+If you are using a different MQTT prefix to the default, you will need to set the `discovery_prefix` setting (or `MQTT_DISCOVERY_PREFIX` environment variable).
 
 ## Running the app
 
-To run via env variables with Docker Compose, see docker-compose.yaml
-or make sure you attach a volume with the config file and point to that directory, for example:
+For Docker Compose, see the included [docker-compose.yaml](docker-compose.yaml).
+
+The app expects the config directory to be mounted at `/config`:
 ```
 CMD [ "python", "./app.py", "-c", "/config" ]
 ```
@@ -102,7 +109,7 @@ Docker is the only supported way of deploying the application. The app should ru
 
 A few people have kindly requested a way to donate a small amount of money. If you feel so inclined I've set up a "Buy Me A Coffee"
 page where you can donate a small sum. Please do not feel obligated to donate in any way - I work on the app because it's
-useful to myself and others, not for any financial gain - but any token of appreciation is much appreciated 🙂
+useful to myself and others, not for any financial gain - but any token of appreciation is much appreciated :)
 
 <a href="https://buymeacoffee.com/weirdtangent">Buy Me A Coffee</a>
 
@@ -121,7 +128,7 @@ useful to myself and others, not for any financial gain - but any token of appre
 
 ### Security
 
-![Trivy Scan](https://img.shields.io/badge/trivy-scanned-success?logo=aquasecurity)
-![Cosign](https://img.shields.io/badge/cosign-signed-success?logo=sigstore)
-![SBOM](https://img.shields.io/badge/SBOM-included-blue?logo=docker)
-![Provenance](https://img.shields.io/badge/provenance-attested-blue?logo=docker)
+![SBOM](https://img.shields.io/badge/SBOM-included-green?logo=docker)
+![Provenance](https://img.shields.io/badge/provenance-attested-green?logo=sigstore)
+![Signed](https://img.shields.io/badge/cosign-signed-green?logo=sigstore)
+![Trivy](https://img.shields.io/badge/trivy-scanned-green?logo=aquasecurity)
