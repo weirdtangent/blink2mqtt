@@ -54,7 +54,7 @@ class MqttMixin(BaseMqttMixin):
         if not parsed:
             return
 
-        (vendor, device_id, attribute) = parsed
+        vendor, device_id, attribute = parsed
         if not vendor or not vendor.startswith(self.mqtt_helper.service_slug):
             self.logger.error(f"ignoring non-Blink device command, got vendor {vendor}")
             return
