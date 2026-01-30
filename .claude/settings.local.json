@@ -10,7 +10,8 @@
       "Bash(uv pip show:*)",
       "Bash(git remote get-url:*)",
       "Bash(uv sync:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(gh api:*)"
     ]
   }
 }
