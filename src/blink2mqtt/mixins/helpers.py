@@ -24,8 +24,6 @@ class ConfigError(ValueError):
 
 class HelpersMixin:
     async def build_camera_states(self: Blink2Mqtt, device_id: str, device: dict[str, str]) -> None:
-        await self.blink.refresh()
-
         # update states for cameras
         if device_id in self.blink_cameras:
             device = self.blink_cameras[device_id]

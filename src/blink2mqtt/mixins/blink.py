@@ -55,16 +55,20 @@ class BlinkMixin:
         return ""
 
     def classify_device(self: Blink2Mqtt, device: dict[str, str]) -> str | None:
-        type = device.get("device_type", None)
+        device_type = device.get("device_type", None)
 
-        if type == "sync_module":
+        if device_type == "sync_module":
             return "switch"
-        if type == "sedona" or type == "catalina":
+
+        # blinkpy already classified this device as a camera (it came from
+        # blink.cameras), so trust that regardless of the product_type string.
+        # Known product types include: sedona, catalina, owl (Mini), lotus
+        # (Doorbell), hawk, superior, etc.
+        if device_type:
             return "camera"
 
-        # so, unsupported — log details for future handling
         device_name = device.get("device_name", "no_name")
-        self.logger.warning(f"unhandled Blink device type: '{type}' ({device_name})")
+        self.logger.warning(f"Blink device with no device_type: '{device_name}'")
         return None
 
     async def build_switch(self: Blink2Mqtt, sync_module: dict[str, str]) -> str:

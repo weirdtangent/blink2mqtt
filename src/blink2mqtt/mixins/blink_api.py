@@ -19,13 +19,14 @@ if TYPE_CHECKING:
 
 class BlinkAPIMixin(object):
     def increase_api_calls(self: Blink2Mqtt) -> None:
-        if not self.last_call_date or self.last_call_date != str(datetime.now()):
+        today = str(datetime.now().date())
+        if not self.last_call_date or self.last_call_date != today:
             self.reset_api_call_count()
         self.api_calls += 1
 
     def reset_api_call_count(self: Blink2Mqtt) -> None:
         self.api_calls = 0
-        self.last_call_date = str(datetime.now())
+        self.last_call_date = str(datetime.now().date())
 
     # connect/disconnect to blink  ----------------------------------------------------------------
 
@@ -62,6 +63,7 @@ class BlinkAPIMixin(object):
 
         # attempt to start Blink connection
         try:
+            self.increase_api_calls()
             await self.blink.start()
         except UnauthorizedError:
             self.logger.error("stored credentials invalid — deleting and exiting")
@@ -91,12 +93,14 @@ class BlinkAPIMixin(object):
                 await self.blink.send_2fa_code(key)
                 await self.blink.setup_post_verify()
                 await self.blink.save(cred_path)
+                self.increase_api_calls()
                 await self.blink.refresh()
                 return
             except Exception as err:
                 raise SystemError(f"Failed to complete 2FA auth: {err}")
 
         # normal successful auth path
+        self.increase_api_calls()
         await self.blink.refresh()
         await self.blink.save(cred_path)
 
@@ -113,9 +117,10 @@ class BlinkAPIMixin(object):
     # been detected or other changes have been found.
     async def blink_refresh(self: Blink2Mqtt) -> None:
         try:
+            self.increase_api_calls()
             await self.blink.refresh()
-        except AttributeError as err:
-            self.logger.error(f"blink failed a 'refresh' command: {err}")
+        except Exception as err:
+            self.logger.error(f"blink failed a 'refresh' command: {type(err).__name__}: {err}")
 
     async def get_cameras(self: Blink2Mqtt) -> dict[str, Any]:
         for name, camera in self.blink.cameras.items():
@@ -369,11 +374,12 @@ class BlinkAPIMixin(object):
                     break
                 self.logger.info(f"[get_events_from_device] got event: {json.dumps(event)}")
                 # await self.queue_device_event(device_id, code, payload)
+                break
             except Exception as err:
                 self.logger.warning(f"[get_events_from_device] failed for attempt {attempt} for '{self.get_device_name(device_id)}': {err}")
                 await asyncio.sleep(base_delay * attempt)
-
-        self.logger.error(f"[get_events_from_device] failed for '{self.get_device_name(device_id)}' after {max_retries} retries")
+        else:
+            self.logger.error(f"[get_events_from_device] failed for '{self.get_device_name(device_id)}' after {max_retries} retries")
 
     async def queue_device_event(self: Blink2Mqtt, device_id: str, code: str, payload: Any) -> None:
         self.logger.info(f"[queue_device_event] event on '{self.get_device_name(device_id)}' - {code}: {json.dumps(payload)}")
