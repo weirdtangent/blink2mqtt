@@ -1,3 +1,10 @@
+## [2.4.2](https://github.com/weirdtangent/blink2mqtt/compare/v2.4.1...v2.4.2) (2026-02-05)
+
+
+### Bug Fixes
+
+* resolve missing camera entities and broken API call tracking ([f0bf5f5](https://github.com/weirdtangent/blink2mqtt/commit/f0bf5f57cebc23ef1c3f70f14d95e4b068426cd2))
+
 ## [2.4.1](https://github.com/weirdtangent/blink2mqtt/compare/v2.4.0...v2.4.1) (2026-01-19)
 
 
