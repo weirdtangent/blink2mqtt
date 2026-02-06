@@ -17,6 +17,7 @@ node_modules/
 .venv
 venv/
 .vscode/
+.claude/
 
 # Local testing and notes
 config

@@ -23,6 +23,7 @@ ENV APP_PRETEND_VERSION=${VERSION}
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends git && \
+    pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir uv && \
     rm -rf /var/lib/apt/lists/*
 
