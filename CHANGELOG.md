@@ -1,3 +1,10 @@
+## [2.4.3](https://github.com/weirdtangent/blink2mqtt/compare/v2.4.2...v2.4.3) (2026-02-06)
+
+
+### Bug Fixes
+
+* upgrade pip in Docker build to patch CVE-2026-1703 ([5e39cee](https://github.com/weirdtangent/blink2mqtt/commit/5e39ceeaba38dc6c6b8ef1425b9bfc26b45cf173))
+
 ## [2.4.2](https://github.com/weirdtangent/blink2mqtt/compare/v2.4.1...v2.4.2) (2026-02-05)
 
 
