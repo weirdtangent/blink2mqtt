@@ -22,12 +22,13 @@ class BlinkAPIMixin(object):
         if not self.config.get("vision_request"):
             return
         topic = f"{self.service}/vision/request"
+        now = datetime.now()
         payload = {
             "camera_id": device_id,
             "camera_name": self.get_device_name(device_id),
-            "event_id": datetime.now().strftime("%Y%m%d-%H%M%S"),
+            "event_id": now.strftime("%Y%m%d-%H%M%S"),
             "image_b64": image_b64,
-            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "timestamp": now.isoformat(timespec="seconds"),
             "source": source,
         }
         await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(payload))

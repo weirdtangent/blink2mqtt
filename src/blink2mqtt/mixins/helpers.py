@@ -196,7 +196,7 @@ class HelpersMixin:
             "blink":            blink,
             "debug":            str(config.get("debug") or os.getenv("DEBUG", "")).lower() == "true",
             "timezone":         config.get("timezone", os.getenv("TZ", "UTC")),
-            "vision_request":   bool(config.get("vision_request", os.getenv("VISION_REQUEST", "").lower() == "true")),
+            "vision_request":   str(config.get("vision_request") or os.getenv("VISION_REQUEST", "")).lower() == "true",
             "config_from":      config_from,
             "config_path":      config_path,
             "version":          version,
