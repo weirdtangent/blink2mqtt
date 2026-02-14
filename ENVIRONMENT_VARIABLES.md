@@ -36,6 +36,10 @@ While using a config.yaml file is the recommended approach, blink2mqtt also supp
 - `MQTT_HOMEASSISTANT` (optional, default = 'true') - enable Home Assistant discovery
 - `MQTT_DISCOVERY_PREFIX` (optional, default = 'homeassistant') - MQTT discovery topic prefix
 
+## Vision Settings
+
+- `VISION_REQUEST` (optional, default = false) - publish vision request on motion events for use with [vision2mqtt](https://github.com/weirdtangent/vision2mqtt)
+
 ## Other Settings
 
 - `TZ` (required) - Timezone (see [TZ database list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List))

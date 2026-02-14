@@ -18,6 +18,22 @@ if TYPE_CHECKING:
 
 
 class BlinkAPIMixin(object):
+    async def publish_vision_request(self: Blink2Mqtt, device_id: str, image_b64: str, source: str) -> None:
+        if not self.config.get("vision_request"):
+            return
+        topic = f"{self.service}/vision/request"
+        now = datetime.now()
+        payload = {
+            "camera_id": device_id,
+            "camera_name": self.get_device_name(device_id),
+            "event_id": now.strftime("%Y%m%d-%H%M%S"),
+            "image_b64": image_b64,
+            "timestamp": now.isoformat(timespec="seconds"),
+            "source": source,
+        }
+        await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(payload))
+        self.logger.debug(f"published vision request for '{self.get_device_name(device_id)}' ({source})")
+
     def increase_api_calls(self: Blink2Mqtt) -> None:
         today = str(datetime.now().date())
         if not self.last_call_date or self.last_call_date != today:
@@ -456,11 +472,16 @@ class BlinkAPIMixin(object):
                         if image and (states["eventshot"] is None or states["eventshot"] != image):
                             states["eventshot"] = image
                             await self.publish_device_image(device_id, "eventshot")
+                            await self.publish_vision_request(device_id, image, "recording_snapshot")
                     else:
                         # only log details if not a recording
                         if event != "recording":
                             self.logger.debug(f"got event for '{self.get_device_name(device_id)}': {event} - {payload}")
                         self.upsert_state(device_id, last_event=f"{event}: {json.dumps(payload)}", last_event_time=str(datetime.now()))
+
+                        # publish latest snapshot as vision request on motion start
+                        if event == "motion" and isinstance(payload, dict) and payload.get("state") == "on" and states.get("snapshot"):
+                            await self.publish_vision_request(device_id, states["snapshot"], "motion_snapshot")
 
                     # other ways to infer "privacy mode" is off and needs updating
                     # if event in ['motion','human','doorbell'] and states['privacy_mode'] == 'on':

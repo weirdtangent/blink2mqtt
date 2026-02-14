@@ -26,3 +26,4 @@ blink:
 
 timezone: America/New_York       # Timezone (see TZ database list)
 hide_ts: false                   # Hide timestamps in MQTT payloads (optional)
+vision_request: false            # Publish vision requests to MQTT on motion events (for vision2mqtt)
