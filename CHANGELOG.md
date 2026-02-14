@@ -1,3 +1,15 @@
+# [2.5.0](https://github.com/weirdtangent/blink2mqtt/compare/v2.4.3...v2.5.0) (2026-02-14)
+
+
+### Bug Fixes
+
+* address review feedback for vision request ([4dee2a0](https://github.com/weirdtangent/blink2mqtt/commit/4dee2a0e9a0ae21ebc9e5c3ab6192444ecbb866d))
+
+
+### Features
+
+* publish vision request on motion events ([a826512](https://github.com/weirdtangent/blink2mqtt/commit/a8265123fcc7e7f121b7ac5a4e2de6acd6675b99))
+
 ## [2.4.3](https://github.com/weirdtangent/blink2mqtt/compare/v2.4.2...v2.4.3) (2026-02-06)
 
 
