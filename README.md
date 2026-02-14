@@ -71,6 +71,28 @@ The `camera` snapshots work really well for the HomeAssistant `Area` cards on a 
 
 An "event snapshot" (`eventshot`) is separately (and specifically, by filename) collected when the camera automatically records a snapshot because of an event.
 
+## Object Detection with vision2mqtt
+
+When enabled, blink2mqtt publishes motion event snapshots to MQTT for AI-powered object detection via [vision2mqtt](https://github.com/weirdtangent/vision2mqtt). Detection results (person, vehicle, animal, bird) are published back to MQTT and auto-discovered by Home Assistant.
+
+This has been specifically tested with the [M5Stack LLM-8850 Pi HAT](https://docs.m5stack.com/en/ai_hardware/LLM-8850_Card) kit on a Raspberry Pi 5, which provides ~8ms/frame inference via the AXera AX8850 NPU (24 TOPS).
+
+### Enable vision requests
+
+In `config.yaml`:
+```yaml
+vision_request: true
+```
+
+Or via environment variable:
+```
+VISION_REQUEST=true
+```
+
+When a motion event occurs, blink2mqtt publishes a JSON message to `blink2mqtt/vision/request` containing the camera snapshot as a base64-encoded image. vision2mqtt subscribes to `+/vision/request`, runs YOLO11 inference, and publishes detection results back to MQTT — including per-camera presence sensors that appear automatically in Home Assistant.
+
+See the [vision2mqtt README](https://github.com/weirdtangent/vision2mqtt) for full setup instructions, including the Raspberry Pi 5 + LLM-8850 hardware setup guide.
+
 ## Device Support
 
 The app supports events for any Blink device supported by the [`blinkpy`](https://github.com/fronzbot/blinkpy) library.
