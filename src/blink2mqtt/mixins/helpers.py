@@ -48,7 +48,9 @@ class HelpersMixin:
             # publish vision request when new clips appear (reliable motion indicator)
             self.logger.info(f"[clip_check] '{self.get_device_name(device_id)}' prev={prev_clip_count} new={new_clip_count} motion={device['motion']}")
             if new_clip_count > prev_clip_count and prev_clip_count > 0:
-                self.logger.info(f"[clip_check] new clips detected for '{self.get_device_name(device_id)}' ({prev_clip_count} -> {new_clip_count}), triggering vision request")
+                self.logger.info(
+                    f"[clip_check] new clips detected for '{self.get_device_name(device_id)}' ({prev_clip_count} -> {new_clip_count}), triggering vision request"
+                )
                 asyncio.create_task(self._capture_and_publish_vision(device_id))
         # update states for sync modules
         elif device_id in self.blink_sync_modules:
