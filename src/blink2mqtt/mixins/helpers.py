@@ -28,8 +28,8 @@ class HelpersMixin:
         # update states for cameras
         if device_id in self.blink_cameras:
             device = self.blink_cameras[device_id]
-            prev_motion = self.states.get(device_id, {}).get("binary_sensor", {}).get("motion")
-            new_motion = device["motion"]
+            prev_clip_count = self.states.get(device_id, {}).get("clip_count", 0)
+            new_clip_count = len(device.get("recent_clips") or [])
             nightvision = await self.get_nightvision(device_id) if self.blink_cameras[device_id]["supports_get_config"] else ""
             self.upsert_state(
                 device_id,
@@ -43,9 +43,10 @@ class HelpersMixin:
                 },
                 switch={"motion_detection": "ON" if device["motion_detection"] else "OFF"},
                 select={"nightvision": nightvision},
+                clip_count=new_clip_count,
             )
-            # publish vision request on motion start (transition to True)
-            if new_motion and not prev_motion:
+            # publish vision request when new clips appear (reliable motion indicator)
+            if new_clip_count > prev_clip_count and prev_clip_count > 0:
                 asyncio.create_task(self._capture_and_publish_vision(device_id))
         # update states for sync modules
         elif device_id in self.blink_sync_modules:
