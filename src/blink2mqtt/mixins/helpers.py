@@ -126,8 +126,15 @@ class HelpersMixin:
         except FileNotFoundError:
             raise FileNotFoundError(f"File not found: {file_name}")
 
+    def _read_version_file(self: Blink2Mqtt) -> str:
+        try:
+            with open("VERSION", "r", encoding="utf-8") as f:
+                return f.read().strip()
+        except FileNotFoundError:
+            return "dev"
+
     def load_config(self: Blink2Mqtt, config_arg: Any | None = None) -> dict[str, Any]:
-        version = os.getenv("APP_VERSION", self.read_file("VERSION"))
+        version = os.getenv("APP_VERSION") or self._read_version_file()
         tier = os.getenv("APP_TIER", "prod")
         if tier == "dev":
             version += ":DEV"
