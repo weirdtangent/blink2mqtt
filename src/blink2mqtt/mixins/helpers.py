@@ -63,7 +63,9 @@ class HelpersMixin:
 
     async def _capture_and_publish_vision(self: Blink2Mqtt, device_id: str) -> None:
         """Capture a fresh snapshot from Blink and publish a vision request."""
+        name = self.get_device_name(device_id)
         try:
+            self.logger.info(f"[_capture_and_publish_vision] starting snapshot capture for '{name}'")
             await self.take_snapshot_from_device(device_id)
             await asyncio.sleep(3)  # Blink needs 2-5 seconds to capture
             await self.blink_refresh()
@@ -71,10 +73,11 @@ class HelpersMixin:
             if snapshot:
                 self.states[device_id]["snapshot"] = snapshot
                 await self.publish_vision_request(device_id, snapshot, "motion_snapshot")
+                self.logger.info(f"[_capture_and_publish_vision] published vision request for '{name}'")
             else:
-                self.logger.warning(f"[_capture_and_publish_vision] motion detected on '{self.get_device_name(device_id)}' but failed to get snapshot")
+                self.logger.warning(f"[_capture_and_publish_vision] motion detected on '{name}' but failed to get snapshot")
         except Exception as err:
-            self.logger.error(f"[_capture_and_publish_vision] failed for '{self.get_device_name(device_id)}': {err}", exc_info=True)
+            self.logger.error(f"[_capture_and_publish_vision] failed for '{name}': {err}", exc_info=True)
 
     async def build_sync_module_states(self: Blink2Mqtt, device_id: str, sync_module: dict[str, str]) -> None:
         self.upsert_state(
