@@ -91,6 +91,17 @@ VISION_REQUEST=true
 
 When a motion event occurs, blink2mqtt publishes a JSON message to `blink2mqtt/vision/request` containing the camera snapshot as a base64-encoded image. vision2mqtt subscribes to `+/vision/request`, runs YOLO11 inference, and publishes detection results back to MQTT — including per-camera presence sensors that appear automatically in Home Assistant.
 
+### Blink camera settings
+
+Vision requests are triggered by detecting new clips in the Blink cloud API. For this to work reliably, each camera's motion settings in the Blink app must be configured correctly:
+
+| Setting | Required | Notes |
+|---------|----------|-------|
+| **Motion Detection** | ON | Motion must be enabled for the camera to record clips |
+| **Early Notification** | **OFF** (default) | Must be disabled — when ON, Blink sends notifications before the clip finishes recording, and the clip does not appear in the API within the polling window. This prevents blink2mqtt from detecting new clips. |
+
+To check these settings: open the Blink app, tap a camera, then tap **Motion Settings**.
+
 See the [vision2mqtt README](https://github.com/weirdtangent/vision2mqtt) for full setup instructions, including the Raspberry Pi 5 + LLM-8850 hardware setup guide.
 
 ## Device Support
