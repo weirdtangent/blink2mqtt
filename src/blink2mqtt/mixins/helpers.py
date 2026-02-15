@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
+import asyncio
 from deepmerge.merger import Merger
 import logging
 import os
@@ -27,6 +28,8 @@ class HelpersMixin:
         # update states for cameras
         if device_id in self.blink_cameras:
             device = self.blink_cameras[device_id]
+            prev_motion = self.states.get(device_id, {}).get("binary_sensor", {}).get("motion")
+            new_motion = device["motion"]
             nightvision = await self.get_nightvision(device_id) if self.blink_cameras[device_id]["supports_get_config"] else ""
             self.upsert_state(
                 device_id,
@@ -41,6 +44,17 @@ class HelpersMixin:
                 switch={"motion_detection": "ON" if device["motion_detection"] else "OFF"},
                 select={"nightvision": nightvision},
             )
+            # publish vision request on motion start (transition to True)
+            if new_motion and not prev_motion:
+                await self.take_snapshot_from_device(device_id)
+                await asyncio.sleep(3)  # Blink needs 2-5 seconds to capture
+                await self.blink_refresh()
+                snapshot = await self.get_snapshot_from_device(device_id)
+                if snapshot:
+                    self.states[device_id]["snapshot"] = snapshot
+                    await self.publish_vision_request(device_id, snapshot, "motion_snapshot")
+                else:
+                    self.logger.warning(f"[build_camera_states] motion detected on '{self.get_device_name(device_id)}' but failed to get snapshot")
         # update states for sync modules
         elif device_id in self.blink_sync_modules:
             device = self.blink_sync_modules[device_id]
