@@ -1,3 +1,10 @@
+## [2.5.3](https://github.com/weirdtangent/blink2mqtt/compare/v2.5.2...v2.5.3) (2026-02-15)
+
+
+### Bug Fixes
+
+* only trigger Claude review on [@claude](https://github.com/claude) mention ([6d67e4b](https://github.com/weirdtangent/blink2mqtt/commit/6d67e4b0709118e1365f2f605d587a7ca7ceeb12))
+
 ## [2.5.2](https://github.com/weirdtangent/blink2mqtt/compare/v2.5.1...v2.5.2) (2026-02-15)
 
 
