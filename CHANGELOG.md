@@ -1,3 +1,10 @@
+# [2.6.0](https://github.com/weirdtangent/blink2mqtt/compare/v2.5.3...v2.6.0) (2026-02-15)
+
+
+### Features
+
+* upgrade Claude review with auto-PR review and GitHub App token ([5dc2003](https://github.com/weirdtangent/blink2mqtt/commit/5dc20035de2d4df9739ca648494d6079e77b2c0d))
+
 ## [2.5.3](https://github.com/weirdtangent/blink2mqtt/compare/v2.5.2...v2.5.3) (2026-02-15)
 
 
