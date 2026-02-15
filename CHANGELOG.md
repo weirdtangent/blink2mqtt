@@ -1,3 +1,10 @@
+## [2.5.1](https://github.com/weirdtangent/blink2mqtt/compare/v2.5.0...v2.5.1) (2026-02-15)
+
+
+### Bug Fixes
+
+* add id-token: write permission for claude-code-action ([edc26ff](https://github.com/weirdtangent/blink2mqtt/commit/edc26fff5cdaefd9ae1575b9f71877110ba1f48c))
+
 # [2.5.0](https://github.com/weirdtangent/blink2mqtt/compare/v2.4.3...v2.5.0) (2026-02-14)
 
 
