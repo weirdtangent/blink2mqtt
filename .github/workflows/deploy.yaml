@@ -65,47 +65,21 @@ jobs:
       version: ${{ steps.semrel.outputs.new_release_version }}
       tag: ${{ steps.semrel.outputs.new_release_git_tag }}
     steps:
-      - name: Generate GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
       - name: Checkout code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
           fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token }}
 
       - name: Setup Node
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6
         with:
           node-version: 20
 
-      - name: Install dependencies
-        run: npm ci
-
       - name: Run semantic-release
         id: semrel
         uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-        with:
-          extra_plugins: |
-            @semantic-release/changelog
-            @semantic-release/git
-            @semantic-release/npm
-
-      - name: Update VERSION file in repo
-        if: steps.semrel.outputs.new_release_published == 'true'
-        run: |
-          echo "v${{ steps.semrel.outputs.new_release_version }}" > VERSION
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION
-          git diff --cached --quiet || git commit -m "chore: update VERSION to v${{ steps.semrel.outputs.new_release_version }}"
-          git push
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docker:
     name: Build and Push Docker Image
