@@ -1,3 +1,10 @@
+## [2.5.2](https://github.com/weirdtangent/blink2mqtt/compare/v2.5.1...v2.5.2) (2026-02-15)
+
+
+### Bug Fixes
+
+* add checkout step to claude-code-review workflow ([8d468fa](https://github.com/weirdtangent/blink2mqtt/commit/8d468fa7f749727ddb0ec4574c80dca90ea3f18d))
+
 ## [2.5.1](https://github.com/weirdtangent/blink2mqtt/compare/v2.5.0...v2.5.1) (2026-02-15)
 
 
