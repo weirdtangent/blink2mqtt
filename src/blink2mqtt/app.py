@@ -6,6 +6,7 @@
 # The software is provided 'as is', without any warranty.
 import asyncio
 import argparse
+import logging
 from json_logging import setup_logging, get_logger
 from mqtt_helper import MqttError
 from .core import Blink2Mqtt
@@ -24,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 async def async_main() -> int:
     setup_logging()
+    logging.getLogger("blinkpy.camera").setLevel(logging.WARNING)
     logger = get_logger(__name__)
 
     parser = build_parser()
