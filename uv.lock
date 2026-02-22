@@ -199,9 +199,9 @@ requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=24.10.0" },
     { name = "blinkpy", specifier = ">=0.24.0" },
     { name = "deepmerge", specifier = "==2.0" },
-    { name = "json-logging-graystorm", git = "https://github.com/weirdtangent/json-logging.git?branch=main" },
+    { name = "json-logging-graystorm", git = "https://github.com/weirdtangent/json-logging.git?rev=5e245601ad2da7676a52281345e4040bb0281ffb" },
     { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4.25.1" },
-    { name = "mqtt-helper-graystorm", git = "https://github.com/weirdtangent/mqtt-helper.git?branch=main" },
+    { name = "mqtt-helper-graystorm", git = "https://github.com/weirdtangent/mqtt-helper.git?rev=04fb1daa7c2e98b7dfbc60948913aba153693801" },
     { name = "packaging", marker = "extra == 'dev'", specifier = ">=25.0" },
     { name = "paho-mqtt", specifier = ">=2.1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.2" },
@@ -519,7 +519,7 @@ wheels = [
 [[package]]
 name = "json-logging-graystorm"
 version = "0.1.3"
-source = { git = "https://github.com/weirdtangent/json-logging.git?branch=main#5e245601ad2da7676a52281345e4040bb0281ffb" }
+source = { git = "https://github.com/weirdtangent/json-logging.git?rev=5e245601ad2da7676a52281345e4040bb0281ffb#5e245601ad2da7676a52281345e4040bb0281ffb" }
 
 [[package]]
 name = "jsonschema"
@@ -608,8 +608,8 @@ sdist = { url = "https://files.pythonhosted.org/packages/93/4b/979db9e44be09f71e
 
 [[package]]
 name = "mqtt-helper-graystorm"
-version = "1.3.0"
-source = { git = "https://github.com/weirdtangent/mqtt-helper.git?branch=main#ff039fa8593eca2690baac6ebce91e3743cdd08f" }
+version = "0.1.0"
+source = { git = "https://github.com/weirdtangent/mqtt-helper.git?rev=04fb1daa7c2e98b7dfbc60948913aba153693801#04fb1daa7c2e98b7dfbc60948913aba153693801" }
 dependencies = [
     { name = "logging" },
     { name = "paho-mqtt" },
