@@ -201,7 +201,7 @@ requires-dist = [
     { name = "deepmerge", specifier = "==2.0" },
     { name = "json-logging-graystorm", git = "https://github.com/weirdtangent/json-logging.git?rev=5e245601ad2da7676a52281345e4040bb0281ffb" },
     { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4.25.1" },
-    { name = "mqtt-helper-graystorm", git = "https://github.com/weirdtangent/mqtt-helper.git?rev=04fb1daa7c2e98b7dfbc60948913aba153693801" },
+    { name = "mqtt-helper-graystorm", git = "https://github.com/weirdtangent/mqtt-helper.git?rev=cc77b3af8f712fb2e7cc77b98daefb24e2a2a09a" },
     { name = "packaging", marker = "extra == 'dev'", specifier = ">=25.0" },
     { name = "paho-mqtt", specifier = ">=2.1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.2" },
@@ -608,8 +608,8 @@ sdist = { url = "https://files.pythonhosted.org/packages/93/4b/979db9e44be09f71e
 
 [[package]]
 name = "mqtt-helper-graystorm"
-version = "0.1.0"
-source = { git = "https://github.com/weirdtangent/mqtt-helper.git?rev=04fb1daa7c2e98b7dfbc60948913aba153693801#04fb1daa7c2e98b7dfbc60948913aba153693801" }
+version = "1.3.0"
+source = { git = "https://github.com/weirdtangent/mqtt-helper.git?rev=cc77b3af8f712fb2e7cc77b98daefb24e2a2a09a#cc77b3af8f712fb2e7cc77b98daefb24e2a2a09a" }
 dependencies = [
     { name = "logging" },
     { name = "paho-mqtt" },

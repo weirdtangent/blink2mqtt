@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from deepmerge.merger import Merger
 import logging
+from mqtt_helper import ConfigError
 import os
 import pathlib
 import signal
@@ -17,12 +18,6 @@ if TYPE_CHECKING:
     from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
 
 READY_FILE = os.getenv("READY_FILE", "/tmp/blink2mqtt.ready")
-
-
-class ConfigError(ValueError):
-    """Raised when the configuration file is invalid."""
-
-    pass
 
 
 class HelpersMixin:

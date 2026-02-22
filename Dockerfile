@@ -4,6 +4,7 @@ FROM python:3.14-slim
 # ===== Project Variables =====
 ARG APP_NAME=blink2mqtt
 ENV APP_NAME=${APP_NAME}
+ENV READY_FILE=/tmp/${APP_NAME}.ready
 ARG SERVICE_DESC="Publishes Blink camera data to MQTT for Home Assistant"
 ARG VERSION=0.0.0
 ENV APP_VERSION=${VERSION}

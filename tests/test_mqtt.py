@@ -4,6 +4,7 @@ import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+from mqtt_helper import parse_device_topic
 from blink2mqtt.mixins.mqtt import MqttMixin
 
 
@@ -87,26 +88,23 @@ class TestMqttOnMessage:
 
 class TestParseDeviceTopic:
     def test_valid_topic_parses_correctly(self):
-        mqtt = FakeMqtt()
         components = ["blink2mqtt", "blink2mqtt_SERIAL123", "switch", "motion_detection", "set"]
 
-        result = mqtt._parse_device_topic(components)
+        result = parse_device_topic(components)
 
-        assert result == ["blink2mqtt", "SERIAL123", "motion_detection"]
+        assert result == ("blink2mqtt", "SERIAL123", "motion_detection")
 
     def test_non_set_topic_returns_none(self):
-        mqtt = FakeMqtt()
         components = ["blink2mqtt", "blink2mqtt_SERIAL123", "switch", "motion_detection", "get"]
 
-        result = mqtt._parse_device_topic(components)
+        result = parse_device_topic(components)
 
         assert result is None
 
     def test_malformed_topic_returns_none(self):
-        mqtt = FakeMqtt()
         components = ["set"]
 
-        result = mqtt._parse_device_topic(components)
+        result = parse_device_topic(components)
 
         assert result is None
 

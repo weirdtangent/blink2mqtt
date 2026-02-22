@@ -6,7 +6,7 @@ import logging
 from json_logging import setup_logging, get_logger
 from mqtt_helper import MqttError
 from .core import Blink2Mqtt
-from .mixins.helpers import ConfigError
+from mqtt_helper import ConfigError
 
 
 def build_parser() -> argparse.ArgumentParser:
