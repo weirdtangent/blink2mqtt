@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
+from __future__ import annotations
+
 from aiohttp import ClientSession
 import asyncio
 from asyncio import timeout
