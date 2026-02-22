@@ -168,6 +168,7 @@ jobs:
           cosign sign --yes graystorm/blink2mqtt@${DIGEST}
 
       - name: Run Trivy vulnerability scanner
+        id: trivy
         uses: aquasecurity/trivy-action@22438a435773de8c97dc0958cc0b823c45b064ac # master
         with:
           image-ref: graystorm/blink2mqtt@${{ steps.build-and-push.outputs.digest }}
@@ -178,5 +179,6 @@ jobs:
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@27fcff4ecb39e96348e7ceddcc2d9ef42308b6fc # v4
+        if: always() && steps.trivy.outcome == 'success'
         with:
           sarif_file: trivy-results.sarif
