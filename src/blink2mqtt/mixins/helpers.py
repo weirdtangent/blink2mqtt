@@ -193,7 +193,7 @@ class HelpersMixin:
         # Try to load from YAML
         if os.path.exists(config_file):
             try:
-                with open(config_file, "r") as f:
+                with open(config_file, "r", encoding="utf-8") as f:
                     config = yaml.safe_load(f) or {}
                 config_from = "file"
             except Exception as err:
