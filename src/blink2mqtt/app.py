@@ -4,9 +4,8 @@ import asyncio
 import argparse
 import logging
 from json_logging import setup_logging, get_logger
-from mqtt_helper import MqttError
+from mqtt_helper import ConfigError, MqttError
 from .core import Blink2Mqtt
-from .mixins.helpers import ConfigError
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import concurrent.futures
-import json
 from typing import TYPE_CHECKING, Any
 
-from mqtt_helper import BaseMqttMixin
+from mqtt_helper import BaseMqttMixin, decode_mqtt_payload, parse_device_topic
 from paho.mqtt.client import Client, MQTTMessage
 
 if TYPE_CHECKING:
@@ -26,14 +25,9 @@ class MqttMixin(BaseMqttMixin):
         topic = msg.topic
         components = topic.split("/")
 
-        try:
-            payload = json.loads(msg.payload)
-        except (json.JSONDecodeError, UnicodeDecodeError, TypeError, ValueError):
-            try:
-                payload = msg.payload.decode("utf-8")
-            except Exception as err:
-                self.logger.warning(f"failed to decode MQTT payload: {err!r}")
-                return None
+        payload = decode_mqtt_payload(msg.payload)
+        if payload is None:
+            return None
 
         if components[0] == self.mqtt_config["discovery_prefix"] and payload:
             return await self.handle_homeassistant_message(payload)
@@ -52,7 +46,7 @@ class MqttMixin(BaseMqttMixin):
             self.logger.info("home assistant came online — rediscovering devices")
 
     async def handle_device_topic(self: Blink2Mqtt, components: list[str], payload: Any) -> None:
-        parsed = self._parse_device_topic(components)
+        parsed = parse_device_topic(components)
         if not parsed:
             return
 
@@ -69,32 +63,6 @@ class MqttMixin(BaseMqttMixin):
 
         self.logger.info(f"got message for '{self.get_device_name(device_id)}': set {components[-2]} to {payload}")
         await self.handle_device_command(device_id, attribute, payload)
-
-    def _parse_device_topic(self: Blink2Mqtt, components: list[str]) -> list[str | None] | None:
-        """Extract (vendor, device_id, attribute) from an MQTT topic components list (underscore-delimited)."""
-        try:
-            if components[-1] != "set":
-                return None
-
-            # Example topics:
-            # blink2mqtt/blink2mqtt_G8xxxxxxxxxxxx/switch/motion_detection/set
-
-            vendor, device_id = components[1].split("_", 1)
-            attribute = components[-2]
-
-            return [vendor, device_id, attribute]
-
-        except Exception as err:
-            self.logger.warning(f"malformed device topic: {components} ({err})")
-            return None
-
-    def safe_split_device(self: Blink2Mqtt, topic: str, segment: str) -> list[str]:
-        """Split a topic segment into (vendor, device_id) safely."""
-        try:
-            return segment.split("-", 1)
-        except ValueError:
-            self.logger.warning(f"ignoring malformed topic: {topic}")
-            return []
 
     def set_discovered(self: Blink2Mqtt, device_id: str) -> None:
         self.upsert_state(device_id, internal={"discovered": True})
