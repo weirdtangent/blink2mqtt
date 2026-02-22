@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -e
+
+echo "Running pre-commit checks..."
+
+echo "  ruff..."
+uv run ruff check src
+
+echo "  black..."
+uv run black --check --quiet .
+
+echo "  mypy..."
+uv run mypy .
+
+echo "  pytest..."
+uv run pytest tests/ --quiet
+
+echo "All checks passed."

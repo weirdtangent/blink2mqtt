@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
+from __future__ import annotations
+
 import concurrent.futures
 import json
 from typing import TYPE_CHECKING, Any
@@ -29,8 +31,8 @@ class MqttMixin(BaseMqttMixin):
         except (json.JSONDecodeError, UnicodeDecodeError, TypeError, ValueError):
             try:
                 payload = msg.payload.decode("utf-8")
-            except Exception:
-                self.logger.warning("failed to decode MQTT payload: {err}")
+            except Exception as err:
+                self.logger.warning(f"failed to decode MQTT payload: {err!r}")
                 return None
 
         if components[0] == self.mqtt_config["discovery_prefix"] and payload:

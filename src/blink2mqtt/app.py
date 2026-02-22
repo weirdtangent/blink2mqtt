@@ -1,9 +1,5 @@
-# This software is licensed under the MIT License, which allows you to use,
-# copy, modify, merge, publish, distribute, and sell copies of the software,
-# with the requirement to include the original copyright notice and this
-# permission notice in all copies or substantial portions of the software.
-#
-# The software is provided 'as is', without any warranty.
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Jeff Culverhouse
 import asyncio
 import argparse
 import logging
@@ -18,6 +14,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "-c",
         "--config",
+        default="/config",
         help="Directory or file path for config.yaml (defaults to /config/config.yaml)",
     )
     return p
@@ -35,10 +32,10 @@ async def async_main() -> int:
         async with Blink2Mqtt(args=args) as blink2mqtt:
             await blink2mqtt.main_loop()
     except ConfigError as err:
-        logger.error(f"fatal config error was found: {err}")
+        logger.error(f"fatal config error was found: {err!r}")
         return 1
     except MqttError as err:
-        logger.error(f"mqtt service problems: {err}")
+        logger.error(f"mqtt service problems: {err!r}")
         return 1
     except KeyboardInterrupt:
         logger.warning("shutdown requested (Ctrl+C). exiting gracefully...")
@@ -47,7 +44,7 @@ async def async_main() -> int:
         logger.warning("main loop cancelled.")
         return 1
     except Exception as err:
-        logger.error(f"unhandled exception: {err}", exc_info=True)
+        logger.error(f"unhandled exception: {err!r}", exc_info=True)
         return 1
     finally:
         logger.info("blink2mqtt stopped.")
