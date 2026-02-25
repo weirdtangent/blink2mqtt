@@ -17,7 +17,9 @@ node_modules/
 .venv
 venv/
 .vscode/
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/CLAUDE.md
 
 # Local testing and notes
 config
