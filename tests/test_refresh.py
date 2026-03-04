@@ -15,6 +15,7 @@ class FakeRefresher(HelpersMixin, RefreshMixin):
         self.snapshot_update_interval = 5
         self.devices = {}
         self.states = {}
+        self.dirty = {}
         self.blink_cameras = {}
         self.blink_sync_modules = {}
 

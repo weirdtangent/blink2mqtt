@@ -23,6 +23,7 @@ class FakePublisher(HelpersMixin, PublishMixin):
         self.mqtt_helper.device_slug = MagicMock(side_effect=lambda d: f"blink2mqtt_{d}")
         self.mqtt_helper.stat_t = MagicMock(side_effect=lambda *args: "/".join(["blink2mqtt"] + list(args)))
         self.mqtt_helper.avty_t = MagicMock(side_effect=lambda *args: "/".join(["blink2mqtt"] + list(args) + ["availability"]))
+        self.dirty = {}
         self.mqtt_helper.cmd_t = MagicMock(side_effect=lambda *args: "/".join(["blink2mqtt"] + list(args) + ["set"]))
         self.mqtt_helper.disc_t = MagicMock(side_effect=lambda kind, did: f"homeassistant/{kind}/blink2mqtt_{did}/config")
         self.devices = {}
@@ -209,7 +210,7 @@ class TestDeviceState:
 
         with patch("blink2mqtt.mixins.publish.asyncio") as mock_asyncio:
             mock_asyncio.to_thread = _fake_to_thread
-            await pub.publish_device_state("BLINK001")
+            await pub.publish_device_state("BLINK001", publish_all=True)
 
         topics = [c.args[0] for c in pub.mqtt_helper.safe_publish.call_args_list]
         assert any("battery_status" in t for t in topics)
@@ -225,7 +226,7 @@ class TestDeviceState:
 
         with patch("blink2mqtt.mixins.publish.asyncio") as mock_asyncio:
             mock_asyncio.to_thread = _fake_to_thread
-            await pub.publish_device_state("BLINK001")
+            await pub.publish_device_state("BLINK001", publish_all=True)
 
         for c in pub.mqtt_helper.safe_publish.call_args_list:
             if "items" in c.args[0]:
