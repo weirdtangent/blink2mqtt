@@ -123,7 +123,7 @@ class HelpersMixin:
         await self.publish_service_state()
         await self.publish_service_discovery()
         for device_id in self.devices:
-            await self.publish_device_state(device_id)
+            await self.publish_device_state(device_id, publish_all=True)
             await self.publish_device_discovery(device_id)
 
     # utilities -----------------------------------------------------------------------------------
@@ -320,10 +320,18 @@ class HelpersMixin:
             ["override"],  # fallback
         )
         prev = self.states.get(device_id, {})
+        if device_id not in self.dirty:
+            self.dirty[device_id] = set()
         for section, data in kwargs.items():
             self._assert_no_tuples(data, f"state[{device_id}].{section}")
             merged = MERGER.merge(self.states.get(device_id, {}), {section: data})
             self._assert_no_tuples(merged, f"state[{device_id}].{section} (post-merge)")
             self.states[device_id] = merged
+            # track which (section, key) pairs were touched for dicts
+            if isinstance(data, dict):
+                for k in data:
+                    self.dirty[device_id].add((section, k))
+            else:
+                self.dirty[device_id].add((section, ""))
         new = self.states.get(device_id, {})
         return False if prev == new else True

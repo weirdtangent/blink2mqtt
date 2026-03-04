@@ -12,6 +12,7 @@ class FakeHelpers(HelpersMixin):
     def __init__(self):
         self.logger = MagicMock()
         self.running = True
+        self.dirty = {}
 
 
 class TestLoadConfigFromFile:
