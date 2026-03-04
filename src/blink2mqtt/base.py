@@ -53,6 +53,7 @@ class Base:
         self.blink_sync_modules: dict[str, dict[str, Any]] = {}
         self.devices: dict[str, Any] = {}
         self.states: dict[str, Any] = {}
+        self.dirty: dict[str, set[tuple[str, str]]] = {}
         self.events: list[str] = []
 
         self.mqttc: Client
