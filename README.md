@@ -138,6 +138,10 @@ Docker is the only supported way of deploying the application. The app should ru
 * [amcrest2mqtt](https://github.com/weirdtangent/amcrest2mqtt)
 * [govee2mqtt](https://github.com/weirdtangent/govee2mqtt)
 
+## Contributors
+
+* [@weirdtangent](https://github.com/weirdtangent)
+
 ## Buy Me A Coffee
 
 A few people have kindly requested a way to donate a small amount of money. If you feel so inclined I've set up a "Buy Me A Coffee"
