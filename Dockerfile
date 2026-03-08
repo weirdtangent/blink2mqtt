@@ -52,7 +52,9 @@ COPY . .
 RUN SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION} uv pip install --no-cache-dir . --no-deps
 
 # 6. Cleanup
-RUN rm -f /tmp/reqs.all.txt /tmp/reqs.deps.txt .git || true
+RUN apt-get purge -y git && apt-get autoremove -y && apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives && \
+    (rm -rf /tmp/reqs.all.txt /tmp/reqs.deps.txt .git || true)
 
 # ===== Non-root Runtime User =====
 RUN groupadd -g "${GROUP_ID}" appuser && \
