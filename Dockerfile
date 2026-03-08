@@ -37,7 +37,9 @@ RUN uv venv
 ENV PATH="/app/.venv/bin:${PATH}"
 
 # 2. Export locked dependencies (with pretend version active)
-RUN SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION} uv export --no-dev --format=requirements-txt > /tmp/reqs.all.txt
+RUN mkdir -p src && \
+    SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION} uv export --no-dev --format=requirements-txt > /tmp/reqs.all.txt && \
+    rm -rf src
 
 # 3. Strip the local project from deps list so setuptools-scm isn’t triggered during deps install
 RUN grep -v -E "(^-e\s+(\.|file://)|@\s+file://|^file://|/app)" /tmp/reqs.all.txt > /tmp/reqs.deps.txt || true
