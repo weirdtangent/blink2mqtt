@@ -55,6 +55,9 @@ jobs:
         run: |
           uv run mypy .
 
+      - name: Pip-audit
+        run: uv run pip-audit
+
   release:
     name: Semantic Release
     runs-on: ubuntu-latest

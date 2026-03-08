@@ -106,14 +106,14 @@ class HelpersMixin:
     async def handle_service_command(self: Blink2Mqtt, handler: str, message: Any) -> None:
         match handler:
             case "refresh_interval":
-                self.device_interval = int(message)
-                self.logger.info(f"refresh_interval updated to be {message}")
+                self.device_interval = max(1, min(900, int(message)))
+                self.logger.info(f"refresh_interval updated to {self.device_interval}")
             case "rescan_interval":
-                self.device_list_interval = int(message)
-                self.logger.info(f"rescan_interval updated to be {message}")
+                self.device_list_interval = max(1, min(3600, int(message)))
+                self.logger.info(f"rescan_interval updated to {self.device_list_interval}")
             case "snapshot_interval":
-                self.snapshot_update_interval = int(message)
-                self.logger.info(f"snapshot_interval updated to be {message}")
+                self.snapshot_update_interval = max(1, min(60, int(message)))
+                self.logger.info(f"snapshot_interval updated to {self.snapshot_update_interval}")
             case _:
                 self.logger.error(f"unrecognized message to {handler} -> {message}")
                 return
