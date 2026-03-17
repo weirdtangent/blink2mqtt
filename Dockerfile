@@ -54,7 +54,7 @@ COPY . .
 RUN SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION} uv pip install --no-cache-dir . --no-deps
 
 # 6. Cleanup
-RUN pip uninstall -y uv && \
+RUN /usr/local/bin/pip uninstall -y uv && \
     apt-get purge -y git && apt-get autoremove -y && apt-get clean && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives && \
     (rm -rf /tmp/reqs.all.txt /tmp/reqs.deps.txt .git || true)
