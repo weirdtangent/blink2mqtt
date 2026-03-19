@@ -138,7 +138,7 @@ extend-exclude = '''
 
 [tool.uv.sources]
 json-logging-graystorm = { git = "https://github.com/weirdtangent/json-logging.git", rev = "5e245601ad2da7676a52281345e4040bb0281ffb" }
-mqtt-helper-graystorm = { git = "https://github.com/weirdtangent/mqtt-helper.git", rev = "d03658ba4ffac8eaee22cb285cda35d7e2f879f9" }
+mqtt-helper-graystorm = { git = "https://github.com/weirdtangent/mqtt-helper.git", rev = "97bb14685fe297ca8bda2af1c8ef4fa2c7566c19" }
 
 [dependency-groups]
 dev = [
