@@ -118,8 +118,14 @@ class HelpersMixin:
                 self.device_list_interval = max(1, min(3600, value))
                 self.logger.info(f"rescan_interval updated to {self.device_list_interval}")
             case "snapshot_interval":
-                self.snapshot_update_interval = max(1, min(60, value))
-                self.logger.info(f"snapshot_interval updated to {self.snapshot_update_interval}")
+                self.snapshot_interval_wired_minutes = max(1, min(60, value))
+                self.logger.info(f"snapshot_interval updated to {self.snapshot_interval_wired_minutes}")
+            case "snapshot_interval_wired_minutes":
+                self.snapshot_interval_wired_minutes = max(1, min(60, value))
+                self.logger.info(f"snapshot_interval_wired_minutes updated to {self.snapshot_interval_wired_minutes}")
+            case "snapshot_interval_battery_hours":
+                self.snapshot_interval_battery_hours = max(0, min(60, value))
+                self.logger.info(f"snapshot_interval_battery_hours updated to {self.snapshot_interval_battery_hours}")
             case _:
                 self.logger.error(f"unrecognized message to {handler} -> {message}")
                 return
@@ -166,6 +172,12 @@ class HelpersMixin:
             return "dev"
 
     def load_config(self: Blink2Mqtt, config_arg: Any | None = None) -> dict[str, Any]:
+        def first_value(*values: Any) -> Any:
+            for value in values:
+                if value is not None and value != "":
+                    return value
+            return None
+
         version = os.getenv("APP_VERSION") or self._read_version_file()
         tier = os.getenv("APP_TIER", "prod")
         if tier == "dev":
@@ -205,6 +217,7 @@ class HelpersMixin:
         # Merge with environment vars (env vars override nothing if file exists)
         mqtt = cast(dict[str, Any], config.get("mqtt", {}))
         blink = cast(dict[str, Any], config.get("blink", {}))
+        legacy_snapshot_interval = first_value(blink.get("snapshot_update_interval"), os.getenv("SNAPSHOT_UPDATE_INTERVAL"))
 
         # fmt: off
         mqtt = {
@@ -223,11 +236,21 @@ class HelpersMixin:
         }
 
         blink = {
-            "username":                               blink.get("username")                 or os.getenv("BLINK_USERNAME") or "admin",
-            "password":                               blink.get("password")                 or os.getenv("BLINK_PASSWORD") or "",
-            "device_interval":          int(cast(str, blink.get("device_update_interval")   or os.getenv("DEVICE_UPDATE_INTERVAL", 30))),
-            "device_list_interval":     int(cast(str, blink.get("device_rescan_interval")   or os.getenv("DEVICE_RESCAN_INTERVAL", 3600))),
-            "snapshot_update_interval": int(cast(str, blink.get("snapshot_update_interval") or os.getenv("SNAPSHOT_UPDATE_INTERVAL", 5))),
+            "username":                          first_value(blink.get("username"), os.getenv("BLINK_USERNAME"), "admin"),
+            "password":                          first_value(blink.get("password"), os.getenv("BLINK_PASSWORD"), ""),
+            "device_interval":        int(cast(str, first_value(blink.get("device_update_interval"), os.getenv("DEVICE_UPDATE_INTERVAL"), 30))),
+            "device_list_interval":   int(cast(str, first_value(blink.get("device_rescan_interval"), os.getenv("DEVICE_RESCAN_INTERVAL"), 3600))),
+            "snapshot_interval_wired_minutes": int(cast(str, first_value(
+                blink.get("snapshot_interval_wired_minutes"),
+                os.getenv("SNAPSHOT_INTERVAL_WIRED_MINUTES"),
+                legacy_snapshot_interval,
+                5,
+            ))),
+            "snapshot_interval_battery_hours": int(cast(str, first_value(
+                blink.get("snapshot_interval_battery_hours"),
+                os.getenv("SNAPSHOT_INTERVAL_BATTERY_HOURS"),
+                0,
+            ))),
         }
 
         config = {
@@ -241,10 +264,6 @@ class HelpersMixin:
             "version":          version,
         }
         # fmt: on
-
-        # Migrate snapshot interval to minutes
-        if blink["snapshot_update_interval"] > 60:
-            blink["snapshot_update_interval"] = int(blink["snapshot_update_interval"] / 60)
 
         # Validate required fields
         if not cast(dict, config["blink"]).get("username"):

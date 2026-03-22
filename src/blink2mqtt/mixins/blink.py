@@ -168,7 +168,7 @@ class BlinkMixin:
                     "stat_t": self.mqtt_helper.stat_t(device_id, "binary_sensor", "motion"),
                     "pl_on": True,
                     "pl_off": False,
-                    "icon": "mdi:motion-sensor-alert",
+                    "icon": "mdi:motion-sensor",
                 },
                 "motion_detection": {
                     "platform": "switch",

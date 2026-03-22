@@ -31,7 +31,8 @@ blink:
   password: blink_pass
   device_update_interval: 30
   device_rescan_interval: 3600
-  snapshot_update_interval: 5
+  snapshot_interval_wired_minutes: 5
+  snapshot_interval_battery_hours: 2
 """)
         version_file = tmp_path / "VERSION"
         version_file.write_text("v0.1.0")
@@ -51,7 +52,8 @@ blink:
         assert config["blink"]["username"] == "blink_user"
         assert config["blink"]["device_interval"] == 30
         assert config["blink"]["device_list_interval"] == 3600
-        assert config["blink"]["snapshot_update_interval"] == 5
+        assert config["blink"]["snapshot_interval_wired_minutes"] == 5
+        assert config["blink"]["snapshot_interval_battery_hours"] == 2
         assert config["config_from"] == "file"
 
 
@@ -78,6 +80,8 @@ class TestLoadConfigDefaults:
         assert config["mqtt"]["protocol_version"] == "5"
         assert config["mqtt"]["discovery_prefix"] == "homeassistant"
         assert config["blink"]["username"] == "env_blink_user"
+        assert config["blink"]["snapshot_interval_wired_minutes"] == 5
+        assert config["blink"]["snapshot_interval_battery_hours"] == 0
         assert config["config_from"] == "env"
 
 
@@ -202,16 +206,15 @@ class TestUpsertDevice:
         assert helpers.states["DEV001"]["sensor"]["battery"] == "OK"
 
 
-class TestSnapshotIntervalMigration:
-    def test_large_interval_divided_by_sixty(self, tmp_path, monkeypatch):
-        """snapshot_update_interval > 60 gets divided by 60 (legacy seconds -> minutes migration)."""
+class TestSnapshotIntervalConfig:
+    def test_legacy_snapshot_interval_falls_back_to_wired_minutes(self, tmp_path, monkeypatch):
         config_file = tmp_path / "config.yaml"
         config_file.write_text("""
 mqtt:
   host: localhost
 blink:
   username: blink_user
-  snapshot_update_interval: 300
+  snapshot_update_interval: 12
 """)
         version_file = tmp_path / "VERSION"
         version_file.write_text("v0.1.0")
@@ -224,17 +227,18 @@ blink:
         finally:
             os.chdir(old_cwd)
 
-        assert config["blink"]["snapshot_update_interval"] == 5
+        assert config["blink"]["snapshot_interval_wired_minutes"] == 12
+        assert config["blink"]["snapshot_interval_battery_hours"] == 0
 
-    def test_small_interval_unchanged(self, tmp_path, monkeypatch):
-        """snapshot_update_interval <= 60 is kept as-is."""
+    def test_battery_zero_is_preserved(self, tmp_path, monkeypatch):
         config_file = tmp_path / "config.yaml"
         config_file.write_text("""
 mqtt:
   host: localhost
 blink:
   username: blink_user
-  snapshot_update_interval: 10
+  snapshot_interval_wired_minutes: 10
+  snapshot_interval_battery_hours: 0
 """)
         version_file = tmp_path / "VERSION"
         version_file.write_text("v0.1.0")
@@ -247,4 +251,5 @@ blink:
         finally:
             os.chdir(old_cwd)
 
-        assert config["blink"]["snapshot_update_interval"] == 10
+        assert config["blink"]["snapshot_interval_wired_minutes"] == 10
+        assert config["blink"]["snapshot_interval_battery_hours"] == 0

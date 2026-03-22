@@ -32,8 +32,26 @@ class LoopsMixin:
     async def collect_snapshots_loop(self: Blink2Mqtt) -> None:
         while self.running:
             try:
-                await asyncio.sleep(self.snapshot_update_interval * 60)
-                await self.refresh_snapshot_all_devices()
+                await asyncio.sleep(60)
+                now = self.loop.time()
+                due_device_ids: list[str] = []
+                for device_id, camera in self.blink_cameras.items():
+                    internal = self.states.setdefault(device_id, {}).setdefault("internal", {})
+                    last_snapshot = float(internal.get("last_snapshot", 0.0))
+
+                    battery_status = camera.get("battery")
+                    if battery_status is None:
+                        interval_seconds = self.snapshot_interval_wired_minutes * 60
+                    else:
+                        if self.snapshot_interval_battery_hours == 0:
+                            continue
+                        interval_seconds = self.snapshot_interval_battery_hours * 3600
+
+                    if (now - last_snapshot) >= interval_seconds:
+                        due_device_ids.append(device_id)
+
+                if due_device_ids:
+                    await self.refresh_snapshot_devices(due_device_ids)
             except asyncio.CancelledError:
                 self.logger.debug("snapshot_loop cancelled during sleep")
                 break
