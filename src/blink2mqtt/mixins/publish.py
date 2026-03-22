@@ -91,7 +91,7 @@ class PublishMixin:
                     "max": 3600,
                     "step": 1,
                     "mode": "box",
-                    "icon": "mdi:format-list_bulleted",
+                    "icon": "mdi:format-list-bulleted",
                 },
                 "snapshot_interval": {
                     "platform": "number",
@@ -105,6 +105,19 @@ class PublishMixin:
                     "step": 1,
                     "mode": "box",
                     "icon": "mdi:lightning-bolt",
+                },
+                "snapshot_interval_battery_hours": {
+                    "platform": "number",
+                    "name": "Snapshot interval (battery)",
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "snapshot_interval_battery_hours"),
+                    "stat_t": self.mqtt_helper.stat_t(device_id, "service", "snapshot_interval_battery_hours"),
+                    "cmd_t": self.mqtt_helper.cmd_t(device_id, "snapshot_interval_battery_hours"),
+                    "unit_of_measurement": "h",
+                    "min": 0,
+                    "max": 60,
+                    "step": 1,
+                    "mode": "box",
+                    "icon": "mdi:battery-clock",
                 },
             },
         }
@@ -125,7 +138,8 @@ class PublishMixin:
             "last_api_call": self.last_call_date,
             "refresh_interval": self.device_interval,
             "rescan_interval": self.device_list_interval,
-            "snapshot_interval": self.snapshot_update_interval,
+            "snapshot_interval": self.snapshot_interval_wired_minutes,
+            "snapshot_interval_battery_hours": self.snapshot_interval_battery_hours,
             "rate_limited": "YES" if self.rate_limited else "NO",
         }
 

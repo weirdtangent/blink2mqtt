@@ -11,7 +11,9 @@ While using a config.yaml file is the recommended approach, blink2mqtt also supp
 
 - `DEVICE_UPDATE_INTERVAL` (optional, default = 30) - seconds between device updates
 - `DEVICE_RESCAN_INTERVAL` (optional, default = 3600) - seconds between device list rescans
-- `SNAPSHOT_UPDATE_INTERVAL` (optional, default = 5) - minutes between camera snapshot refreshes
+- `SNAPSHOT_INTERVAL_WIRED_MINUTES` (optional, default = 5) - minutes between wired camera snapshot refreshes
+- `SNAPSHOT_INTERVAL_BATTERY_HOURS` (optional, default = 0) - hours between battery camera snapshot refreshes (`0` disables timed battery snapshots)
+- `SNAPSHOT_UPDATE_INTERVAL` (optional, legacy fallback) - wired snapshot interval in minutes when `SNAPSHOT_INTERVAL_WIRED_MINUTES` is not set
 
 ## MQTT Settings
 

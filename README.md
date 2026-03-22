@@ -52,8 +52,11 @@ blink:
   password: password
   device_update_interval: 30     # seconds between device updates
   device_rescan_interval: 3600   # seconds between device list rescans
-  snapshot_update_interval: 5    # minutes between camera snapshot refreshes
+  snapshot_interval_wired_minutes: 5   # minutes between wired camera snapshot refreshes
+  snapshot_interval_battery_hours: 0   # hours between battery camera snapshot refreshes (0 disables timed battery snapshots)
 ```
+
+`snapshot_update_interval` is kept as a legacy fallback for wired cameras. Setting `snapshot_interval_battery_hours: 0` disables only timed snapshots for battery-powered cameras.
 
 ### Other Settings
 

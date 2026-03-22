@@ -14,6 +14,8 @@ class FakePublisher(HelpersMixin, PublishMixin):
         self.service_name = "blink2mqtt service"
         self.qos = 0
         self.config = {"version": "v0.1.0-test"}
+        self.snapshot_interval_wired_minutes = 5
+        self.snapshot_interval_battery_hours = 0
         self.logger = MagicMock()
         self.mqtt_helper = MagicMock()
         self.mqtt_helper.safe_publish = MagicMock()
@@ -49,7 +51,7 @@ class TestServiceDiscovery:
 
         assert topic == "homeassistant/device/blink2mqtt_service/config"
         assert "cmps" in payload
-        assert len(payload["cmps"]) == 6
+        assert len(payload["cmps"]) == 7
 
     @pytest.mark.asyncio
     async def test_service_discovery_marks_discovered(self):
@@ -93,7 +95,8 @@ class TestServiceState:
         pub.rate_limited = False
         pub.device_interval = 30
         pub.device_list_interval = 3600
-        pub.snapshot_update_interval = 5
+        pub.snapshot_interval_wired_minutes = 5
+        pub.snapshot_interval_battery_hours = 2
 
         with patch("blink2mqtt.mixins.publish.asyncio") as mock_asyncio:
             mock_asyncio.to_thread = _fake_to_thread
@@ -103,6 +106,8 @@ class TestServiceState:
         assert any("server" in t for t in topics)
         assert any("api_calls" in t for t in topics)
         assert any("rate_limited" in t for t in topics)
+        assert any("snapshot_interval" in t for t in topics)
+        assert any("snapshot_interval_battery_hours" in t for t in topics)
 
     @pytest.mark.asyncio
     async def test_last_api_call_published(self):
@@ -112,7 +117,8 @@ class TestServiceState:
         pub.rate_limited = False
         pub.device_interval = 30
         pub.device_list_interval = 3600
-        pub.snapshot_update_interval = 5
+        pub.snapshot_interval_wired_minutes = 5
+        pub.snapshot_interval_battery_hours = 2
 
         with patch("blink2mqtt.mixins.publish.asyncio") as mock_asyncio:
             mock_asyncio.to_thread = _fake_to_thread

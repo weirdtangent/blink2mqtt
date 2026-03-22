@@ -34,11 +34,18 @@ class RefreshMixin:
         await asyncio.gather(*tasks)
 
     async def refresh_snapshot_all_devices(self: "Blink2Mqtt") -> None:
-        self.logger.info(f"requesting snapshots from cameras (every {self.snapshot_update_interval} sec)")
+        await self.refresh_snapshot_devices(list(self.blink_cameras))
+
+    async def refresh_snapshot_devices(self: "Blink2Mqtt", device_ids: list[str], update_last_snapshot: bool = True) -> None:
+        active_device_ids = [device_id for device_id in device_ids if device_id in self.blink_cameras]
+        if not active_device_ids:
+            return
+
+        self.logger.info(f"requesting snapshots from {len(active_device_ids)} camera(s)")
 
         tasks1 = []
         tasks2 = []
-        for device_id in self.blink_cameras:
+        for device_id in active_device_ids:
             tasks1.append(asyncio.create_task(self.take_snapshot_from_device(device_id)))
             tasks2.append(asyncio.create_task(self.refresh_snapshot(device_id, "snapshot")))
 
@@ -46,6 +53,11 @@ class RefreshMixin:
         await asyncio.sleep(3)  # Blink says to give them 2-5 seconds
         await self.blink_refresh()
         await asyncio.gather(*tasks2)
+
+        if update_last_snapshot:
+            now = self.loop.time()
+            for device_id in active_device_ids:
+                self.upsert_state(device_id, internal={"last_snapshot": now})
 
     async def refresh_snapshot(self: "Blink2Mqtt", device_id: str, type: str) -> None:
         states = self.states[device_id]

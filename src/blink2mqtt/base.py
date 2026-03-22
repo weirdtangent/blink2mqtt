@@ -68,7 +68,8 @@ class Base:
 
         self.device_interval = self.blink_config["device_interval"]
         self.device_list_interval = self.blink_config["device_list_interval"]
-        self.snapshot_update_interval = self.blink_config["snapshot_update_interval"]
+        self.snapshot_interval_wired_minutes = self.blink_config["snapshot_interval_wired_minutes"]
+        self.snapshot_interval_battery_hours = self.blink_config["snapshot_interval_battery_hours"]
 
     async def __aenter__(self: Self) -> Blink2Mqtt:
         super_enter = getattr(super(), "__enter__", None)
