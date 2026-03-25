@@ -11,10 +11,14 @@ from blink2mqtt.mixins.helpers import HelpersMixin
 class FakeLooper(HelpersMixin, LoopsMixin):
     def __init__(self):
         self.logger = MagicMock()
+        self.loop = MagicMock()
         self.running = True
         self.device_interval = 1
         self.device_list_interval = 1
-        self.snapshot_update_interval = 1
+        self.snapshot_interval_wired_minutes = 1
+        self.snapshot_interval_battery_hours = 1
+        self.blink_cameras = {}
+        self.states = {}
 
     async def refresh_all_devices(self):
         pass
@@ -23,6 +27,9 @@ class FakeLooper(HelpersMixin, LoopsMixin):
         pass
 
     async def refresh_snapshot_all_devices(self):
+        pass
+
+    async def refresh_snapshot_devices(self, device_ids, update_last_snapshot=True):
         pass
 
     async def collect_all_blink_events(self):
@@ -109,6 +116,53 @@ class TestHeartbeat:
             await looper.heartbeat()
 
         looper.logger.debug.assert_called()
+
+
+class TestSnapshotLoop:
+    @pytest.mark.asyncio
+    async def test_collects_only_due_wired_devices(self):
+        looper = FakeLooper()
+        looper.blink_cameras = {
+            "CAM_WIRED": {"battery": ""},
+            "CAM_BATTERY": {"battery": "ok"},
+        }
+        looper.states = {
+            "CAM_WIRED": {"internal": {"last_snapshot": 0}},
+            "CAM_BATTERY": {"internal": {"last_snapshot": 0}},
+        }
+        looper.snapshot_interval_wired_minutes = 1
+        looper.snapshot_interval_battery_hours = 2
+        looper.refresh_snapshot_devices = AsyncMock(side_effect=lambda device_ids: setattr(looper, "running", False))
+
+        async def mock_sleep(seconds):
+            return None
+
+        with (
+            patch("blink2mqtt.mixins.loops.asyncio.sleep", side_effect=mock_sleep),
+            patch.object(looper.loop, "time", return_value=61),
+        ):
+            await looper.collect_snapshots_loop()
+
+        looper.refresh_snapshot_devices.assert_called_once_with(["CAM_WIRED"])
+
+    @pytest.mark.asyncio
+    async def test_skips_battery_devices_when_disabled(self):
+        looper = FakeLooper()
+        looper.blink_cameras = {"CAM_BATTERY": {"battery": "ok"}}
+        looper.snapshot_interval_battery_hours = 0
+
+        async def mock_sleep(seconds):
+            looper.running = False
+
+        looper.refresh_snapshot_devices = AsyncMock()
+
+        with (
+            patch("blink2mqtt.mixins.loops.asyncio.sleep", side_effect=mock_sleep),
+            patch.object(looper.loop, "time", return_value=7200),
+        ):
+            await looper.collect_snapshots_loop()
+
+        looper.refresh_snapshot_devices.assert_not_called()
 
 
 class TestMainLoop:

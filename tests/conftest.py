@@ -22,6 +22,7 @@ def sample_blink_config():
             "password": "blink_pass",
             "device_interval": 30,
             "device_list_interval": 3600,
-            "snapshot_update_interval": 5,
+            "snapshot_interval_wired_minutes": 5,
+            "snapshot_interval_battery_hours": 0,
         },
     }
