@@ -95,7 +95,7 @@ class PublishMixin:
                 },
                 "snapshot_interval": {
                     "platform": "number",
-                    "name": "Snapshot interval",
+                    "name": "Snapshot interval (wired)",
                     "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "snapshot_interval"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "service", "snapshot_interval"),
                     "cmd_t": self.mqtt_helper.cmd_t(device_id, "snapshot_interval"),

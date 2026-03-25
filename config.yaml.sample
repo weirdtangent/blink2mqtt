@@ -26,7 +26,7 @@ blink:
   snapshot_interval_battery_hours: 0   # Hours between battery camera snapshot refreshes (0 disables timed snapshots)
 
 # Legacy compatibility:
-# snapshot_update_interval: 5    # Accepted as a wired-only fallback when snapshot_interval_wired_minutes is not set
+# snapshot_update_interval: 5    # Legacy fallback for wired cameras (values > 60 treated as seconds and converted to minutes)
 
 timezone: America/New_York       # Timezone (see TZ database list)
 hide_ts: false                   # Hide timestamps in MQTT payloads (optional)

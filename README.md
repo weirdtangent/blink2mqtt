@@ -56,7 +56,7 @@ blink:
   snapshot_interval_battery_hours: 0   # hours between battery camera snapshot refreshes (0 disables timed battery snapshots)
 ```
 
-`snapshot_update_interval` is kept as a legacy fallback for wired cameras. Setting `snapshot_interval_battery_hours: 0` disables only timed snapshots for battery-powered cameras.
+`snapshot_update_interval` is kept as a legacy fallback for wired cameras (values > 60 are treated as seconds and converted to minutes). Setting `snapshot_interval_battery_hours: 0` disables timed snapshots for battery-powered cameras.
 
 ### Other Settings
 
