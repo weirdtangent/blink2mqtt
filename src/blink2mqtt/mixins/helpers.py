@@ -218,6 +218,10 @@ class HelpersMixin:
         mqtt = cast(dict[str, Any], config.get("mqtt", {}))
         blink = cast(dict[str, Any], config.get("blink", {}))
         legacy_snapshot_interval = first_value(blink.get("snapshot_update_interval"), os.getenv("SNAPSHOT_UPDATE_INTERVAL"))
+        if legacy_snapshot_interval is not None:
+            legacy_snapshot_interval = int(legacy_snapshot_interval)
+            if legacy_snapshot_interval > 60:
+                legacy_snapshot_interval = legacy_snapshot_interval // 60
 
         # fmt: off
         mqtt = {

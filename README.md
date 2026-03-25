@@ -144,6 +144,7 @@ Docker is the only supported way of deploying the application. The app should ru
 ## Contributors
 
 * [@weirdtangent](https://github.com/weirdtangent)
+* [@JostenSyon](https://github.com/JostenSyon)
 
 ## Buy Me A Coffee
 

@@ -40,7 +40,7 @@ class LoopsMixin:
                     last_snapshot = float(internal.get("last_snapshot", 0.0))
 
                     battery_status = camera.get("battery")
-                    if battery_status is None:
+                    if not battery_status:
                         interval_seconds = self.snapshot_interval_wired_minutes * 60
                     else:
                         if self.snapshot_interval_battery_hours == 0:

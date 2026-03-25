@@ -230,6 +230,29 @@ blink:
         assert config["blink"]["snapshot_interval_wired_minutes"] == 12
         assert config["blink"]["snapshot_interval_battery_hours"] == 0
 
+    def test_legacy_seconds_value_converted_to_minutes(self, tmp_path, monkeypatch):
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("""
+mqtt:
+  host: localhost
+blink:
+  username: blink_user
+  snapshot_update_interval: 900
+""")
+        version_file = tmp_path / "VERSION"
+        version_file.write_text("v0.1.0")
+
+        helpers = FakeHelpers()
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            config = helpers.load_config(str(tmp_path))
+        finally:
+            os.chdir(old_cwd)
+
+        assert config["blink"]["snapshot_interval_wired_minutes"] == 15
+        assert config["blink"]["snapshot_interval_battery_hours"] == 0
+
     def test_battery_zero_is_preserved(self, tmp_path, monkeypatch):
         config_file = tmp_path / "config.yaml"
         config_file.write_text("""

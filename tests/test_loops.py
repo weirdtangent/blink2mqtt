@@ -123,7 +123,7 @@ class TestSnapshotLoop:
     async def test_collects_only_due_wired_devices(self):
         looper = FakeLooper()
         looper.blink_cameras = {
-            "CAM_WIRED": {"battery": None},
+            "CAM_WIRED": {"battery": ""},
             "CAM_BATTERY": {"battery": "ok"},
         }
         looper.states = {
