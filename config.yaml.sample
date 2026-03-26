@@ -28,6 +28,12 @@ blink:
 # Legacy compatibility:
 # snapshot_update_interval: 5    # Legacy fallback for wired cameras (values > 60 treated as seconds and converted to minutes)
 
+media:
+  path: /media                     # Directory to store snapshot images (optional)
+  max_size: 5                      # Max MB per snapshot image (default: 5)
+  retention_days: 7                # Days to keep snapshots (default: 7; 0 = disabled)
+  media_source: media-source://media_source/local/snapshots  # Home Assistant media source URL (optional)
+
 timezone: America/New_York       # Timezone (see TZ database list)
 hide_ts: false                   # Hide timestamps in MQTT payloads (optional)
 vision_request: false            # Publish vision requests to MQTT on motion events (for vision2mqtt)
