@@ -8,6 +8,7 @@ services:
     network_mode: host
     volumes:
       - ./config:/config
+      - ./media:/media           # optional: snapshot storage for media history
     environment:
       - TZ=${TZ:-UTC}
       - CONFIG_PATH=/config/config.yaml     # or whatever your config file name is
