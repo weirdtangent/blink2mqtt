@@ -38,6 +38,13 @@ While using a config.yaml file is the recommended approach, blink2mqtt also supp
 - `MQTT_HOMEASSISTANT` (optional, default = 'true') - enable Home Assistant discovery
 - `MQTT_DISCOVERY_PREFIX` (optional, default = 'homeassistant') - MQTT discovery topic prefix
 
+## Media / Snapshot Storage
+
+- `MEDIA_PATH` (optional) - Directory path for storing snapshot images
+- `MEDIA_MAX_SIZE` (optional, default = 5) - Maximum size per snapshot image in MB
+- `MEDIA_RETENTION_DAYS` (optional, default = 7) - Days to keep snapshots (`0` = disabled)
+- `MEDIA_SOURCE` (optional) - Home Assistant media source URL for accessing snapshots
+
 ## Vision Settings
 
 - `VISION_REQUEST` (optional, default = false) - publish vision request on motion events for use with [vision2mqtt](https://github.com/weirdtangent/vision2mqtt)

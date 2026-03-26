@@ -116,7 +116,7 @@ class BlinkMixin:
         await self.build_sync_module_states(device_id, sync_module)
 
         if not self.is_discovered(device_id):
-            self.logger.info(f'added sync module: "{sync_module["device_name"]}" [Blink {sync_module["device_type"]}] (\'{self.get_device_name(device_id)}\')')
+            self.logger.info(f"added sync module: \"{sync_module['device_name']}\" [Blink {sync_module['device_type']}] ('{self.get_device_name(device_id)}')")
 
         await self.publish_device_discovery(device_id)
         await self.publish_device_availability(device_id, online=True)
@@ -180,6 +180,17 @@ class BlinkMixin:
                     "pl_off": "OFF",
                     "icon": "mdi:motion-sensor",
                 },
+                "save_snapshots": {
+                    "platform": "switch",
+                    "name": "Save Snapshots",
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "save_snapshots"),
+                    "stat_t": self.mqtt_helper.stat_t(device_id, "switch", "save_snapshots"),
+                    "cmd_t": self.mqtt_helper.cmd_t(device_id, "switch", "save_snapshots"),
+                    "pl_on": "ON",
+                    "pl_off": "OFF",
+                    "icon": "mdi:content-save",
+                    "entity_category": "config",
+                },
                 "nightvision": {
                     "platform": "select",
                     "name": "Night Vision",
@@ -241,7 +252,7 @@ class BlinkMixin:
         await self.build_camera_states(device_id, camera)
 
         if not self.is_discovered(device_id):
-            self.logger.info(f'added camera: "{camera["device_name"]}" [Blink {camera["device_type"]}] (\'{self.get_device_name(device_id)}\')')
+            self.logger.info(f"added camera: \"{camera['device_name']}\" [Blink {camera['device_type']}] ('{self.get_device_name(device_id)}')")
             await self.publish_device_discovery(device_id)
 
         await self.publish_device_availability(device_id, online=True)

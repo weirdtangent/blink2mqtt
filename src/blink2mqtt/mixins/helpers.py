@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 from deepmerge.merger import Merger
+from datetime import datetime, timedelta
 import logging
 from mqtt_helper import ConfigError
 import os
 import pathlib
+import re
 import signal
 import threading
 from types import FrameType
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 import yaml
 
@@ -28,6 +32,8 @@ class HelpersMixin:
             prev_clip_count = self.states.get(device_id, {}).get("clip_count", 0)
             new_clip_count = len(device.get("recent_clips") or [])
             nightvision = await self.get_nightvision(device_id) if self.blink_cameras[device_id]["supports_get_config"] else ""
+            save_snapshots_default = "ON" if "path" in self.config.get("media", {}) else "OFF"
+            current_save = self.states.get(device_id, {}).get("switch", {}).get("save_snapshots")
             self.upsert_state(
                 device_id,
                 sensor={
@@ -38,7 +44,10 @@ class HelpersMixin:
                 binary_sensor={
                     "motion": device["motion"],
                 },
-                switch={"motion_detection": "ON" if device["motion_detection"] else "OFF"},
+                switch={
+                    "motion_detection": "ON" if device["motion_detection"] else "OFF",
+                    "save_snapshots": current_save or save_snapshots_default,
+                },
                 select={"nightvision": nightvision},
                 clip_count=new_clip_count,
             )
@@ -87,6 +96,12 @@ class HelpersMixin:
 
     async def handle_device_command(self: Blink2Mqtt, device_id: str, handler: str, message: Any) -> None:
         match handler:
+            case "save_snapshots":
+                if message == "ON" and "path" not in self.config.get("media", {}):
+                    self.logger.error("user tried to turn on save_snapshots, but there is no media path set")
+                    return
+                self.upsert_state(device_id, switch={"save_snapshots": message})
+                await self.publish_device_state(device_id)
             case "motion_detection":
                 self.logger.debug(f"sending '{self.get_device_name(device_id)}' motion_detection to {message} command to Blink")
                 success = await self.set_motion_detection(device_id, message == "ON")
@@ -217,6 +232,7 @@ class HelpersMixin:
         # Merge with environment vars (env vars override nothing if file exists)
         mqtt = cast(dict[str, Any], config.get("mqtt", {}))
         blink = cast(dict[str, Any], config.get("blink", {}))
+        media = cast(dict[str, Any], config.get("media", {}))
         legacy_snapshot_interval = first_value(blink.get("snapshot_update_interval"), os.getenv("SNAPSHOT_UPDATE_INTERVAL"))
         if legacy_snapshot_interval is not None:
             legacy_snapshot_interval = int(legacy_snapshot_interval)
@@ -257,9 +273,32 @@ class HelpersMixin:
             ))),
         }
 
+        # Determine media path (optional)
+        media_path = media.get("path") or os.getenv("MEDIA_PATH")
+        if media_path:
+            media_path = os.path.expanduser(media_path)
+            media_path = os.path.abspath(media_path)
+
+            if os.path.exists(media_path) and os.access(media_path, os.W_OK):
+                media["path"] = media_path
+                media.setdefault("max_size", int(str(media.get("max_size") or os.getenv("MEDIA_MAX_SIZE", 5))))
+                media["retention_days"] = int(str(media.get("retention_days") or os.getenv("MEDIA_RETENTION_DAYS", 7)))
+                media.setdefault("media_source", media.get("media_source") or os.getenv("MEDIA_SOURCE", ""))
+                logging.info(f"storing snapshots in {media_path} up to {media['max_size']} MB per file")
+                if media["retention_days"] > 0:
+                    logging.info(f"snapshots will be retained for {media['retention_days']} days")
+                else:
+                    logging.info("snapshot retention is disabled (retention_days=0). Watch that it doesn't fill up the file system")
+            else:
+                logging.info("media_path not configured, not found, or is not writable. Will not be saving snapshots")
+                media = {}
+        else:
+            media = {}
+
         config = {
             "mqtt":             mqtt,
             "blink":            blink,
+            "media":            media,
             "debug":            str(config.get("debug") or os.getenv("DEBUG", "")).lower() == "true",
             "timezone":         config.get("timezone", os.getenv("TZ", "UTC")),
             "vision_request":   str(config.get("vision_request") or os.getenv("VISION_REQUEST", "")).lower() == "true",
@@ -279,6 +318,9 @@ class HelpersMixin:
 
     def get_device_name(self: Blink2Mqtt, device_id: str) -> str:
         return cast(str, self.devices[device_id]["component"]["device"]["name"])
+
+    def get_device_name_slug(self: Blink2Mqtt, device_id: str) -> str:
+        return re.sub(r"[^a-zA-Z0-9]+", "_", self.get_device_name(device_id).lower())
 
     def get_component(self: Blink2Mqtt, device_id: str) -> dict[str, Any]:
         return cast(dict[str, Any], self.devices[device_id]["component"])
@@ -309,6 +351,91 @@ class HelpersMixin:
     def get_device_availability_topic(self: Blink2Mqtt, device_id: str) -> str:
         component = self.get_component(device_id)
         return cast(str, component.get("avty_t") or component.get("availability_topic"))
+
+    # Media storage ------------------------------------------------------------------------------
+
+    async def store_snapshot_in_media(self: Blink2Mqtt, device_id: str, image_b64: str) -> str | None:
+        media_path = self.config.get("media", {}).get("path")
+        if not media_path:
+            return None
+
+        # Check save_snapshots switch for this device
+        save_on = self.states.get(device_id, {}).get("switch", {}).get("save_snapshots", "OFF")
+        if save_on != "ON":
+            return None
+
+        try:
+            image_bytes = base64.b64decode(image_b64)
+        except Exception as err:
+            self.logger.error(f"[store_snapshot_in_media] failed to decode image for '{self.get_device_name(device_id)}': {err}")
+            return None
+
+        max_size_bytes = self.config["media"].get("max_size", 5) * 1024 * 1024
+        if len(image_bytes) > max_size_bytes:
+            self.logger.info(f"skipping saving snapshot because {len(image_bytes)} bytes > {max_size_bytes} bytes max")
+            return None
+
+        name = self.get_device_name_slug(device_id)
+        time = datetime.now().strftime("%Y%m%d-%H%M%S")
+        file_name = f"{name}-{time}.jpg"
+        file_path = Path(f"{media_path}/{file_name}")
+
+        try:
+            file_path.write_bytes(image_bytes)
+        except PermissionError as err:
+            self.logger.error(f"permission error saving snapshot to {file_path}: {err!r}")
+            return None
+        except Exception as err:
+            self.logger.error(f"failed to save snapshot to {file_path}: {err!r}")
+            return None
+
+        # update the latest symlink
+        local_file = Path(f"./{file_name}")
+        latest_link = Path(f"{media_path}/{name}-latest.jpg")
+
+        try:
+            if latest_link.is_symlink():
+                latest_link.unlink()
+            latest_link.symlink_to(local_file)
+        except IOError as err:
+            self.logger.error(f"failed to save symlink {latest_link} -> {local_file}: {err!r}")
+
+        self.logger.debug(f"saved snapshot for '{self.get_device_name(device_id)}' to {file_path}")
+        return file_name
+
+    async def cleanup_old_snapshots(self: Blink2Mqtt) -> None:
+        media_path = self.config.get("media", {}).get("path")
+        retention_days = self.config.get("media", {}).get("retention_days", 7)
+
+        if not media_path or retention_days <= 0:
+            return
+
+        cutoff = datetime.now() - timedelta(days=retention_days)
+        path = Path(media_path)
+
+        for file in path.glob("*.jpg"):
+            if file.is_symlink():
+                continue
+
+            # Extract timestamp from filename: {name}-YYYYMMDD-HHMMSS.jpg
+            match = re.search(r"-(\d{8}-\d{6})\.jpg$", file.name)
+            if match:
+                file_time = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S")
+                if file_time < cutoff:
+                    try:
+                        file.unlink()
+                        self.logger.info(f"deleted old snapshot: {file.name}")
+                    except Exception as err:
+                        self.logger.error(f"failed to delete old snapshot {file.name}: {err!r}")
+
+        # Clean up dangling symlinks (symlinks pointing to deleted files)
+        for link in path.glob("*-latest.jpg"):
+            if link.is_symlink() and not link.exists():
+                try:
+                    link.unlink()
+                    self.logger.info(f"deleted dangling symlink: {link.name}")
+                except Exception as err:
+                    self.logger.error(f"failed to delete dangling symlink {link.name}: {err!r}")
 
     # Upsert devices and states -------------------------------------------------------------------
 
