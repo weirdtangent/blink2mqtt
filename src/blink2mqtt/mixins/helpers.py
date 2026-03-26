@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 import logging
 from mqtt_helper import ConfigError
 import os
-import pathlib
 import re
 import signal
 import threading
@@ -167,10 +166,10 @@ class HelpersMixin:
         threading.Timer(5.0, _force_exit).start()
 
     def mark_ready(self: Blink2Mqtt) -> None:
-        pathlib.Path(READY_FILE).touch()
+        Path(READY_FILE).touch()
 
     def heartbeat_ready(self: Blink2Mqtt) -> None:
-        pathlib.Path(READY_FILE).touch()
+        Path(READY_FILE).touch()
 
     def read_file(self: Blink2Mqtt, file_name: str) -> str:
         try:
@@ -279,7 +278,7 @@ class HelpersMixin:
             media_path = os.path.expanduser(media_path)
             media_path = os.path.abspath(media_path)
 
-            if os.path.exists(media_path) and os.access(media_path, os.W_OK):
+            if os.path.isdir(media_path) and os.access(media_path, os.W_OK | os.X_OK):
                 media["path"] = media_path
                 media.setdefault("max_size", int(str(media.get("max_size") or os.getenv("MEDIA_MAX_SIZE", 5))))
                 media["retention_days"] = int(str(media.get("retention_days") or os.getenv("MEDIA_RETENTION_DAYS", 7)))
@@ -378,30 +377,35 @@ class HelpersMixin:
         name = self.get_device_name_slug(device_id)
         time = datetime.now().strftime("%Y%m%d-%H%M%S")
         file_name = f"{name}-{time}.jpg"
-        file_path = Path(f"{media_path}/{file_name}")
+        file_path = Path(media_path) / file_name
 
-        try:
-            file_path.write_bytes(image_bytes)
-        except PermissionError as err:
-            self.logger.error(f"permission error saving snapshot to {file_path}: {err!r}")
-            return None
-        except Exception as err:
-            self.logger.error(f"failed to save snapshot to {file_path}: {err!r}")
-            return None
+        def _write_and_link() -> str | None:
+            try:
+                file_path.write_bytes(image_bytes)
+            except PermissionError as err:
+                self.logger.error(f"permission error saving snapshot to {file_path}: {err!r}")
+                return None
+            except Exception as err:
+                self.logger.error(f"failed to save snapshot to {file_path}: {err!r}")
+                return None
 
-        # update the latest symlink
-        local_file = Path(f"./{file_name}")
-        latest_link = Path(f"{media_path}/{name}-latest.jpg")
+            # update the latest symlink
+            local_file = Path(f"./{file_name}")
+            latest_link = Path(media_path) / f"{name}-latest.jpg"
 
-        try:
-            if latest_link.is_symlink():
-                latest_link.unlink()
-            latest_link.symlink_to(local_file)
-        except IOError as err:
-            self.logger.error(f"failed to save symlink {latest_link} -> {local_file}: {err!r}")
+            try:
+                if latest_link.exists() or latest_link.is_symlink():
+                    latest_link.unlink()
+                latest_link.symlink_to(local_file)
+            except IOError as err:
+                self.logger.error(f"failed to save symlink {latest_link} -> {local_file}: {err!r}")
 
-        self.logger.debug(f"saved snapshot for '{self.get_device_name(device_id)}' to {file_path}")
-        return file_name
+            return file_name
+
+        result = await asyncio.to_thread(_write_and_link)
+        if result:
+            self.logger.debug(f"saved snapshot for '{self.get_device_name(device_id)}' to {file_path}")
+        return result
 
     async def cleanup_old_snapshots(self: Blink2Mqtt) -> None:
         media_path = self.config.get("media", {}).get("path")
@@ -413,29 +417,43 @@ class HelpersMixin:
         cutoff = datetime.now() - timedelta(days=retention_days)
         path = Path(media_path)
 
-        for file in path.glob("*.jpg"):
-            if file.is_symlink():
-                continue
+        def _cleanup() -> None:
+            try:
+                files = list(path.glob("*.jpg"))
+            except (FileNotFoundError, NotADirectoryError, PermissionError) as err:
+                self.logger.error(f"cannot list media directory {media_path}: {err!r}")
+                return
 
-            # Extract timestamp from filename: {name}-YYYYMMDD-HHMMSS.jpg
-            match = re.search(r"-(\d{8}-\d{6})\.jpg$", file.name)
-            if match:
-                file_time = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S")
-                if file_time < cutoff:
+            for file in files:
+                if file.is_symlink():
+                    continue
+
+                # Extract timestamp from filename: {name}-YYYYMMDD-HHMMSS.jpg
+                match = re.search(r"-(\d{8}-\d{6})\.jpg$", file.name)
+                if match:
+                    file_time = datetime.strptime(match.group(1), "%Y%m%d-%H%M%S")
+                    if file_time < cutoff:
+                        try:
+                            file.unlink()
+                            self.logger.info(f"deleted old snapshot: {file.name}")
+                        except Exception as err:
+                            self.logger.error(f"failed to delete old snapshot {file.name}: {err!r}")
+
+            # Clean up dangling symlinks (symlinks pointing to deleted files)
+            try:
+                links = list(path.glob("*-latest.jpg"))
+            except (FileNotFoundError, NotADirectoryError, PermissionError):
+                return
+
+            for link in links:
+                if link.is_symlink() and not link.exists():
                     try:
-                        file.unlink()
-                        self.logger.info(f"deleted old snapshot: {file.name}")
+                        link.unlink()
+                        self.logger.info(f"deleted dangling symlink: {link.name}")
                     except Exception as err:
-                        self.logger.error(f"failed to delete old snapshot {file.name}: {err!r}")
+                        self.logger.error(f"failed to delete dangling symlink {link.name}: {err!r}")
 
-        # Clean up dangling symlinks (symlinks pointing to deleted files)
-        for link in path.glob("*-latest.jpg"):
-            if link.is_symlink() and not link.exists():
-                try:
-                    link.unlink()
-                    self.logger.info(f"deleted dangling symlink: {link.name}")
-                except Exception as err:
-                    self.logger.error(f"failed to delete dangling symlink {link.name}: {err!r}")
+        await asyncio.to_thread(_cleanup)
 
     # Upsert devices and states -------------------------------------------------------------------
 

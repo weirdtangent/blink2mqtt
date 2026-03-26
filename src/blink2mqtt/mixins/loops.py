@@ -76,7 +76,13 @@ class LoopsMixin:
 
     async def cleanup_snapshots_loop(self: Blink2Mqtt) -> None:
         while self.running:
-            await self.cleanup_old_snapshots()
+            try:
+                await self.cleanup_old_snapshots()
+            except asyncio.CancelledError:
+                self.logger.debug("cleanup_snapshots_loop cancelled during cleanup")
+                break
+            except Exception:
+                self.logger.exception("unexpected error during cleanup_old_snapshots; continuing")
             try:
                 await asyncio.sleep(86400)  # once per day
             except asyncio.CancelledError:
