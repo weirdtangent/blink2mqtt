@@ -49,7 +49,7 @@ jobs:
       - name: Black
         run: |
           uv run black --version
-          uv run black --check --color --diff .
+          uv run black --check --color --diff --target-version py312 .
 
       - name: Mypy
         run: |
