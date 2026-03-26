@@ -62,7 +62,7 @@ RUN /usr/local/bin/pip uninstall -y uv && \
 # ===== Non-root Runtime User =====
 RUN groupadd -g "${GROUP_ID}" appuser && \
     useradd -u "${USER_ID}" -g "${GROUP_ID}" --create-home --shell /bin/bash appuser && \
-    mkdir -p /config && chown -R appuser:appuser /app /config
+    mkdir -p /config /media && chown -R appuser:appuser /app /config /media
 
 USER appuser
 

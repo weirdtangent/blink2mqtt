@@ -58,6 +58,22 @@ blink:
 
 `snapshot_update_interval` is kept as a legacy fallback for wired cameras (values > 60 are treated as seconds and converted to minutes). Setting `snapshot_interval_battery_hours: 0` disables timed snapshots for battery-powered cameras.
 
+### Snapshot Storage (Media History)
+
+Optionally save captured snapshots to disk with automatic retention cleanup. Each camera gets a **Save Snapshots** switch in Home Assistant (defaults ON when a media path is configured).
+
+```yaml
+media:
+  path: /media               # directory to store snapshot images
+  retention_days: 14          # days to keep snapshots (default: 7; 0 = disabled)
+  max_size: 5                 # max MB per snapshot image (default: 5)
+  media_source: media-source://media_source/local/snapshots  # HA media source URL (optional)
+```
+
+Snapshots are saved as `{camera_name}-{YYYYMMDD-HHMMSS}.jpg` with a `{camera_name}-latest.jpg` symlink pointing to the most recent image. A daily cleanup loop removes files older than `retention_days`.
+
+Mount a volume at `/media` in your Docker container (see the [docker-compose.yaml](docker-compose.yaml) example).
+
 ### Other Settings
 
 ```yaml
