@@ -16,5 +16,3 @@ updates:
           all-actions:
               patterns:
                   - "*"
-      commit-message:
-          prefix: "[ci skip]"
