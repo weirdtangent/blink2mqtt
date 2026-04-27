@@ -57,7 +57,7 @@ jobs:
 
       - name: Pip-audit
         if: matrix.python-version == '3.12'
-        run: uv run pip-audit --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-25645  # pygments 2.19.2 + requests 2.32.5, no fix available yet
+        run: uv run pip-audit --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-25645 --ignore-vuln CVE-2026-3219  # pygments 2.19.2 + requests 2.32.5 + pip 26.0.1, no fix available yet
 
   release:
     name: Semantic Release
