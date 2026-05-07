@@ -23,7 +23,7 @@ ENV APP_PRETEND_VERSION=${VERSION}
 # ===== System Dependencies =====
 RUN apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends git gosu && \
+    apt-get install -y --no-install-recommends git && \
     pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir uv && \
     rm -rf /var/lib/apt/lists/*
