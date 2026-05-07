@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7-labs
-FROM python:3.14-slim
+FROM python:3.14-alpine
 
 # ===== Project Variables =====
 ARG APP_NAME=blink2mqtt
@@ -13,7 +13,6 @@ ARG GROUP_ID=1000
 
 # ===== Base Setup =====
 WORKDIR /app
-ENV DEBIAN_FRONTEND=noninteractive
 
 # Generic pretend version variables (used by setuptools-scm)
 # No uppercase substitution; just define a safe fallback
@@ -21,12 +20,20 @@ ENV SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION}
 ENV APP_PRETEND_VERSION=${VERSION}
 
 # ===== System Dependencies =====
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends git && \
+# git: build-only (setuptools-scm); removed at end
+# su-exec: drop privileges in entrypoint (replaces gosu, ~22KB C binary)
+# shadow: runtime usermod/groupmod for PUID/PGID overrides
+# build-base, libffi-dev, openssl-dev: needed to build any C-extension wheels
+#   that don't ship musl wheels; removed at end
+RUN apk add --no-cache \
+        git \
+        su-exec \
+        shadow \
+        build-base \
+        libffi-dev \
+        openssl-dev && \
     pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir uv && \
-    rm -rf /var/lib/apt/lists/*
+    pip install --no-cache-dir uv
 
 # ===== Copy Project Metadata =====
 COPY pyproject.toml uv.lock ./
@@ -53,15 +60,14 @@ COPY . .
 # 5. Install the app itself (pretend version visible, no deps)
 RUN SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION} uv pip install --no-cache-dir . --no-deps
 
-# 6. Cleanup
+# 6. Cleanup — remove build-only packages, keep su-exec + shadow for runtime
 RUN /usr/local/bin/pip uninstall -y uv && \
-    apt-get purge -y git && apt-get autoremove -y && apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives && \
+    apk del git build-base libffi-dev openssl-dev && \
     (rm -rf /tmp/reqs.all.txt /tmp/reqs.deps.txt .git || true)
 
 # ===== Non-root Runtime User =====
-RUN groupadd -g "${GROUP_ID}" appuser && \
-    useradd -u "${USER_ID}" -g "${GROUP_ID}" --create-home --shell /bin/bash appuser && \
+RUN addgroup -g "${GROUP_ID}" appuser && \
+    adduser -D -u "${USER_ID}" -G appuser -s /bin/sh appuser && \
     mkdir -p /config /media && chown -R appuser:appuser /app /config /media
 
 COPY entrypoint.sh /entrypoint.sh
