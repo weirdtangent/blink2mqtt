@@ -22,7 +22,7 @@ if [ "$(id -u)" = "0" ]; then
 
     chown appuser:appuser /app /config /media
 
-    exec gosu appuser "$@"
+    exec setpriv --reuid=appuser --regid=appuser --init-groups "$@"
 fi
 
 # Already running as non-root (no PUID/PGID support)
