@@ -8,6 +8,14 @@ from mqtt_helper import ConfigError, MqttError
 from .core import Blink2Mqtt
 
 
+class BlinkpyRecordsNoiseFilter(logging.Filter):
+    # blinkpy/camera.py (0.25.5) guards last_records with `len(dict) > 0` then indexes
+    # by camera name, so a camera with no records but a recorded sibling raises KeyError,
+    # which blinkpy catches and re-logs at ERROR on every refresh. Upstream bug; drop it.
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "Error getting last records" not in record.getMessage()
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="blink2mqtt", exit_on_error=True)
     p.add_argument(
@@ -22,6 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
 async def async_main() -> int:
     setup_logging()
     logging.getLogger("blinkpy.camera").setLevel(logging.WARNING)
+    logging.getLogger("blinkpy.camera").addFilter(BlinkpyRecordsNoiseFilter())
     logger = get_logger(__name__)
 
     parser = build_parser()
