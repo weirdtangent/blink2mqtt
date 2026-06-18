@@ -257,7 +257,7 @@ dev = [
 requires-dist = [
     { name = "attrs", marker = "extra == 'dev'", specifier = ">=26.1.0" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=26.5.1" },
-    { name = "blinkpy", specifier = ">=0.25.5" },
+    { name = "blinkpy", specifier = ">=0.25.6" },
     { name = "deepmerge", specifier = "==2.0" },
     { name = "json-logging-graystorm", git = "https://github.com/weirdtangent/json-logging.git?rev=5e245601ad2da7676a52281345e4040bb0281ffb" },
     { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4.26.0" },
@@ -287,7 +287,7 @@ dev = [
 
 [[package]]
 name = "blinkpy"
-version = "0.25.5"
+version = "0.25.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiofiles" },
@@ -297,9 +297,9 @@ dependencies = [
     { name = "requests" },
     { name = "sortedcontainers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/72/08/278b9d9d2d53b0369553a37845ab8ab8720c891ca9f1a3663411888d323a/blinkpy-0.25.5.tar.gz", hash = "sha256:43a83b5d52d7b803eb56e2a3c8c7d739b64d9e5ec9ffc2f45e420f61af33f1f3", size = 67454, upload-time = "2026-02-04T19:47:06.515Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/39/20/0972a3abbef78c5a43ab0a8987b8effdade4c2458c0064fef6d0fac16c4b/blinkpy-0.25.6.tar.gz", hash = "sha256:bb83e238ad071904edca2f3d0c8e0a8de98b9136f97e5276d8949a631d95c50b", size = 69128, upload-time = "2026-06-14T16:57:40.95Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/24/b6/7b1758594173ab74e0a95299c8b0e94e3004a92ca901ac5d2cd7d3ec5f1f/blinkpy-0.25.5-py3-none-any.whl", hash = "sha256:d3198d61536d276d66663b5347ecf4d68536271af4a56aca024f116206fe4598", size = 39864, upload-time = "2026-02-04T19:47:05.015Z" },
+    { url = "https://files.pythonhosted.org/packages/c6/65/8bab519df1e9e17a7ef8efc68a4ef3b13daadf2ba2c31b4e0ecc007cafe8/blinkpy-0.25.6-py3-none-any.whl", hash = "sha256:68bc31c64b08c242f486396f597aa5092c42485dc29e8fbe50f34e874e9a08d7", size = 40349, upload-time = "2026-06-14T16:57:39.895Z" },
 ]
 
 [[package]]
