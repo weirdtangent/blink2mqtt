@@ -25,7 +25,7 @@ blink2mqtt = "blink2mqtt.app:main"
 dev = [
     # linting/formating/static typing
     "black>=26.5.1",
-    "ruff>=0.15.20",
+    "ruff>=0.15.21",
 
     # testing/coverage
     "pytest>=9.1.1",
@@ -143,7 +143,7 @@ mqtt-helper-graystorm = { git = "https://github.com/weirdtangent/mqtt-helper.git
 [dependency-groups]
 dev = [
     "black>=25.9.0",
-    "mypy>=2.1.0",
+    "mypy>=2.3.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
