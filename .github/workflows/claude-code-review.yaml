@@ -158,7 +158,7 @@ jobs:
         id: review1
         if: steps.skip-check.outputs.skip != 'true' && steps.docs-check.outputs.docs_only != 'true'
         continue-on-error: true
-        uses: anthropics/claude-code-action@536f2c32a39763739000b0e1ac69ca2647d97ce9  # v1
+        uses: anthropics/claude-code-action@12531344451323133b0493233c759991ac61da12  # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ steps.app-token.outputs.token }}
@@ -204,7 +204,7 @@ jobs:
         id: review2
         if: steps.skip-check.outputs.skip != 'true' && steps.docs-check.outputs.docs_only != 'true' && steps.review_check.outputs.ok != 'true'
         continue-on-error: true
-        uses: anthropics/claude-code-action@536f2c32a39763739000b0e1ac69ca2647d97ce9  # v1
+        uses: anthropics/claude-code-action@12531344451323133b0493233c759991ac61da12  # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ steps.app-token.outputs.token }}
