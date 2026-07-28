@@ -2,16 +2,16 @@
 # Copyright (c) 2025 Jeff Culverhouse
 import argparse
 import asyncio
-from blinkpy.blinkpy import Blink
 import concurrent.futures
-from datetime import datetime
 import logging
+from datetime import datetime
+from types import TracebackType
+from typing import Any, Self, cast
+
+from blinkpy.blinkpy import Blink
 from json_logging import get_logger
 from mqtt_helper import MqttHelper
 from paho.mqtt.client import Client
-from types import TracebackType
-
-from typing import Any, Self, cast
 
 from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
 
@@ -81,7 +81,7 @@ class Base:
 
         return cast(Blink2Mqtt, self)
 
-    async def __aexit__(self: Self, exc_type: BaseException | None, exc_val: BaseException | None, exc_tb: TracebackType) -> None:
+    async def __aexit__(self: Self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None) -> None:
         super_exit = getattr(super(), "__exit__", None)
         if callable(super_exit):
             super_exit(exc_type, exc_val, exc_tb)

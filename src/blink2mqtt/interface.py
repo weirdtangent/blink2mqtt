@@ -1,15 +1,17 @@
+import concurrent.futures
 from argparse import Namespace
 from asyncio import AbstractEventLoop
-from blinkpy.blinkpy import Blink
-import concurrent.futures
+from collections.abc import Callable, Coroutine
 from datetime import datetime
 from logging import Logger
-from mqtt_helper import MqttHelper
-from paho.mqtt.client import Client, MQTTMessage, ConnectFlags, DisconnectFlags
-from paho.mqtt.reasoncodes import ReasonCode
-from paho.mqtt.properties import Properties
 from types import FrameType
-from typing import Protocol, Any, Callable, Coroutine, TypeVar
+from typing import Any, Protocol, TypeVar
+
+from blinkpy.blinkpy import Blink
+from mqtt_helper import MqttHelper
+from paho.mqtt.client import Client, ConnectFlags, DisconnectFlags, MQTTMessage
+from paho.mqtt.properties import Properties
+from paho.mqtt.reasoncodes import ReasonCode
 
 _T = TypeVar("_T")
 
@@ -102,7 +104,7 @@ class BlinkServiceProtocol(Protocol):
     async def refresh_device_list(self) -> None: ...
     async def refresh_snapshot_all_devices(self) -> None: ...
     async def refresh_snapshot_devices(self, device_ids: list[str], update_last_snapshot: bool = True) -> None: ...
-    async def refresh_snapshot(self, device_id: str, type: str) -> None: ...
+    async def refresh_snapshot(self, device_id: str, snapshot_type: str) -> None: ...
     async def set_arm_mode(self, device_id: str, switch: bool) -> Any | None: ...
     async def set_motion_detection(self, device_id: str, switch: bool) -> bool | None: ...
     async def set_nightvision(self, device_id: str, switch: str) -> bool | None: ...

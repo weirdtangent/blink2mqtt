@@ -70,5 +70,5 @@ class MqttMixin(BaseMqttMixin):
     def log_future_result(self: Blink2Mqtt, fut: concurrent.futures.Future) -> None:
         try:
             fut.result()
-        except Exception as err:
-            self.logger.exception(f"device command task failed: {err}")
+        except Exception:
+            self.logger.exception("device command task failed")

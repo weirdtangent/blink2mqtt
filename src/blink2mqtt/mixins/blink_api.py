@@ -2,24 +2,24 @@
 # Copyright (c) 2025 Jeff Culverhouse
 from __future__ import annotations
 
-from aiohttp import ClientSession
 import asyncio
-from asyncio import timeout
 import base64
+import json
+import os
+from asyncio import timeout
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
+
+from aiohttp import ClientSession
 from blinkpy.auth import Auth, BlinkTwoFARequiredError, UnauthorizedError
 from blinkpy.blinkpy import Blink
 from blinkpy.helpers.util import json_load
-from datetime import datetime
-import json
-import os
-
-from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
 
 
-class BlinkAPIMixin(object):
+class BlinkAPIMixin:
     async def publish_vision_request(self: Blink2Mqtt, device_id: str, image_b64: str, source: str) -> None:
         if not self.config.get("vision_request"):
             return
@@ -168,7 +168,7 @@ class BlinkAPIMixin(object):
         return self.blink_cameras
 
     async def get_sync_modules(self: Blink2Mqtt) -> dict[str, Any]:
-        for _, sync_module in self.blink.sync.items():
+        for sync_module in self.blink.sync.values():
             await sync_module.get_network_info()
             attributes = sync_module.attributes
             self.blink_sync_modules[attributes["serial"]] = {
@@ -216,7 +216,7 @@ class BlinkAPIMixin(object):
                 response = await device.async_arm(switch)
                 self.logger.debug(f"set arm mode/motion detection for '{self.get_device_name(device_id)}': {response}")
                 return response
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.logger.error(f"[set_arm_mode/motion detection] timed out for '{self.get_device_name(device_id)}'")
             return None
         except Exception as err:
@@ -238,7 +238,7 @@ class BlinkAPIMixin(object):
             self.logger.debug(f"[get_nightvision] response for '{self.get_device_name(device_id)}': {json.dumps(response)}")
             return response and str(response.get("illuminator_enable", ""))
             # {'nightvision_control': None, 'illuminator_enable': 'auto', 'illuminator_enable_v2': None}
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.logger.error(f"[get_nightvision] timed out for '{self.get_device_name(device_id)}'")
             return ""
         except Exception as err:
@@ -311,7 +311,7 @@ class BlinkAPIMixin(object):
             camera = self.blink.cameras[name]
         else:
             self.logger.error(f"[take_snapshot_from_device] unknown device id: '{self.get_device_name(device_id)}'")
-            return None
+            return
 
         try:
             await camera.snap_picture()
@@ -380,7 +380,7 @@ class BlinkAPIMixin(object):
             device = self.blink.sync[sync_module["device_name"]]
         else:
             self.logger.error(f"[set_motion_detection] unknown device id: '{self.get_device_name(device_id)}'")
-            return None
+            return
         max_retries = 5
         base_delay = 2
 
@@ -427,23 +427,17 @@ class BlinkAPIMixin(object):
                 device["privacy_mode"] = False
                 self.events.append({"device_id": device_id, "event": "privacy_mode", "payload": "off"})
             # lets send these but not bother logging them here
-            elif code == "TimeChange":
-                self.events.append({"device_id": device_id, "event": code, "payload": payload["action"]})
-            elif code == "NTPAdjustTime":
-                self.events.append({"device_id": device_id, "event": code, "payload": payload["action"]})
-            elif code == "RtspSessionDisconnect":
+            elif code == "TimeChange" or code == "NTPAdjustTime" or code == "RtspSessionDisconnect":
                 self.events.append({"device_id": device_id, "event": code, "payload": payload["action"]})
             # lets just ignore these
-            elif code == "InterVideoAccess":  # I think this is US, accessing the API of the camera, lets not inception!
-                pass
-            elif code == "VideoMotionInfo":
+            elif code == "InterVideoAccess" or code == "VideoMotionInfo":  # I think this is US, accessing the API of the camera, lets not inception!
                 pass
             # save everything else as a 'generic' event
             else:
                 self.logger.debug(f"event on '{self.get_device_name(device_id)}' - {code}: {payload}")
                 self.events.append({"device_id": device_id, "event": code, "payload": payload})
-        except Exception as err:
-            self.logger.error(f"[queue_device_event] Failed to understand event from '{self.get_device_name(device_id)}': {err}", exc_info=True)
+        except Exception:
+            self.logger.exception(f"[queue_device_event] Failed to understand event from '{self.get_device_name(device_id)}'")
 
     def get_next_event(self: Blink2Mqtt) -> dict[str, Any] | None:
         return self.events.pop(0) if len(self.events) > 0 else None
@@ -468,7 +462,7 @@ class BlinkAPIMixin(object):
                     if event == "recording" and payload["file"].endswith(".jpg"):
                         image = await self.get_recorded_file(device_id, payload["file"])
                         if not image:
-                            self.logger.error(f"[process_events] failed to get recorded file for '{self.get_device_name(device_id)}': {payload["file"]}")
+                            self.logger.error(f"[process_events] failed to get recorded file for '{self.get_device_name(device_id)}': {payload['file']}")
                             continue
                         # only store and send to MQTT if we got an image AND the image has changed
                         if image and (states["eventshot"] is None or states["eventshot"] != image):
@@ -493,5 +487,5 @@ class BlinkAPIMixin(object):
                     self.upsert_state(device_id, last_event=f"{event}: {json.dumps(payload)}", last_event_time=str(datetime.now()))
 
                 await self.publish_device_state(device_id)
-        except Exception as err:
-            self.logger.error(f"[process_events] Failed trying to process event: {err}", exc_info=True)
+        except Exception:
+            self.logger.exception("[process_events] Failed trying to process event")
