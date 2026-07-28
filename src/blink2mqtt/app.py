@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
-import asyncio
 import argparse
+import asyncio
 import logging
-from json_logging import setup_logging, get_logger
+
+from json_logging import get_logger, setup_logging
 from mqtt_helper import ConfigError, MqttError
+
 from .core import Blink2Mqtt
 
 
@@ -51,8 +53,8 @@ async def async_main() -> int:
     except asyncio.CancelledError:
         logger.warning("main loop cancelled.")
         return 1
-    except Exception as err:
-        logger.error(f"unhandled exception: {err!r}", exc_info=True)
+    except Exception:
+        logger.exception("unhandled exception")
         return 1
     finally:
         logger.info("blink2mqtt stopped.")

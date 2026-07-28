@@ -88,6 +88,13 @@ indent-width = 4
 # Assume Python 3.13
 target-version = "py313"
 
+[tool.ruff.lint]
+ignore = [
+    "BLE001",  # long-running MQTT/Blink service intentionally uses broad `except Exception` to stay resilient (see loops.py, blink_api.py)
+    "DTZ005",  # timestamps/daily counters intentionally use local time; forcing UTC would shift semantics
+    "DTZ007",  # same: intentional local-time parsing
+]
+
 [tool.pyright]
 include = [ "src" ]
 extraPaths = [ "src" ]

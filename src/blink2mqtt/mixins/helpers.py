@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import asyncio
 import base64
-from deepmerge.merger import Merger
-from datetime import datetime, timedelta
-import logging
-from mqtt_helper import ConfigError
 import os
 import re
 import signal
 import threading
-from types import FrameType
+from datetime import datetime, timedelta
 from pathlib import Path
+from types import FrameType
 from typing import TYPE_CHECKING, Any, cast
+
 import yaml
+from deepmerge.merger import Merger
+from mqtt_helper import ConfigError
 
 if TYPE_CHECKING:
     from blink2mqtt.interface import BlinkServiceProtocol as Blink2Mqtt
@@ -52,7 +52,7 @@ class HelpersMixin:
             )
             # publish vision request when new clips appear (reliable motion indicator)
             self.logger.debug(f"[clip_check] '{self.get_device_name(device_id)}' prev={prev_clip_count} new={new_clip_count} motion={device['motion']}")
-            if new_clip_count > prev_clip_count and prev_clip_count > 0:
+            if new_clip_count > prev_clip_count > 0:
                 self.logger.debug(
                     f"[clip_check] new clips detected for '{self.get_device_name(device_id)}' ({prev_clip_count} -> {new_clip_count}), triggering vision request"
                 )
@@ -81,8 +81,8 @@ class HelpersMixin:
                 self.logger.info(f"[_capture_and_publish_vision] published vision request for '{name}'")
             else:
                 self.logger.warning(f"[_capture_and_publish_vision] motion detected on '{name}' but failed to get snapshot")
-        except Exception as err:
-            self.logger.error(f"[_capture_and_publish_vision] failed for '{name}': {err}", exc_info=True)
+        except Exception:
+            self.logger.exception(f"[_capture_and_publish_vision] failed for '{name}'")
 
     async def build_sync_module_states(self: Blink2Mqtt, device_id: str, sync_module: dict[str, str]) -> None:
         self.upsert_state(
@@ -224,9 +224,9 @@ class HelpersMixin:
                     config = yaml.safe_load(f) or {}
                 config_from = "file"
             except Exception as err:
-                logging.warning(f"Failed to load config from {config_file}: {err}")
+                self.logger.warning(f"Failed to load config from {config_file}: {err}")
         else:
-            logging.warning(f"Config file not found at {config_file}, falling back to environment vars")
+            self.logger.warning(f"Config file not found at {config_file}, falling back to environment vars")
 
         # Merge with environment vars (env vars override nothing if file exists)
         mqtt = cast(dict[str, Any], config.get("mqtt", {}))
@@ -241,9 +241,9 @@ class HelpersMixin:
         # fmt: off
         mqtt = {
             "host":                   cast(str, mqtt.get("host"))                       or os.getenv("MQTT_HOST", "localhost"),
-            "port":               int(cast(str, mqtt.get("port")                        or os.getenv("MQTT_PORT", 1883))),
+            "port":               int(cast(str, mqtt.get("port")                        or os.getenv("MQTT_PORT", "1883"))),
             "protocol_version":   str(cast(str, mqtt.get("protocol_version")            or os.getenv("MQTT_PROTOCOL_VERSION", "5"))),
-            "qos":                int(cast(str, mqtt.get("qos")                         or os.getenv("MQTT_QOS", 0))),
+            "qos":                int(cast(str, mqtt.get("qos")                         or os.getenv("MQTT_QOS", "0"))),
             "username":                        mqtt.get("username")                     or os.getenv("MQTT_USERNAME", ""),
             "password":                        mqtt.get("password")                     or os.getenv("MQTT_PASSWORD", ""),
             "tls_enabled":                     mqtt.get("tls_enabled")                  or (os.getenv("MQTT_TLS_ENABLED", "false").lower() == "true"),
@@ -280,16 +280,16 @@ class HelpersMixin:
 
             if os.path.isdir(media_path) and os.access(media_path, os.W_OK | os.X_OK):
                 media["path"] = media_path
-                media.setdefault("max_size", int(str(media.get("max_size") or os.getenv("MEDIA_MAX_SIZE", 5))))
-                media["retention_days"] = int(str(media.get("retention_days") or os.getenv("MEDIA_RETENTION_DAYS", 7)))
+                media.setdefault("max_size", int(str(media.get("max_size") or os.getenv("MEDIA_MAX_SIZE", "5"))))
+                media["retention_days"] = int(str(media.get("retention_days") or os.getenv("MEDIA_RETENTION_DAYS", "7")))
                 media.setdefault("media_source", media.get("media_source") or os.getenv("MEDIA_SOURCE", ""))
-                logging.info(f"storing snapshots in {media_path} up to {media['max_size']} MB per file")
+                self.logger.info(f"storing snapshots in {media_path} up to {media['max_size']} MB per file")
                 if media["retention_days"] > 0:
-                    logging.info(f"snapshots will be retained for {media['retention_days']} days")
+                    self.logger.info(f"snapshots will be retained for {media['retention_days']} days")
                 else:
-                    logging.info("snapshot retention is disabled (retention_days=0). Watch that it doesn't fill up the file system")
+                    self.logger.info("snapshot retention is disabled (retention_days=0). Watch that it doesn't fill up the file system")
             else:
-                logging.info("media_path not configured, not found, or is not writable. Will not be saving snapshots")
+                self.logger.info("media_path not configured, not found, or is not writable. Will not be saving snapshots")
                 media = {}
         else:
             media = {}
@@ -397,7 +397,7 @@ class HelpersMixin:
                 if latest_link.exists() or latest_link.is_symlink():
                     latest_link.unlink()
                 latest_link.symlink_to(local_file)
-            except IOError as err:
+            except OSError as err:
                 self.logger.error(f"failed to save symlink {latest_link} -> {local_file}: {err!r}")
 
             return file_name
@@ -485,7 +485,7 @@ class HelpersMixin:
             self._assert_no_tuples(merged, f"device[{device_id}].{section} (post-merge)")
             self.devices[device_id] = merged
         new = self.devices.get(device_id, {})
-        return False if prev == new else True
+        return bool(prev != new)
 
     def upsert_state(self: Blink2Mqtt, device_id: str, **kwargs: dict[str, Any] | str | int | bool | None) -> bool:
         MERGER = Merger(
@@ -508,4 +508,4 @@ class HelpersMixin:
             else:
                 self.dirty[device_id].add((section, ""))
         new = self.states.get(device_id, {})
-        return False if prev == new else True
+        return bool(prev != new)

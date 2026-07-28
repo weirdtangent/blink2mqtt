@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 class RefreshMixin:
-    async def refresh_all_devices(self: "Blink2Mqtt") -> None:
+    async def refresh_all_devices(self: Blink2Mqtt) -> None:
         self.logger.info(f"refreshing all devices from Blink (every {self.device_interval} sec)")
         await self.blink_refresh()
 
@@ -33,10 +33,10 @@ class RefreshMixin:
         ]
         await asyncio.gather(*tasks)
 
-    async def refresh_snapshot_all_devices(self: "Blink2Mqtt") -> None:
+    async def refresh_snapshot_all_devices(self: Blink2Mqtt) -> None:
         await self.refresh_snapshot_devices(list(self.blink_cameras))
 
-    async def refresh_snapshot_devices(self: "Blink2Mqtt", device_ids: list[str], update_last_snapshot: bool = True) -> None:
+    async def refresh_snapshot_devices(self: Blink2Mqtt, device_ids: list[str], update_last_snapshot: bool = True) -> None:
         active_device_ids = [device_id for device_id in device_ids if device_id in self.blink_cameras]
         if not active_device_ids:
             return
@@ -59,14 +59,14 @@ class RefreshMixin:
             for device_id in active_device_ids:
                 self.upsert_state(device_id, internal={"last_snapshot": now})
 
-    async def refresh_snapshot(self: "Blink2Mqtt", device_id: str, type: str) -> None:
+    async def refresh_snapshot(self: Blink2Mqtt, device_id: str, type: str) -> None:
         states = self.states[device_id]
         image = await self.get_snapshot_from_device(device_id)
 
         # only store and send to MQTT if we got an image AND the image has changed
         if image and (type not in states or states[type] is None or states[type] != image):
             states[type] = image
-            self.upsert_state(device_id, sensor={"last_event": "Timed snapshot", "last_event_time": datetime.now(timezone.utc).isoformat()})
+            self.upsert_state(device_id, sensor={"last_event": "Timed snapshot", "last_event_time": datetime.now(UTC).isoformat()})
             await asyncio.gather(self.publish_device_state(device_id), self.publish_device_image(device_id, type))
             # save snapshot to media directory if configured
             if self.config.get("media", {}).get("path"):
