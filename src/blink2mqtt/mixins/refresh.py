@@ -59,15 +59,15 @@ class RefreshMixin:
             for device_id in active_device_ids:
                 self.upsert_state(device_id, internal={"last_snapshot": now})
 
-    async def refresh_snapshot(self: Blink2Mqtt, device_id: str, type: str) -> None:
+    async def refresh_snapshot(self: Blink2Mqtt, device_id: str, snapshot_type: str) -> None:
         states = self.states[device_id]
         image = await self.get_snapshot_from_device(device_id)
 
         # only store and send to MQTT if we got an image AND the image has changed
-        if image and (type not in states or states[type] is None or states[type] != image):
-            states[type] = image
+        if image and (snapshot_type not in states or states[snapshot_type] is None or states[snapshot_type] != image):
+            states[snapshot_type] = image
             self.upsert_state(device_id, sensor={"last_event": "Timed snapshot", "last_event_time": datetime.now(UTC).isoformat()})
-            await asyncio.gather(self.publish_device_state(device_id), self.publish_device_image(device_id, type))
+            await asyncio.gather(self.publish_device_state(device_id), self.publish_device_image(device_id, snapshot_type))
             # save snapshot to media directory if configured
             if self.config.get("media", {}).get("path"):
                 await self.store_snapshot_in_media(device_id, image)
