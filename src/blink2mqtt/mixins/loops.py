@@ -14,20 +14,24 @@ class LoopsMixin:
     async def device_list_loop(self: Blink2Mqtt) -> None:
         while self.running:
             try:
-                await asyncio.sleep(self.device_list_interval)
+                await asyncio.sleep(max(1, self.device_list_interval))
                 await self.refresh_device_list()
             except asyncio.CancelledError:
                 self.logger.debug("device_list_loop cancelled during sleep")
                 break
+            except Exception:
+                self.logger.exception("unexpected error in device_list_loop; continuing")
 
     async def device_loop(self: Blink2Mqtt) -> None:
         while self.running:
             try:
-                await asyncio.sleep(self.device_interval)
+                await asyncio.sleep(max(1, self.device_interval))
                 await self.refresh_all_devices()
             except asyncio.CancelledError:
                 self.logger.debug("device_loop cancelled during sleep")
                 break
+            except Exception:
+                self.logger.exception("unexpected error in device_loop; continuing")
 
     async def collect_snapshots_loop(self: Blink2Mqtt) -> None:
         while self.running:
@@ -55,6 +59,8 @@ class LoopsMixin:
             except asyncio.CancelledError:
                 self.logger.debug("snapshot_loop cancelled during sleep")
                 break
+            except Exception:
+                self.logger.exception("unexpected error in collect_snapshots_loop; continuing")
 
     async def collect_events_loop(self: Blink2Mqtt) -> None:
         while self.running:
@@ -97,6 +103,8 @@ class LoopsMixin:
             except asyncio.CancelledError:
                 self.logger.debug("heartbeat cancelled during sleep")
                 break
+            except Exception:
+                self.logger.exception("unexpected error in heartbeat; continuing")
 
     # main loop
     async def main_loop(self: Blink2Mqtt) -> None:

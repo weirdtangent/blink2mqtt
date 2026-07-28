@@ -12,6 +12,7 @@ class FakeRefresher(HelpersMixin, RefreshMixin):
         self.logger = MagicMock()
         self.loop = MagicMock()
         self.running = True
+        self.config = {}
         self.device_interval = 30
         self.snapshot_interval_wired_minutes = 5
         self.snapshot_interval_battery_hours = 0

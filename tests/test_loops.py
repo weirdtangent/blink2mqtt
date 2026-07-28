@@ -78,6 +78,30 @@ class TestDeviceLoop:
 
         looper.logger.debug.assert_called()
 
+    @pytest.mark.asyncio
+    async def test_survives_refresh_error_and_retries(self):
+        # a transient error from refresh_all_devices must NOT kill the loop
+        # (regression: an unhandled exception used to propagate and stop the whole service)
+        looper = FakeLooper()
+        calls = {"n": 0}
+
+        async def flaky_refresh():
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise RuntimeError("transient blink api error")
+            looper.running = False  # let the loop exit on the second pass
+
+        looper.refresh_all_devices = flaky_refresh
+
+        async def mock_sleep(seconds):
+            return None
+
+        with patch("blink2mqtt.mixins.loops.asyncio.sleep", side_effect=mock_sleep):
+            await looper.device_loop()  # must not raise
+
+        assert calls["n"] == 2  # kept looping after the error
+        looper.logger.exception.assert_called()
+
 
 class TestHeartbeat:
     @pytest.mark.asyncio
@@ -186,7 +210,7 @@ class TestMainLoop:
         assert call_order == ["connect", "refresh_device_list", "refresh_snapshot"]
 
     @pytest.mark.asyncio
-    async def test_creates_4_tasks(self):
+    async def test_creates_5_tasks(self):
         looper = FakeLooper()
         looper.connect = AsyncMock()
         looper.refresh_device_list = AsyncMock()
@@ -207,8 +231,9 @@ class TestMainLoop:
         ):
             await looper.main_loop()
 
-        assert len(created_tasks) == 4
+        assert len(created_tasks) == 5
         assert "device_list_loop" in created_tasks
         assert "device_loop" in created_tasks
         assert "collect_snapshots_loop" in created_tasks
+        assert "cleanup_snapshots_loop" in created_tasks
         assert "heartbeat" in created_tasks
