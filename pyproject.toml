@@ -85,7 +85,7 @@ line-length = 160
 indent-width = 4
 
 # Assume Python 3.13
-target-version = "py313"
+target-version = "py312"
 
 [tool.ruff.lint]
 ignore = [
@@ -138,7 +138,7 @@ dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
-    "ruff>=0.14.1",
+    "ruff>=0.16.2",
     "types-pyyaml>=6.0.12.20260724",
     "pip-audit>=2.10.1",
 ]
