@@ -23,7 +23,7 @@ blink2mqtt = "blink2mqtt.app:main"
 
 [project.optional-dependencies]
 dev = [
-    # linting/formating/static typing
+    # linting/formatting/static typing
     "ruff>=0.16.2",
 
     # testing/coverage
