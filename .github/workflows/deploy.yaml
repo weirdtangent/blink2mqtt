@@ -175,6 +175,7 @@ jobs:
 
       - name: Run Trivy vulnerability scanner
         id: trivy
+        continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: graystorm/blink2mqtt@${{ steps.build-and-push.outputs.digest }}
@@ -182,9 +183,28 @@ jobs:
           output: trivy-results.sarif
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
+          exit-code: '0'  # findings must never fail the step; only scanner/infra errors
+
+      - name: Run Trivy vulnerability scanner (retry)
+        id: trivy-retry
+        if: steps.trivy.outcome == 'failure'
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: graystorm/blink2mqtt@${{ steps.build-and-push.outputs.digest }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'  # findings must never fail the step; only scanner/infra errors
+
+      - name: Warn if Trivy scan failed on both attempts
+        if: steps.trivy.outcome == 'failure' && steps.trivy-retry.outcome != 'success'
+        run: echo "::warning::Trivy scan failed on both attempts (usually a transient download failure); no SARIF uploaded for this build."
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@27fcff4ecb39e96348e7ceddcc2d9ef42308b6fc # v4
-        if: always() && steps.trivy.outcome == 'success' && hashFiles('trivy-results.sarif') != ''
+        if: always() && (steps.trivy.outcome == 'success' || steps.trivy-retry.outcome == 'success')
+          && hashFiles('trivy-results.sarif') != ''
         with:
           sarif_file: trivy-results.sarif
