@@ -6,8 +6,8 @@ echo "Running pre-commit checks..."
 echo "  ruff..."
 uv run ruff check src
 
-echo "  black..."
-uv run black --check --quiet .
+echo "  format..."
+uv run ruff format --check --quiet .
 
 echo "  mypy..."
 uv run mypy .
