@@ -118,6 +118,12 @@ class HelpersMixin:
                 self.logger.error(f"received command for unknown: {handler} with payload {message}")
 
     async def handle_service_command(self: Blink2Mqtt, handler: str, message: Any) -> None:
+        # Non-numeric commands must be handled ahead of the int() below, which every other
+        # service command depends on.
+        if handler == "reset_discovery":
+            await self.reset_discovery(reason="requested over MQTT")
+            return
+
         try:
             value = int(message)
         except (ValueError, TypeError):
@@ -145,12 +151,28 @@ class HelpersMixin:
                 return
         await self.publish_service_state()
 
+    async def clear_discovery(self: Blink2Mqtt) -> None:
+        """Delete every retained discovery topic we own.
+
+        The topic list comes from the broker, not from self.devices: this runs from
+        mqtt_on_connect, before the device map is populated, so anything derived from in-memory
+        state would miss every per-device topic and reduce a schema bump to an in-place update.
+        Resetting the `discovered` flags still matters for the manual reset, where devices *are*
+        loaded: publish_device_discovery() early-returns on is_discovered(), so without it the
+        republish would silently do nothing.
+        """
+        await self.clear_retained_discovery()
+        for device_id in list(self.devices):
+            self.upsert_state(device_id, internal={"discovered": False})
+
     async def rediscover_all(self: Blink2Mqtt) -> None:
         await self.publish_service_state()
         await self.publish_service_discovery()
         for device_id in self.devices:
-            await self.publish_device_state(device_id, publish_all=True)
+            # discovery first: publish_device_state() early-returns until is_discovered() is true,
+            # so publishing state first would drop it on any device that has just been cleared.
             await self.publish_device_discovery(device_id)
+            await self.publish_device_state(device_id, publish_all=True)
 
     # utilities -----------------------------------------------------------------------------------
 

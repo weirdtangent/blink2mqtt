@@ -13,6 +13,13 @@ if TYPE_CHECKING:
 
 
 class MqttMixin(BaseMqttMixin):
+    # Bump ONLY when the entity layout changes: unique_ids, entity names, or the set of components
+    # published. A bump clears retained discovery on next connect, which drops the entities from
+    # HA's registry -- losing renames, areas, and hidden/disabled flags -- before recreating them.
+    #
+    # 1: baseline (2026-08) -- first version to carry a schema stamp, plus the reset_discovery button
+    DISCOVERY_SCHEMA_VERSION = 1
+
     def mqtt_subscription_topics(self: Blink2Mqtt) -> list[str]:
         return [
             "homeassistant/status",

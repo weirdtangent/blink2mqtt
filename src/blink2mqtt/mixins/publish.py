@@ -105,6 +105,14 @@ class PublishMixin:
                     "mode": "box",
                     "icon": "mdi:lightning-bolt",
                 },
+                "reset_discovery": {
+                    "platform": "button",
+                    "name": "Reset discovery",
+                    "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "reset_discovery"),
+                    "cmd_t": self.mqtt_helper.cmd_t(device_id, "reset_discovery"),
+                    "entity_category": "diagnostic",
+                    "icon": "mdi:refresh-circle",
+                },
                 "snapshot_interval_battery_hours": {
                     "platform": "number",
                     "name": "Snapshot interval (battery)",
