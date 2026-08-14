@@ -73,7 +73,7 @@ class PublishMixin:
                     "platform": "number",
                     "name": "Refresh interval",
                     "uniq_id": self.mqtt_helper.dev_unique_id(device_id, "refresh_interval"),
-                    "obj_id": self.mqtt_helper.obj_id(self.service, "refresh_interval"),
+                    "obj_id": self.mqtt_helper.obj_id(self.service, "update_interval"),
                     "stat_t": self.mqtt_helper.stat_t(device_id, "service", "refresh_interval"),
                     "cmd_t": self.mqtt_helper.cmd_t(device_id, "refresh_interval"),
                     "unit_of_measurement": "s",
