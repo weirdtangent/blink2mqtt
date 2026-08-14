@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
+import re
 from unittest.mock import MagicMock
 
 from blink2mqtt.mixins.blink import BlinkMixin
@@ -10,6 +11,7 @@ class FakeBlinkDevice(BlinkMixin):
         self.logger = MagicMock()
         self.mqtt_helper = MagicMock()
         self.mqtt_helper.service_slug = "blink2mqtt"
+        self.mqtt_helper.obj_id = MagicMock(side_effect=lambda dev, e="": re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", f"{dev} {e}".lower())).strip("_"))
         self.devices = {}
         self.states = {}
 

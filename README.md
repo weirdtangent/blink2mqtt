@@ -189,3 +189,28 @@ useful to myself and others, not for any financial gain - but any token of appre
 ![Provenance](https://img.shields.io/badge/provenance-attested-green?logo=sigstore)
 ![Signed](https://img.shields.io/badge/cosign-signed-green?logo=sigstore)
 ![Trivy](https://img.shields.io/badge/trivy-scanned-green?logo=aquasecurity)
+
+## Entity IDs and the `unique_id` contract
+
+Home Assistant assigns an `entity_id` **once**, at first discovery, and keys its registry on
+`unique_id`. It never reassigns that `entity_id` afterwards — not when the entity is renamed, and
+not when discovery is cleared and republished. This was verified directly: clearing the retained
+discovery topic, waiting 25 seconds, and republishing restores the *identical* `entity_id`.
+
+Two rules follow, and breaking either one strands an entity permanently:
+
+1. **Never reuse a `unique_id` for a different entity.** If a component's meaning changes, mint a
+   new `unique_id` deliberately.
+2. **Every component publishes an explicit `obj_id`**, derived from its stable component key rather
+   than its display name. Without it HA derives the `entity_id` from the display name, so renaming
+   a component in a later release leaves its `entity_id` describing the old name — and a
+   differently-named component can end up owning it.
+
+### If an entity_id is already wrong
+
+It cannot be fixed from this service, because no MQTT message can reassign an `entity_id`. Rename
+it in Home Assistant under **Settings → Devices & Services → Entities**. If two entities have
+swapped ids, rename the squatter first to free the id, then rename the correct entity into it.
+
+The **Reset discovery** button clears and republishes retained discovery and sweeps orphaned
+configs for devices that no longer exist. It does *not* reassign `entity_id`s.
