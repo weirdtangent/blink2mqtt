@@ -2,6 +2,7 @@
 # Copyright (c) 2025 Jeff Culverhouse
 """Tests for clearing/rebuilding HA discovery when the entity layout changes."""
 
+import re
 import pytest
 from unittest.mock import AsyncMock, MagicMock, call
 
@@ -16,6 +17,7 @@ class FakeService(HelpersMixin, PublishMixin, MqttMixin):
         self.mqtt_config = {"discovery_prefix": "homeassistant"}
         self.mqtt_helper = MagicMock()
         self.mqtt_helper.service_slug = "blink2mqtt"
+        self.mqtt_helper.obj_id = MagicMock(side_effect=lambda dev, e="": re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", f"{dev} {e}".lower())).strip("_"))
         self.mqtt_helper.disc_t = MagicMock(side_effect=lambda kind, did: f"homeassistant/{kind}/blink2mqtt_{did}/config")
         self.devices = {d: {"component": {}} for d in (devices or [])}
         self.states = {d: {"internal": {"discovered": True}} for d in (devices or [])}

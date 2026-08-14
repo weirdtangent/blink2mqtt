@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
+import re
 import json
 import pytest
 from unittest.mock import AsyncMock, MagicMock
@@ -14,6 +15,7 @@ class FakeMqtt(MqttMixin):
         self.mqtt_config = {"discovery_prefix": "homeassistant"}
         self.mqtt_helper = MagicMock()
         self.mqtt_helper.service_slug = "blink2mqtt"
+        self.mqtt_helper.obj_id = MagicMock(side_effect=lambda dev, e="": re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", f"{dev} {e}".lower())).strip("_"))
         self.devices = {}
         self.states = {}
 
