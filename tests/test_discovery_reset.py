@@ -34,21 +34,37 @@ def _cleared_topics(svc):
 
 class TestClearDiscovery:
     @pytest.mark.asyncio
-    async def test_clears_service_and_every_device(self):
-        svc = FakeService(devices=["CAM1", "CAM2"])
+    async def test_delegates_to_the_broker_sweep(self):
+        """The device map is empty at connect time, so the topic list must come from the broker."""
+        svc = FakeService()
+        svc.clear_retained_discovery = AsyncMock()
+
+        await svc.clear_discovery()
+
+        svc.clear_retained_discovery.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_clears_topics_the_device_map_never_knew_about(self):
+        svc = FakeService()  # no devices loaded yet, exactly as at mqtt_on_connect
+        svc.collect_retained_discovery_topics = AsyncMock(
+            return_value=[
+                "homeassistant/device/blink2mqtt_CAM1/config",
+                "homeassistant/device/blink2mqtt_service/config",
+            ]
+        )
 
         await svc.clear_discovery()
 
         assert _cleared_topics(svc) == [
-            "homeassistant/device/blink2mqtt_service/config",
             "homeassistant/device/blink2mqtt_CAM1/config",
-            "homeassistant/device/blink2mqtt_CAM2/config",
+            "homeassistant/device/blink2mqtt_service/config",
         ]
 
     @pytest.mark.asyncio
     async def test_clears_with_empty_payload_retained(self):
         """An empty payload removes the registry entry; None would publish the string "null"."""
-        svc = FakeService(devices=["CAM1"])
+        svc = FakeService()
+        svc.collect_retained_discovery_topics = AsyncMock(return_value=["homeassistant/device/blink2mqtt_service/config"])
 
         await svc.clear_discovery()
 
@@ -60,6 +76,7 @@ class TestClearDiscovery:
     async def test_clears_discovered_flag_or_republish_is_a_no_op(self):
         """publish_device_discovery() early-returns on is_discovered(), so this flag must drop."""
         svc = FakeService(devices=["CAM1"])
+        svc.clear_retained_discovery = AsyncMock()
         assert svc.is_discovered("CAM1") is True
 
         await svc.clear_discovery()
