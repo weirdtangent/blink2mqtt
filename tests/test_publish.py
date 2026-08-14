@@ -51,7 +51,7 @@ class TestServiceDiscovery:
 
         assert topic == "homeassistant/device/blink2mqtt_service/config"
         assert "cmps" in payload
-        assert len(payload["cmps"]) == 7
+        assert len(payload["cmps"]) == 8
 
     @pytest.mark.asyncio
     async def test_service_discovery_marks_discovered(self):
