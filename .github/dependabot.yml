@@ -16,3 +16,11 @@ updates:
           all-actions:
               patterns:
                   - "*"
+    - package-ecosystem: "docker"
+      directory: "/"
+      schedule:
+          interval: "weekly"
+      groups:
+          all-docker:
+              patterns:
+                  - "*"
