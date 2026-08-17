@@ -24,7 +24,7 @@ blink2mqtt = "blink2mqtt.app:main"
 [project.optional-dependencies]
 dev = [
     # linting/formatting/static typing
-    "ruff>=0.16.2",
+    "ruff>=0.16.3",
 
     # testing/coverage
     "pytest>=9.1.1",
@@ -138,7 +138,7 @@ dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
-    "ruff>=0.16.2",
+    "ruff>=0.16.3",
     "types-pyyaml>=6.0.12.20260724",
     "pip-audit>=2.10.1",
 ]
