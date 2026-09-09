@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=84.0.0", "setuptools-scm>=10.2.1", "wheel"]
+requires = ["setuptools>=84.0.0", "setuptools-scm>=10.2.3", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -10,7 +10,7 @@ license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
     "blinkpy>=0.25.9",
-    "deepmerge==3.0",
+    "deepmerge==3.0.1",
     "paho-mqtt>=2.1.0",
     "pyyaml>=6.0.3",
     "requests>=2.34.2",
@@ -24,7 +24,7 @@ blink2mqtt = "blink2mqtt.app:main"
 [project.optional-dependencies]
 dev = [
     # linting/formatting/static typing
-    "ruff>=0.16.5",
+    "ruff>=0.16.6",
 
     # testing/coverage
     "pytest>=9.1.1",
@@ -138,7 +138,7 @@ dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
-    "ruff>=0.16.5",
+    "ruff>=0.16.6",
     "types-pyyaml>=6.0.12.20260815",
     "pip-audit>=2.10.1",
 ]
