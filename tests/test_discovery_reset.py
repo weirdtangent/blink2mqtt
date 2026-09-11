@@ -6,6 +6,7 @@ import re
 from unittest.mock import AsyncMock, MagicMock, call
 
 import pytest
+from mqtt_helper import MqttHelper
 
 from blink2mqtt.mixins.helpers import HelpersMixin
 from blink2mqtt.mixins.mqtt import MqttMixin
@@ -19,6 +20,8 @@ class FakeService(HelpersMixin, PublishMixin, MqttMixin):
         self.mqtt_helper = MagicMock()
         self.mqtt_helper.service_slug = "blink2mqtt"
         self.mqtt_helper.obj_id = MagicMock(side_effect=lambda dev, e="": re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", f"{dev} {e}".lower())).strip("_"))
+        # the real rewrite -- this is the step HA's entity_ids depend on, so it must not be a stub
+        self.mqtt_helper.apply_default_entity_ids = MagicMock(side_effect=MqttHelper("blink2mqtt").apply_default_entity_ids)
         self.mqtt_helper.disc_t = MagicMock(side_effect=lambda kind, did: f"homeassistant/{kind}/blink2mqtt_{did}/config")
         self.devices = {d: {"component": {}} for d in (devices or [])}
         self.states = {d: {"internal": {"discovered": True}} for d in (devices or [])}

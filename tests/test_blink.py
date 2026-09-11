@@ -3,6 +3,8 @@
 import re
 from unittest.mock import AsyncMock, MagicMock
 
+from mqtt_helper import MqttHelper
+
 from blink2mqtt.mixins.blink import BlinkMixin
 
 
@@ -12,6 +14,8 @@ class FakeBlinkDevice(BlinkMixin):
         self.mqtt_helper = MagicMock()
         self.mqtt_helper.service_slug = "blink2mqtt"
         self.mqtt_helper.obj_id = MagicMock(side_effect=lambda dev, e="": re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", f"{dev} {e}".lower())).strip("_"))
+        # the real rewrite -- this is the step HA's entity_ids depend on, so it must not be a stub
+        self.mqtt_helper.apply_default_entity_ids = MagicMock(side_effect=MqttHelper("blink2mqtt").apply_default_entity_ids)
         self.devices = {}
         self.states = {}
 
