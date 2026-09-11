@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
 import os
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
 from mqtt_helper import ConfigError
+
 from blink2mqtt.mixins.helpers import HelpersMixin
 
 

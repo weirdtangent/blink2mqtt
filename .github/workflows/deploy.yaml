@@ -50,7 +50,7 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Ruff
-        run: uv run ruff check src
+        run: uv run ruff check .
 
       - name: Format (ruff)
         run: |

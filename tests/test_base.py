@@ -1,15 +1,14 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
 
 from blink2mqtt.base import Base
 
 
 class FakeBase(Base):
     """Minimal subclass so super() works in Base.__aenter__/__aexit__."""
-
-    pass
 
 
 class TestContextManager:
