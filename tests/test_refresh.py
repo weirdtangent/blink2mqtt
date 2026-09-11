@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from blink2mqtt.mixins.refresh import RefreshMixin
+import pytest
+
 from blink2mqtt.mixins.helpers import HelpersMixin
+from blink2mqtt.mixins.refresh import RefreshMixin
 
 
 class FakeRefresher(HelpersMixin, RefreshMixin):

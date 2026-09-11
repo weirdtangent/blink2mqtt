@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from blink2mqtt.mixins.loops import LoopsMixin
+import pytest
+
 from blink2mqtt.mixins.helpers import HelpersMixin
+from blink2mqtt.mixins.loops import LoopsMixin
 
 
 class FakeLooper(HelpersMixin, LoopsMixin):

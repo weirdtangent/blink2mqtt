@@ -3,8 +3,9 @@
 """Tests for clearing/rebuilding HA discovery when the entity layout changes."""
 
 import re
-import pytest
 from unittest.mock import AsyncMock, MagicMock, call
+
+import pytest
 
 from blink2mqtt.mixins.helpers import HelpersMixin
 from blink2mqtt.mixins.mqtt import MqttMixin
