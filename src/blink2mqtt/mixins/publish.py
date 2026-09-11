@@ -138,7 +138,7 @@ class PublishMixin:
         }
 
         topic = self.mqtt_helper.disc_t("device", device_id)
-        await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(device))
+        await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(self.mqtt_helper.apply_default_entity_ids(device)))
         self.upsert_state(device_id, internal={"discovered": True})
 
         self.logger.debug(f"discovery published for {self.service} ({self.mqtt_helper.service_slug})")
@@ -172,7 +172,7 @@ class PublishMixin:
             return
 
         topic = self.mqtt_helper.disc_t("device", device_id)
-        component = self.get_component(device_id)
+        component = self.mqtt_helper.apply_default_entity_ids(self.get_component(device_id))
         await asyncio.to_thread(self.mqtt_helper.safe_publish, topic, json.dumps(component))
         self.upsert_state(device_id, internal={"discovered": True})
 
