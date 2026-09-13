@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__home-assistant__search_entities_tool"
+    ]
+  }
+}

@@ -28,7 +28,9 @@ class HelpersMixin:
         # update states for cameras
         if device_id in self.blink_cameras:
             device = self.blink_cameras[device_id]
-            prev_clip_count = self.states.get(device_id, {}).get("clip_count", 0)
+            # None = we have not observed this camera yet (fresh start / first poll), which is
+            # different from having observed zero clips. Defaulting to 0 conflated the two.
+            prev_clip_count = self.states.get(device_id, {}).get("clip_count")
             new_clip_count = len(device.get("recent_clips") or [])
             nightvision = await self.get_nightvision(device_id) if self.blink_cameras[device_id]["supports_get_config"] else ""
             save_snapshots_default = "ON" if "path" in self.config.get("media", {}) else "OFF"
@@ -50,9 +52,13 @@ class HelpersMixin:
                 select={"nightvision": nightvision},
                 clip_count=new_clip_count,
             )
-            # publish vision request when new clips appear (reliable motion indicator)
+            # publish vision request when new clips appear (reliable motion indicator).
+            # Skip the very first poll, where every pre-existing clip would look "new" and
+            # would fire vision on stale footage. Any increase after that is real motion --
+            # including 0 -> 1, which the previous `prev_clip_count > 0` guard dropped, so a
+            # camera sitting at zero clips could never start feeding vision.
             self.logger.debug(f"[clip_check] '{self.get_device_name(device_id)}' prev={prev_clip_count} new={new_clip_count} motion={device['motion']}")
-            if new_clip_count > prev_clip_count > 0:
+            if prev_clip_count is not None and new_clip_count > prev_clip_count:
                 self.logger.debug(
                     f"[clip_check] new clips detected for '{self.get_device_name(device_id)}' ({prev_clip_count} -> {new_clip_count}), triggering vision request"
                 )
