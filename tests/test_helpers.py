@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Jeff Culverhouse
+import asyncio
 import os
 from unittest.mock import MagicMock
 
@@ -277,3 +278,75 @@ blink:
 
         assert config["blink"]["snapshot_interval_wired_minutes"] == 10
         assert config["blink"]["snapshot_interval_battery_hours"] == 0
+
+
+class FakeClipCheck(HelpersMixin):
+    """Minimal harness for build_camera_states' clip-count -> vision-request gate."""
+
+    def __init__(self, recent_clips, prior_state=None):
+        self.logger = MagicMock()
+        self.dirty = {}
+        self.config = {}
+        self.blink_cameras = {
+            "cam1": {
+                "battery": "ok",
+                "temperature": 70,
+                "wifi_strength": -50,
+                "motion": False,
+                "motion_detection": True,
+                "supports_get_config": False,
+                "recent_clips": recent_clips,
+            }
+        }
+        self.states = {"cam1": prior_state} if prior_state is not None else {}
+        self.vision_calls = []
+
+    def upsert_state(self, device_id, **kwargs):
+        self.states.setdefault(device_id, {}).update(kwargs)
+
+    def get_device_name(self, device_id):
+        return device_id
+
+    async def _capture_and_publish_vision(self, device_id):
+        self.vision_calls.append(device_id)
+
+
+class TestClipCountVisionGate:
+    @pytest.mark.asyncio
+    async def test_first_poll_does_not_fire_on_preexisting_clips(self):
+        """A fresh start sees existing clips; those are not new motion."""
+        h = FakeClipCheck(recent_clips=["a", "b", "c"])
+        await h.build_camera_states("cam1", {})
+        await asyncio.sleep(0)  # let create_task()-scheduled vision work run
+        assert h.vision_calls == []
+        assert h.states["cam1"]["clip_count"] == 3
+
+    @pytest.mark.asyncio
+    async def test_fires_on_first_clip_from_zero(self):
+        """Regression: 0 -> 1 used to be dropped by `prev_clip_count > 0`, so a camera
+        sitting at zero clips could never start feeding vision."""
+        h = FakeClipCheck(recent_clips=["a"], prior_state={"clip_count": 0})
+        await h.build_camera_states("cam1", {})
+        await asyncio.sleep(0)  # let create_task()-scheduled vision work run
+        assert h.vision_calls == ["cam1"]
+
+    @pytest.mark.asyncio
+    async def test_fires_on_subsequent_increase(self):
+        h = FakeClipCheck(recent_clips=["a", "b"], prior_state={"clip_count": 1})
+        await h.build_camera_states("cam1", {})
+        await asyncio.sleep(0)  # let create_task()-scheduled vision work run
+        assert h.vision_calls == ["cam1"]
+
+    @pytest.mark.asyncio
+    async def test_does_not_fire_when_count_is_unchanged(self):
+        h = FakeClipCheck(recent_clips=["a"], prior_state={"clip_count": 1})
+        await h.build_camera_states("cam1", {})
+        await asyncio.sleep(0)  # let create_task()-scheduled vision work run
+        assert h.vision_calls == []
+
+    @pytest.mark.asyncio
+    async def test_does_not_fire_when_clips_rotate_away(self):
+        h = FakeClipCheck(recent_clips=[], prior_state={"clip_count": 3})
+        await h.build_camera_states("cam1", {})
+        await asyncio.sleep(0)  # let create_task()-scheduled vision work run
+        assert h.vision_calls == []
