@@ -123,13 +123,36 @@ jobs:
     needs: [release]
     if: needs.release.result == 'success'
     runs-on: ubuntu-latest
-    env:
-      RELEASE_VERSION: ${{ needs.release.outputs.version }}
-      RELEASE_TAG: ${{ needs.release.outputs.tag }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Fetch tags
+        run: git fetch --tags --force
+
+      # metadata-action evaluates its tag list when IT runs, so the version has to
+      # be resolved before it. semantic-release only emits a version when it really
+      # publishes one — a chore(deps) merge or the monthly rebuild publishes nothing —
+      # so fall back to the newest tag. Leaving it empty drops the version tag and
+      # pushes a :latest that matches no release.
+      - name: Resolve image version
+        run: |
+          VERSION="${{ needs.release.outputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION=$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n 1)
+            if [ -z "$VERSION" ]; then
+              echo "No release and no tags — defaulting to 0.0.0"
+              VERSION="0.0.0"
+            else
+              echo "No new release; reusing newest tag: $VERSION"
+            fi
+          fi
+          # Image tags and SETUPTOOLS_SCM_PRETEND_VERSION both want PEP 440, so drop
+          # the leading v that git tags carry.
+          VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Image version: $VERSION"
 
       - name: Login to Docker Hub
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v3
@@ -151,7 +174,7 @@ jobs:
         with:
           images: graystorm/blink2mqtt
           tags: |
-            type=raw,value=${{ env.RELEASE_TAG }}
+            type=raw,value=${{ env.VERSION }}
             type=raw,value=latest
           labels: |
             org.opencontainers.image.title=blink2mqtt
@@ -160,25 +183,6 @@ jobs:
             org.opencontainers.image.documentation=https://github.com/${{ github.repository }}#readme
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-
-      - name: Fetch tags
-        run: git fetch --tags --force
-
-
-      - name: Ensure VERSION is set
-        id: version-fallback
-        run: |
-          if [ -z "${{ needs.release.outputs.version }}" ]; then
-            TAG=$(git tag --sort=-creatordate | head -n 1)
-            if [ -z "$TAG" ]; then
-              echo "No tags found — defaulting to 0.0.0"
-              TAG="0.0.0"
-            fi
-            echo "Using existing tag: $TAG"
-            echo "VERSION=$TAG" >> $GITHUB_ENV
-          else
-            echo "VERSION=${{ needs.release.outputs.version }}" >> $GITHUB_ENV
-          fi
 
       - name: Build and push
         id: build-and-push
