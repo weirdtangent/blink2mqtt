@@ -57,11 +57,18 @@ class HelpersMixin:
             # would fire vision on stale footage. Any increase after that is real motion --
             # including 0 -> 1, which the previous `prev_clip_count > 0` guard dropped, so a
             # camera sitting at zero clips could never start feeding vision.
-            self.logger.debug(f"[clip_check] '{self.get_device_name(device_id)}' prev={prev_clip_count} new={new_clip_count} motion={device['motion']}")
+            name = self.get_device_name(device_id)
+            self.logger.debug(f"[clip_check] '{name}' prev={prev_clip_count} new={new_clip_count} motion={device['motion']}")
+            # Surface the clip count at INFO on first observation and on every change. A camera
+            # that never triggers vision is indistinguishable from one that is not being polled
+            # unless its actual count is visible somewhere, and the per-poll line above is debug
+            # (and stays debug: at a 30s refresh it would be ~14k lines/day for five cameras).
+            if prev_clip_count is None:
+                self.logger.info(f"[clip_check] '{name}' baseline clip_count={new_clip_count}")
+            elif new_clip_count != prev_clip_count:
+                self.logger.info(f"[clip_check] '{name}' clip_count {prev_clip_count} -> {new_clip_count}")
             if prev_clip_count is not None and new_clip_count > prev_clip_count:
-                self.logger.debug(
-                    f"[clip_check] new clips detected for '{self.get_device_name(device_id)}' ({prev_clip_count} -> {new_clip_count}), triggering vision request"
-                )
+                self.logger.info(f"[clip_check] new clips detected for '{name}' ({prev_clip_count} -> {new_clip_count}), triggering vision request")
                 asyncio.create_task(self._capture_and_publish_vision(device_id))
         # update states for sync modules
         elif device_id in self.blink_sync_modules:

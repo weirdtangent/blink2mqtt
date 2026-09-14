@@ -350,3 +350,38 @@ class TestClipCountVisionGate:
         await h.build_camera_states("cam1", {})
         await asyncio.sleep(0)  # let create_task()-scheduled vision work run
         assert h.vision_calls == []
+
+
+class TestClipCountVisibility:
+    """The clip count must be visible at INFO, or a camera that never triggers vision is
+    indistinguishable from one that is not being polled at all."""
+
+    @pytest.mark.asyncio
+    async def test_logs_baseline_at_info_on_first_observation(self):
+        h = FakeClipCheck(recent_clips=["a", "b"])
+        await h.build_camera_states("cam1", {})
+        msgs = [c.args[0] for c in h.logger.info.call_args_list]
+        assert any("baseline clip_count=2" in m for m in msgs), msgs
+
+    @pytest.mark.asyncio
+    async def test_logs_change_at_info(self):
+        h = FakeClipCheck(recent_clips=["a", "b"], prior_state={"clip_count": 1})
+        await h.build_camera_states("cam1", {})
+        await asyncio.sleep(0)
+        msgs = [c.args[0] for c in h.logger.info.call_args_list]
+        assert any("clip_count 1 -> 2" in m for m in msgs), msgs
+
+    @pytest.mark.asyncio
+    async def test_silent_at_info_when_unchanged(self):
+        """A steady count must not log per poll -- at a 30s refresh that is ~14k lines/day."""
+        h = FakeClipCheck(recent_clips=["a"], prior_state={"clip_count": 1})
+        await h.build_camera_states("cam1", {})
+        assert h.logger.info.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_logs_decrease_too(self):
+        """Clips rotating away is still information -- it explains a count that never climbs."""
+        h = FakeClipCheck(recent_clips=[], prior_state={"clip_count": 3})
+        await h.build_camera_states("cam1", {})
+        msgs = [c.args[0] for c in h.logger.info.call_args_list]
+        assert any("clip_count 3 -> 0" in m for m in msgs), msgs
