@@ -385,3 +385,31 @@ class TestClipCountVisibility:
         await h.build_camera_states("cam1", {})
         msgs = [c.args[0] for c in h.logger.info.call_args_list]
         assert any("clip_count 3 -> 0" in m for m in msgs), msgs
+
+
+class FakeNightvision(FakeClipCheck):
+    def __init__(self, nightvision, prior_state=None):
+        super().__init__(recent_clips=[], prior_state=prior_state)
+        self.blink_cameras["cam1"]["supports_get_config"] = True
+        self._nightvision = nightvision
+
+    async def get_nightvision(self, device_id):
+        return self._nightvision
+
+
+class TestNightvisionState:
+    """A failed config read must not publish None/"" -- HA rejects it as an invalid select
+    option, and at a 30s refresh that is ~2,600 error lines/day per affected camera."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("value", [None, ""])
+    async def test_failed_read_leaves_select_untouched(self, value):
+        h = FakeNightvision(value, prior_state={"clip_count": 0})
+        await h.build_camera_states("cam1", {})
+        assert h.states["cam1"]["select"] == {}
+
+    @pytest.mark.asyncio
+    async def test_successful_read_is_published(self):
+        h = FakeNightvision("auto", prior_state={"clip_count": 0})
+        await h.build_camera_states("cam1", {})
+        assert h.states["cam1"]["select"] == {"nightvision": "auto"}

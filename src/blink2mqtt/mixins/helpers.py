@@ -35,6 +35,9 @@ class HelpersMixin:
             nightvision = await self.get_nightvision(device_id) if self.blink_cameras[device_id]["supports_get_config"] else ""
             save_snapshots_default = "ON" if "path" in self.config.get("media", {}) else "OFF"
             current_save = self.states.get(device_id, {}).get("switch", {}).get("save_snapshots")
+            # A failed config read yields None/"" -- publishing that sends HA a 'null' select option,
+            # which it rejects as an error on every 30s poll. Leave the last known value in place.
+            select = {"nightvision": nightvision} if nightvision else {}
             self.upsert_state(
                 device_id,
                 sensor={
@@ -49,7 +52,7 @@ class HelpersMixin:
                     "motion_detection": "ON" if device["motion_detection"] else "OFF",
                     "save_snapshots": current_save or save_snapshots_default,
                 },
-                select={"nightvision": nightvision},
+                select=select,
                 clip_count=new_clip_count,
             )
             # publish vision request when new clips appear (reliable motion indicator).
