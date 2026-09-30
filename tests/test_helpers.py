@@ -396,6 +396,9 @@ class FakeNightvision(FakeClipCheck):
     async def get_nightvision(self, device_id):
         return self._nightvision
 
+    # the production nested merge + dirty tracking, not FakeClipCheck's shallow update
+    upsert_state = HelpersMixin.upsert_state
+
 
 class TestNightvisionState:
     """A failed config read must not publish None/"" -- HA rejects it as an invalid select
@@ -403,13 +406,15 @@ class TestNightvisionState:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("value", [None, ""])
-    async def test_failed_read_leaves_select_untouched(self, value):
-        h = FakeNightvision(value, prior_state={"clip_count": 0})
+    async def test_failed_read_keeps_last_known_value(self, value):
+        h = FakeNightvision(value, prior_state={"clip_count": 0, "select": {"nightvision": "auto"}})
         await h.build_camera_states("cam1", {})
-        assert h.states["cam1"]["select"] == {}
+        assert h.states["cam1"]["select"] == {"nightvision": "auto"}
+        assert ("select", "nightvision") not in h.dirty["cam1"]
 
     @pytest.mark.asyncio
     async def test_successful_read_is_published(self):
-        h = FakeNightvision("auto", prior_state={"clip_count": 0})
+        h = FakeNightvision("on", prior_state={"clip_count": 0, "select": {"nightvision": "auto"}})
         await h.build_camera_states("cam1", {})
-        assert h.states["cam1"]["select"] == {"nightvision": "auto"}
+        assert h.states["cam1"]["select"] == {"nightvision": "on"}
+        assert ("select", "nightvision") in h.dirty["cam1"]
