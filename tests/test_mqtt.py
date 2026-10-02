@@ -133,3 +133,22 @@ class TestHandleHomeassistantMessage:
         await MqttMixin.handle_homeassistant_message(mqtt, "offline")
 
         mqtt.rediscover_all.assert_not_called()
+
+
+class TestHandleDeviceTopic:
+    @pytest.mark.asyncio
+    async def test_unknown_device_warns_without_raising(self):
+        # a command for a device removed from the Blink account (e.g. a stale HA automation)
+        # must be logged and dropped, not crash the MQTT task with a KeyError
+        from blink2mqtt.mixins.helpers import HelpersMixin
+
+        mqtt = FakeMqtt()
+        mqtt.get_device_name = lambda device_id: HelpersMixin.get_device_name(mqtt, device_id)
+        mqtt.handle_device_command = AsyncMock()
+        components = ["blink2mqtt", "blink2mqtt_G8T1XX0000000ABC", "switch", "motion_detection", "set"]
+
+        await MqttMixin.handle_device_topic(mqtt, components, "ON")
+
+        mqtt.handle_device_command.assert_not_called()
+        mqtt.logger.warning.assert_called_once()
+        assert "G8T1XX0000000ABC" in mqtt.logger.warning.call_args[0][0]
