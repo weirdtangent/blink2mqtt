@@ -24,7 +24,7 @@ blink2mqtt = "blink2mqtt.app:main"
 [project.optional-dependencies]
 dev = [
     # linting/formatting/static typing
-    "ruff>=0.16.9",
+    "ruff>=0.16.10",
 
     # testing/coverage
     "pytest>=9.1.1",
@@ -134,11 +134,11 @@ mqtt-helper-graystorm = { git = "https://github.com/weirdtangent/mqtt-helper.git
 
 [dependency-groups]
 dev = [
-    "mypy>=2.3.1",
+    "mypy>=2.4.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
-    "ruff>=0.16.9",
+    "ruff>=0.16.10",
     "types-pyyaml>=6.0.12.20260906",
     "pip-audit>=2.10.1",
 ]
