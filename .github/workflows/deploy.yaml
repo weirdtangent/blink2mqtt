@@ -240,7 +240,7 @@ jobs:
         run: echo "::warning::Trivy scan failed on both attempts (usually a transient download failure); no SARIF uploaded for this build."
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@592d162ba3b2f5a3411d2cbf01df9f82c492f269 # v4
+        uses: github/codeql-action/upload-sarif@3ea37a44b6e4e6847c46edae209410d258d548d1 # v4
         if: always() && (steps.trivy.outcome == 'success' || steps.trivy-retry.outcome == 'success')
           && hashFiles('trivy-results.sarif') != ''
         with:
