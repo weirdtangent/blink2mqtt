@@ -50,12 +50,13 @@ class TestMqttSubscriptionTopics:
         assert "blink2mqtt/service/+/set" in topics
         assert "blink2mqtt/service/+/command" in topics
         assert "blink2mqtt/+/switch/+/set" in topics
+        assert "blink2mqtt/+/select/+/set" in topics
 
     def test_returns_list(self):
         mqtt = FakeMqtt()
         topics = mqtt.mqtt_subscription_topics()
         assert isinstance(topics, list)
-        assert len(topics) == 4
+        assert len(topics) == 5
 
 
 class TestMqttOnMessage:
@@ -152,3 +153,28 @@ class TestHandleDeviceTopic:
         mqtt.handle_device_command.assert_not_called()
         mqtt.logger.warning.assert_called_once()
         assert "G8T1XX0000000ABC" in mqtt.logger.warning.call_args[0][0]
+
+
+class TestCommandTopicsAreSubscribed:
+    """A component whose cmd_t no subscription matches is a control that silently does nothing --
+    the night vision select published on <camera>/select/nightvision/set, which nothing listened to."""
+
+    @pytest.mark.parametrize(
+        "parts",
+        [
+            ("switch", "armed"),
+            ("switch", "motion_detection"),
+            ("switch", "save_snapshots"),
+            ("select", "nightvision"),
+        ],
+    )
+    def test_command_topic_is_subscribed(self, parts):
+        from paho.mqtt.client import topic_matches_sub
+
+        fake = FakeMqtt()
+        helper = MqttHelper("blink2mqtt")
+        fake.mqtt_helper = helper
+        topic = helper.cmd_t("CAM1", *parts)
+
+        assert any(topic_matches_sub(sub, topic) for sub in fake.mqtt_subscription_topics())
+        assert parse_device_topic(topic.split("/"))[2] == parts[1]
