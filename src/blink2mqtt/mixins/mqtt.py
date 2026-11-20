@@ -26,6 +26,7 @@ class MqttMixin(BaseMqttMixin):
             f"{self.mqtt_helper.service_slug}/service/+/set",
             f"{self.mqtt_helper.service_slug}/service/+/command",
             f"{self.mqtt_helper.service_slug}/+/switch/+/set",
+            f"{self.mqtt_helper.service_slug}/+/select/+/set",
         ]
 
     async def mqtt_on_message(self: Blink2Mqtt, client: Client, userdata: Any, msg: MQTTMessage) -> None:
